@@ -62,3 +62,37 @@ export interface TransactionDTO {
   category: string;
   status: string;
 }
+
+export interface AccountBalanceDTO {
+  type: string;
+  amount: string;
+  currency: string;
+}
+
+export interface AccountDTO {
+  id: string;
+  name: string | null;
+  nickname: string | null;
+  displayName: string;
+  iban: string | null;
+  currency: string | null;
+  balances: AccountBalanceDTO[];
+}
+
+export interface BankDTO {
+  requisitionId: string;
+  institutionId: string;
+  institutionName: string;
+  status: string;
+  accounts: AccountDTO[];
+}
+
+export interface RemoveBankResult {
+  deleted: boolean;
+  remoteDeleted: boolean;
+}
+
+export interface NicknameResult {
+  id: string;
+  displayName: string;
+}
