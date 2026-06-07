@@ -54,6 +54,10 @@ export class GoCardlessClient {
     return this.request(`/api/v2/requisitions/${id}/`);
   }
 
+  deleteRequisition(id: string): Promise<unknown> {
+    return this.request(`/api/v2/requisitions/${id}/`, { method: "DELETE" });
+  }
+
   getAccountDetails(id: string): Promise<GcAccountDetails> {
     return this.request(`/api/v2/accounts/${id}/details/`);
   }
