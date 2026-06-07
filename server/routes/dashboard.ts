@@ -3,19 +3,24 @@ import { z } from "zod";
 import { db } from "../lib/db.ts";
 import { spendingByCategory, monthlyTotals, topMerchants, type AggTx } from "../lib/aggregate.ts";
 import type { DashboardDTO, TransactionDTO } from "../../shared/types.ts";
+import { accountScope } from "../lib/accountScope.ts";
 
 export const dashboardRouter = Router();
 
-dashboardRouter.get("/dashboard", async (_req, res, next) => {
+dashboardRouter.get("/dashboard", async (req, res, next) => {
   try {
-    const txns = await db.transaction.findMany();
+    const { accountId } = z
+      .object({ accountId: z.string().optional() })
+      .parse(req.query);
+    const scope = accountScope(accountId);
+    const txns = await db.transaction.findMany({ where: scope });
     const agg: AggTx[] = txns.map((t) => ({
       amount: Number(t.amount),
       category: t.category,
       merchant: t.merchantName ?? t.creditorName ?? t.debtorName ?? null,
       bookingDate: t.bookingDate,
     }));
-    const balances = await db.balance.findMany();
+    const balances = await db.balance.findMany({ where: scope });
     const dto: DashboardDTO = {
       balances: balances.map((b) => ({
         accountId: b.accountId,
