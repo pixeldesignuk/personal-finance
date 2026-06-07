@@ -75,7 +75,8 @@ accountsRouter.delete("/banks/:requisitionId", async (req, res, next) => {
     let remoteDeleted = true;
     try {
       await gc.deleteRequisition(id);
-    } catch {
+    } catch (e) {
+      console.error("GoCardless requisition delete failed", e);
       remoteDeleted = false;
     }
 

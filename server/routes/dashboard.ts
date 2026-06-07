@@ -45,7 +45,7 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
       .parse(req.query);
     const txns = await db.transaction.findMany({
       where: {
-        accountId: q.accountId,
+        ...accountScope(q.accountId),
         ...(q.search
           ? {
               OR: [
