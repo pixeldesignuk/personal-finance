@@ -7,6 +7,7 @@ import { institutionsRouter } from "./routes/institutions.ts";
 import { connectRouter } from "./routes/connect.ts";
 import { syncRouter } from "./routes/sync.ts";
 import { dashboardRouter } from "./routes/dashboard.ts";
+import { accountsRouter } from "./routes/accounts.ts";
 
 const app = express();
 app.use(express.json());
@@ -15,6 +16,7 @@ app.use("/api", institutionsRouter);
 app.use("/api", connectRouter);
 app.use("/api", syncRouter);
 app.use("/api", dashboardRouter);
+app.use("/api", accountsRouter);
 
 // Serve built frontend in production.
 const __dirname = dirname(fileURLToPath(import.meta.url));
