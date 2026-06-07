@@ -23,6 +23,7 @@ model Account {
   requisitionId String
   iban          String?
   name          String?
+  nickname      String?
   currency      String?
   ownerName     String?
   createdAt     DateTime      @default(now())
