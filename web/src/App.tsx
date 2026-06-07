@@ -3,6 +3,7 @@ import Connect from "./pages/Connect.tsx";
 import Callback from "./pages/Callback.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import Transactions from "./pages/Transactions.tsx";
+import Accounts from "./pages/Accounts.tsx";
 
 export default function App() {
   return (
@@ -10,12 +11,14 @@ export default function App() {
       <nav>
         <Link to="/">Dashboard</Link>
         <Link to="/transactions">Transactions</Link>
+        <Link to="/accounts">Manage</Link>
         <Link to="/connect">Connect bank</Link>
       </nav>
       <div className="container">
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/transactions" element={<Transactions />} />
+          <Route path="/accounts" element={<Accounts />} />
           <Route path="/connect" element={<Connect />} />
           <Route path="/callback" element={<Callback />} />
         </Routes>
