@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Requisition {
+  id              String    @id
+  institutionId   String
+  institutionName String
+  reference       String
+  status          String
+  createdAt       DateTime  @default(now())
+  accounts        Account[]
+}
+
+model Account {
+  id            String        @id
+  requisition   Requisition   @relation(fields: [requisitionId], references: [id])
+  requisitionId String
+  iban          String?
+  name          String?
+  currency      String?
+  ownerName     String?
+  createdAt     DateTime      @default(now())
+  balances      Balance[]
+  transactions  Transaction[]
+  syncLogs      SyncLog[]
+}
+
+model Balance {
+  id            Int      @id @default(autoincrement())
+  account       Account  @relation(fields: [accountId], references: [id])
+  accountId     String
+  type          String
+  amount        Decimal
+  currency      String
+  referenceDate String?
+  fetchedAt     DateTime @default(now())
+
+  @@unique([accountId, type])
+}
+
+model Transaction {
+  id             String   @id
+  account        Account  @relation(fields: [accountId], references: [id])
+  accountId      String
+  bookingDate    String?
+  valueDate      String?
+  amount         Decimal
+  currency       String
+  creditorName   String?
+  debtorName     String?
+  remittanceInfo String?
+  merchantName   String?
+  category       String
+  status         String
+  raw            Json
+
+  @@index([accountId, bookingDate])
+}
+
+model SyncLog {
+  id        Int      @id @default(autoincrement())
+  account   Account  @relation(fields: [accountId], references: [id])
+  accountId String
+  ranAt     DateTime @default(now())
+  added     Int
+  status    String
+}
