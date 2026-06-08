@@ -72,7 +72,8 @@ export const bitget: InvestmentProvider = {
       const usd = quantity * unitUsd;
       if (usd <= 0) continue;
       totalUsd += usd;
-      if (isStable) cashUsd += usd;
+      if (isStable) { cashUsd += usd; continue; } // stablecoins are the cash balance, not a position
+      if (usd * rate < 0.1) continue; // skip dust positions in the displayed list
       holdings.push({ symbol: a.coin, name: a.coin, quantity, price: unitUsd * rate, value: usd * rate, currency: "GBP" });
     }
 
