@@ -10,6 +10,27 @@ export function formatMoney(value: number | string): string {
   });
 }
 
+// A date string ("YYYY-MM-DD") shown as a relative day when recent (Today /
+// Yesterday / 2 days ago), reverting to an absolute date once older than 2 days.
+// (Bank transactions carry a date only — no time of day.)
+export function relativeDate(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  const now = new Date();
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diffDays = Math.round((startToday.getTime() - startDate.getTime()) / 86_400_000);
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays === 2) return "2 days ago";
+  return d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: d.getFullYear() === now.getFullYear() ? undefined : "numeric",
+  });
+}
+
 // With a "£" prefix (sign kept on the number, e.g. "£1,234.50", "-£5.00").
 export function formatGBP(value: number | string): string {
   const n = typeof value === "string" ? Number(value) : value;

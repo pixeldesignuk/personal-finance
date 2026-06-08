@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api.ts";
 import type { TransactionDTO, CategoryNameDTO, PersonDTO, AuditEvent } from "../../../shared/types.ts";
-import { formatMoney } from "../format.ts";
+import { formatMoney, relativeDate } from "../format.ts";
 import { useToast } from "../components/Toasts.tsx";
 import { AccountSelector } from "../components/AccountSelector.tsx";
 import { AddTransaction } from "../components/AddTransaction.tsx";
@@ -330,7 +330,7 @@ export default function Transactions() {
               return (
               <tr key={r.id} className={[selected.has(r.id) ? "row-selected" : "", r.flag ? `flag-row-${r.flag}` : ""].filter(Boolean).join(" ") || undefined}>
                 <td><input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} /></td>
-                <td className="td-date">{r.bookingDate ?? ""}</td>
+                <td className="td-date" title={r.bookingDate ?? ""}>{relativeDate(r.bookingDate)}</td>
                 <td className="td-clip" title={acct}>
                   {acct}
                   {r.source === "MANUAL" && <span className="badge manual" style={{ marginLeft: 8 }}>manual</span>}
