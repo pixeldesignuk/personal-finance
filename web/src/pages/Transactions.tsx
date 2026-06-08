@@ -18,14 +18,15 @@ export default function Transactions() {
 
   const [catNames, setCatNames] = useState<{ key: string; name: string }[]>([]);
   const [people, setPeople] = useState<{ key: string; name: string }[]>([]);
+  const [personFilter, setPersonFilter] = useState("");
   useEffect(() => { api.categoryNames().then(setCatNames).catch(() => setCatNames([])); api.people().then(setPeople).catch(() => setPeople([])); }, []);
 
-  const load = () => api.transactions(q, accountId).then(setRows).catch(() => setRows([]));
+  const load = () => api.transactions(q, accountId, personFilter || undefined).then(setRows).catch(() => setRows([]));
   useEffect(() => {
     const t = setTimeout(load, 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line
-  }, [q, accountId]);
+  }, [q, accountId, personFilter]);
 
   const nameById = useMemo(() => {
     const m = new Map<string, string>();
@@ -45,7 +46,11 @@ export default function Transactions() {
   return (
     <div>
       <div className="row-between">
-        <h1>Transactions</h1>
+        <h1>Transactions <select value={personFilter} onChange={(e) => setPersonFilter(e.target.value)} style={{ fontSize: 13, marginLeft: 8 }}>
+          <option value="">Everyone</option>
+          <option value="none">Unassigned</option>
+          {people.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
+        </select></h1>
         <AccountSelector />
       </div>
       <AddTransaction onAdded={load} />

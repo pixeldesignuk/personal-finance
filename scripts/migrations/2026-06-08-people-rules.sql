@@ -1,6 +1,20 @@
--- 1. Category.key (backfill from name slug, then unique)
+-- Wrapped in a transaction so a mid-script failure rolls back cleanly.
+BEGIN;
+
+-- 1. Category.key. Backfill from the name slug; if two names slug to the same
+--    key, suffix the later ones with their id so the unique index can't abort.
 ALTER TABLE "Category" ADD COLUMN IF NOT EXISTS "key" TEXT;
-UPDATE "Category" SET "key" = regexp_replace(regexp_replace(lower(trim("name")), '[^a-z0-9]+', '-', 'g'), '(^-+|-+$)', '', 'g') WHERE "key" IS NULL;
+WITH ranked AS (
+  SELECT id,
+         regexp_replace(regexp_replace(lower(trim("name")), '[^a-z0-9]+', '-', 'g'), '(^-+|-+$)', '', 'g') AS s,
+         row_number() OVER (
+           PARTITION BY regexp_replace(regexp_replace(lower(trim("name")), '[^a-z0-9]+', '-', 'g'), '(^-+|-+$)', '', 'g')
+           ORDER BY id
+         ) AS rn
+  FROM "Category" WHERE "key" IS NULL
+)
+UPDATE "Category" c SET "key" = CASE WHEN r.rn = 1 THEN r.s ELSE r.s || '-' || c.id END
+  FROM ranked r WHERE c.id = r.id;
 CREATE UNIQUE INDEX IF NOT EXISTS "Category_key_key" ON "Category"("key");
 
 -- 2. Remap Transaction.category / categoryOverride name -> key (income/transfer pass through)
@@ -30,3 +44,5 @@ INSERT INTO "Person" ("key","name","sortOrder") VALUES
 
 -- 6. Rule table
 CREATE TABLE IF NOT EXISTS "Rule" ("id" SERIAL PRIMARY KEY, "matchText" TEXT NOT NULL, "categoryKey" TEXT, "personKey" TEXT, "priority" INTEGER NOT NULL DEFAULT 0, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT now());
+
+COMMIT;

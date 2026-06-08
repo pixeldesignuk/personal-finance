@@ -17,7 +17,12 @@ peopleRouter.get("/people", async (_req, res, next) => {
 peopleRouter.post("/people", async (req, res, next) => {
   try {
     const { name } = z.object({ name: z.string().min(1) }).parse(req.body);
-    const p = await db.person.create({ data: { name, key: slug(name) } });
+    const key = slug(name);
+    if (await db.person.findFirst({ where: { key } })) {
+      res.status(409).json({ error: "A person with that name already exists" });
+      return;
+    }
+    const p = await db.person.create({ data: { name, key } });
     res.json({ id: p.id, key: p.key });
   } catch (err) { next(err); }
 });

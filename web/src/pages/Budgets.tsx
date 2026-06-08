@@ -10,10 +10,13 @@ function nowMonth(): string {
 export default function Budgets() {
   const [month, setMonth] = useState(nowMonth());
   const [groups, setGroups] = useState<EnvelopeGroupDTO[]>([]);
+  const [people, setPeople] = useState<{ key: string; name: string }[]>([]);
+  const [person, setPerson] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
 
-  const load = () => api.envelopes(month).then(setGroups).catch((e) => setMsg(e.message));
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [month]);
+  useEffect(() => { api.people().then(setPeople).catch(() => setPeople([])); }, []);
+  const load = () => api.envelopes(month, person || undefined).then(setGroups).catch((e) => setMsg(e.message));
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [month, person]);
 
   const transfer = async () => {
     const fromKey = window.prompt("Move money FROM category (key):");
@@ -30,6 +33,11 @@ export default function Budgets() {
       <div className="row-between">
         <h1>Budget <span className="muted" style={{ fontSize: 14, fontFamily: "var(--font-text)" }}>· envelopes</span></h1>
         <div className="toolbar">
+          <select value={person} onChange={(e) => setPerson(e.target.value)}>
+            <option value="">Everyone</option>
+            <option value="none">Unassigned</option>
+            {people.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
+          </select>
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: "auto" }} />
           <button onClick={transfer}>Move money</button>
         </div>

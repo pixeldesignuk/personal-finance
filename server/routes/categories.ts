@@ -47,6 +47,10 @@ categoriesRouter.post("/categories", async (req, res, next) => {
       goal: z.number().min(0).nullable().optional(),
     }).parse(req.body);
     const key = slug(b.name);
+    if (await db.category.findFirst({ where: { OR: [{ key }, { name: b.name }] } })) {
+      res.status(409).json({ error: "A category with that name/key already exists" });
+      return;
+    }
     const c = await db.category.create({ data: { name: b.name, key, groupId: b.groupId, monthlyAmount: b.monthlyAmount, goal: b.goal ?? null } });
     res.json({ id: c.id });
   } catch (err) { next(err); }
