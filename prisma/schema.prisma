@@ -7,6 +7,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum AccountType {
+  PERSONAL
+  BUSINESS
+}
+
+enum AccountSource {
+  BANK
+  MANUAL
+}
+
 model Requisition {
   id              String    @id
   institutionId   String
@@ -18,15 +28,18 @@ model Requisition {
 }
 
 model Account {
-  id            String        @id
-  requisition   Requisition   @relation(fields: [requisitionId], references: [id])
-  requisitionId String
+  id            String         @id
+  requisition   Requisition?   @relation(fields: [requisitionId], references: [id])
+  requisitionId String?
+  source        AccountSource  @default(BANK)
+  type          AccountType    @default(PERSONAL)
   iban          String?
   name          String?
   nickname      String?
   currency      String?
   ownerName     String?
-  createdAt     DateTime      @default(now())
+  manualBalance Decimal?
+  createdAt     DateTime       @default(now())
   balances      Balance[]
   transactions  Transaction[]
   syncLogs      SyncLog[]
@@ -57,7 +70,8 @@ model Transaction {
   debtorName     String?
   remittanceInfo String?
   merchantName   String?
-  category       String
+  category         String
+  categoryOverride String?
   status         String
   raw            Json
 
@@ -71,4 +85,10 @@ model SyncLog {
   ranAt     DateTime @default(now())
   added     Int
   status    String
+}
+
+model Budget {
+  category     String   @id
+  monthlyLimit Decimal
+  updatedAt    DateTime @updatedAt
 }
