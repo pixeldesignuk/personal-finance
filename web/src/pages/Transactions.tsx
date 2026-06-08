@@ -237,11 +237,13 @@ export default function Transactions() {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   // Manual reconcile: filter (incl. "uncategorised only") + bulk-assign.
+  const [flaggedOnly, setFlaggedOnly] = useState(false);
   const visible = useMemo(
-    () => rows.filter((r) => !catFilter || r.category === catFilter),
-    [rows, catFilter],
+    () => rows.filter((r) => (!catFilter || r.category === catFilter) && (!flaggedOnly || r.flag != null)),
+    [rows, catFilter, flaggedOnly],
   );
   const unreconciledCount = useMemo(() => rows.filter((r) => r.category === "uncategorised").length, [rows]);
+  const flaggedCount = useMemo(() => rows.filter((r) => r.flag != null).length, [rows]);
   const showingUnreconciled = catFilter === "uncategorised";
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkCat, setBulkCat] = useState("");
@@ -252,7 +254,7 @@ export default function Transactions() {
     if (!bulkCat || selected.size === 0) return;
     bulkMutation.mutate({ ids: [...selected], category: bulkCat });
   };
-  useEffect(() => { setSelected(new Set()); }, [debouncedQ, accountId, personFilter, catFilter]);
+  useEffect(() => { setSelected(new Set()); }, [debouncedQ, accountId, personFilter, catFilter, flaggedOnly]);
 
   const isInitialLoad = txnQuery.isLoading;
   const isUpdating = txnQuery.isFetching && !txnQuery.isLoading;
@@ -268,6 +270,9 @@ export default function Transactions() {
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <button className={showingUnreconciled ? "btn-primary" : undefined} onClick={() => setCatFilter(showingUnreconciled ? "" : "uncategorised")}>
             {showingUnreconciled ? "Show all" : `Unreconciled (${unreconciledCount})`}
+          </button>
+          <button className={flaggedOnly ? "btn-primary" : undefined} onClick={() => setFlaggedOnly((v) => !v)} title="Show only flagged transactions">
+            ⚑ Flagged ({flaggedCount})
           </button>
           <button className="btn-primary" onClick={() => setSheetOpen(true)} disabled={sheetOpen}>Reconcile</button>
           <AccountSelector />
