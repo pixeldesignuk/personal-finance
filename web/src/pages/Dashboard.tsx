@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../api.ts";
 import type { DashboardDTO, BankDTO } from "../../../shared/types.ts";
+import type { SummaryDTO } from "../../../shared/types.ts";
 import { AccountSelector } from "../components/AccountSelector.tsx";
 import { CategoryPie } from "../components/charts/CategoryPie.tsx";
 import { MonthlyBar } from "../components/charts/MonthlyBar.tsx";
@@ -12,11 +13,13 @@ export default function Dashboard() {
   const accountId = params.get("account") ?? undefined;
   const [data, setData] = useState<DashboardDTO | null>(null);
   const [banks, setBanks] = useState<BankDTO[]>([]);
+  const [summary, setSummary] = useState<SummaryDTO | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
   const load = () => {
     api.dashboard(accountId).then(setData).catch((e) => setMsg(e.message));
     api.accounts().then(setBanks).catch(() => setBanks([]));
+    api.summary().then(setSummary).catch(() => setSummary(null));
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [accountId]);
 
@@ -40,6 +43,14 @@ export default function Dashboard() {
         </div>
       </div>
       {msg && <p>{msg}</p>}
+      {summary && (
+        <div className="grid" style={{ marginBottom: 16 }}>
+          <div className="card"><div style={{ fontSize: 12, color: "#6b7280" }}>Net worth</div><div style={{ fontSize: 22 }}>£{summary.netWorth.toFixed(2)}</div></div>
+          <div className="card"><div style={{ fontSize: 12, color: "#6b7280" }}>Income ({summary.month})</div><div style={{ fontSize: 22, color: "#16a34a" }}>£{summary.income.toFixed(2)}</div></div>
+          <div className="card"><div style={{ fontSize: 12, color: "#6b7280" }}>Expenses</div><div style={{ fontSize: 22, color: "#dc2626" }}>£{summary.expenses.toFixed(2)}</div></div>
+          <div className="card"><div style={{ fontSize: 12, color: "#6b7280" }}>Net · savings rate</div><div style={{ fontSize: 22 }}>£{summary.net.toFixed(2)} · {summary.savingsRate}%</div></div>
+        </div>
+      )}
       <div className="card">
         <h3>Balances by account</h3>
         {banks.length === 0 && <div>No accounts yet.</div>}
