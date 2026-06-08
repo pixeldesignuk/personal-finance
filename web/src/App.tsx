@@ -5,6 +5,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import Transactions from "./pages/Transactions.tsx";
 import Accounts from "./pages/Accounts.tsx";
 import Budgets from "./pages/Budgets.tsx";
+import Categories from "./pages/Categories.tsx";
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
         <NavLink to="/" end>Dashboard</NavLink>
         <NavLink to="/transactions">Transactions</NavLink>
         <NavLink to="/budgets">Budgets</NavLink>
+        <NavLink to="/categories">Categories</NavLink>
         <NavLink to="/accounts">Manage</NavLink>
         <NavLink to="/connect">Connect</NavLink>
       </nav>
@@ -22,6 +24,7 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/budgets" element={<Budgets />} />
+          <Route path="/categories" element={<Categories />} />
           <Route path="/accounts" element={<Accounts />} />
           <Route path="/connect" element={<Connect />} />
           <Route path="/callback" element={<Callback />} />
