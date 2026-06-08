@@ -52,6 +52,8 @@ export default function Transactions() {
     () => rows.filter((r) => !catFilter || r.category === catFilter),
     [rows, catFilter],
   );
+  const unreconciledCount = useMemo(() => rows.filter((r) => r.category === "uncategorised").length, [rows]);
+  const showingUnreconciled = catFilter === "uncategorised";
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkCat, setBulkCat] = useState("");
   const toggle = (id: string) => setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -72,6 +74,9 @@ export default function Transactions() {
           {people.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
         </select></h1>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button className={showingUnreconciled ? "btn-primary" : undefined} onClick={() => setCatFilter(showingUnreconciled ? "" : "uncategorised")}>
+            {showingUnreconciled ? "Show all" : `Unreconciled (${unreconciledCount})`}
+          </button>
           <button className="btn-primary" onClick={() => setSheetOpen(true)} disabled={sheetOpen}>Reconcile</button>
           <AccountSelector />
         </div>
