@@ -4,6 +4,13 @@ import { api, CATEGORY_OPTIONS } from "../api.ts";
 import type { BankDTO } from "../../../shared/types.ts";
 import { formatMoney } from "../format.ts";
 
+// GoCardless requisition status codes → plain English.
+const STATUS_LABEL: Record<string, string> = {
+  LN: "Linked", CR: "Incomplete", GC: "Consent", UA: "Authenticating",
+  SA: "Selecting", GA: "Granting", RJ: "Rejected", EX: "Expired", MANUAL: "Manual",
+};
+const statusClass = (s: string) => (s === "LN" ? "pos" : s === "EX" || s === "RJ" ? "neg" : "");
+
 export default function Accounts() {
   const [banks, setBanks] = useState<BankDTO[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
@@ -76,7 +83,7 @@ export default function Accounts() {
           <div className="row-between">
             <h3 style={{ margin: 0 }}>
               {bank.institutionName}{" "}
-              <span className={`badge ${bank.status === "LN" ? "pos" : ""}`}>{bank.status}</span>
+              <span className={`badge ${statusClass(bank.status)}`}>{STATUS_LABEL[bank.status] ?? bank.status}</span>
             </h3>
             {bank.requisitionId !== "manual" && (
               <div className="toolbar">
