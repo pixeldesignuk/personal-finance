@@ -31,7 +31,7 @@
   --shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.8);
   --ring: 0 0 0 3px rgba(111, 227, 176, 0.22);
 
-  --font-display: "Fraunces", Georgia, serif;
+  --font-display: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
   --font-text: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
 
@@ -73,13 +73,13 @@ body::before {
 /* ---- typography ---------------------------------------------------------- */
 h1, h2, h3 {
   font-family: var(--font-display);
-  font-weight: 480;
-  letter-spacing: -0.01em;
+  font-weight: 650;
+  letter-spacing: -0.02em;
   line-height: 1.12;
   margin: 0 0 0.6em;
 }
-h1 { font-size: clamp(28px, 4vw, 40px); }
-h3 { font-size: 15px; font-weight: 520; letter-spacing: 0; color: var(--ink); }
+h1 { font-size: clamp(26px, 3.4vw, 34px); }
+h3 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); }
 
 a { color: var(--jade); text-underline-offset: 3px; }
 
@@ -103,10 +103,10 @@ nav {
 }
 .wordmark {
   font-family: var(--font-display);
-  font-style: italic;
+  font-style: normal;
   font-size: 21px;
-  font-weight: 500;
-  letter-spacing: -0.02em;
+  font-weight: 700;
+  letter-spacing: -0.03em;
   color: var(--ink);
   margin-right: auto;
   text-decoration: none;
@@ -184,7 +184,7 @@ nav a.active:not(.nav-cta)::after {
 .nav-cta:hover { filter: brightness(1.06); }
 
 /* ---- layout -------------------------------------------------------------- */
-.container { max-width: 1040px; margin: 0 auto; padding: clamp(22px, 4vw, 38px) clamp(18px, 5vw, 40px) 80px; }
+.container { max-width: none; margin: 0 auto; padding: clamp(22px, 4vw, 38px) clamp(18px, 5vw, 40px) 80px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 16px; }
 .row-between { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
 .toolbar { display: flex; align-items: center; gap: 10px; }
@@ -409,13 +409,8 @@ select {
   color: var(--ink-3); font-weight: 700; padding-top: 18px;
 }
 
-/* break the whole transactions page out of the centred container to full width */
-.txn-page {
-  margin-left: calc(50% - 50vw);
-  margin-right: calc(50% - 50vw);
-  padding-left: clamp(18px, 5vw, 40px);
-  padding-right: clamp(18px, 5vw, 40px);
-}
+/* the container is now full-width, so this is a no-op (kept for the class hook) */
+.txn-page { width: 100%; }
 
 /* ---- transactions table: fixed columns, no reflow ----------------------- */
 .txn-table { table-layout: fixed; }
