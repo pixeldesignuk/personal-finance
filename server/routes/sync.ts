@@ -3,6 +3,7 @@ import { db } from "../lib/db.ts";
 import { GoCardlessClient, GoCardlessError } from "../gocardless/client.ts";
 import { applyRules, type Rule } from "../lib/rules.ts";
 import { reconcile } from "../categorise/reconcile.ts";
+import { syncAllInvestments } from "../investments/sync.ts";
 import { displayName } from "../../shared/displayName.ts";
 import type { AuditFn } from "../categorise/audit.ts";
 import type { SyncResult } from "../../shared/types.ts";
@@ -152,6 +153,8 @@ syncRouter.post("/sync/stream", async (_req, res) => {
         audit({ kind: "log", text: `  ✗ ${err instanceof Error ? err.message : String(err)}`, tone: "red" });
       }
     }
+    const inv = await syncAllInvestments(audit);
+    if (inv.length) audit({ kind: "log", text: `Investments synced (${inv.length}).`, tone: "dim" });
     audit({ kind: "log", text: "Sync complete.", tone: "green" });
   } catch (err) {
     audit({ kind: "fatal", error: err instanceof Error ? err.message : String(err) });

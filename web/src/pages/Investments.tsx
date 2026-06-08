@@ -11,15 +11,18 @@ export default function Investments() {
   const { data } = useQuery({ queryKey: ["investments"], queryFn: () => api.investments() });
 
   const syncMut = useMutation({
-    mutationFn: (provider: string) => api.syncInvestment(provider),
-    onMutate: (provider) => ({ tid: notify(`Syncing ${provider}…`, { tone: "loading", duration: 0 }) }),
-    onSuccess: (r, _p, ctx) => {
-      if (ctx) update(ctx.tid, `Synced — £${formatMoney(r.total)} across ${r.holdings} holdings`, { tone: "success" });
+    mutationFn: () => api.syncInvestments(),
+    onMutate: () => ({ tid: notify("Syncing investments…", { tone: "loading", duration: 0 }) }),
+    onSuccess: (r, _v, ctx) => {
+      const total = r.results.reduce((s, x) => s + x.total, 0);
+      const msg = r.results.length ? `Synced ${r.results.length} account${r.results.length === 1 ? "" : "s"} — £${formatMoney(total)}` : "No providers configured.";
+      if (ctx) update(ctx.tid, msg, { tone: r.results.length ? "success" : "error" });
       qc.invalidateQueries({ queryKey: ["investments"] });
       qc.invalidateQueries({ queryKey: ["summary"] });
     },
-    onError: (e: Error, _p, ctx) => { if (ctx) update(ctx.tid, e.message, { tone: "error" }); },
+    onError: (e: Error, _v, ctx) => { if (ctx) update(ctx.tid, e.message, { tone: "error" }); },
   });
+  const anyConfigured = data?.providers.some((p) => p.configured) ?? false;
 
   const total = data?.total ?? 0;
   const invested = data?.accounts.reduce((s, a) => s + a.invested, 0) ?? 0;
@@ -31,12 +34,10 @@ export default function Investments() {
       <div className="row-between">
         <h1>Investments</h1>
         <div className="toolbar">
-          {data?.providers.map((p) => (
-            <button key={p.key} className="btn-primary" disabled={!p.configured || syncMut.isPending}
-              onClick={() => syncMut.mutate(p.key)} title={p.configured ? `Sync ${p.name}` : `Set the ${p.name} API key in .env`}>
-              {p.configured ? `Sync ${p.name}` : `${p.name} — no key`}
-            </button>
-          ))}
+          <button className="btn-primary" disabled={!anyConfigured || syncMut.isPending} onClick={() => syncMut.mutate()}
+            title={anyConfigured ? "Sync all configured providers" : "No provider API keys set"}>
+            {syncMut.isPending ? "Syncing…" : "Sync all"}
+          </button>
         </div>
       </div>
 
