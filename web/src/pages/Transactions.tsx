@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryState, parseAsBoolean } from "nuqs";
 import { api } from "../api.ts";
 import type { TransactionDTO, CategoryNameDTO, PersonDTO, AuditEvent } from "../../../shared/types.ts";
 import { formatMoney, relativeDate } from "../format.ts";
@@ -20,16 +21,17 @@ export default function Transactions() {
   const qc = useQueryClient();
   const { notify, update } = useToast();
 
-  const [q, setQ] = useState("");
-  const [debouncedQ, setDebouncedQ] = useState("");
+  // Filters live in the URL query string (nuqs), so they're shareable/bookmarkable.
+  const [q, setQ] = useQueryState("q", { defaultValue: "", history: "replace" });
+  const [debouncedQ, setDebouncedQ] = useState(q);
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(q), 250);
     return () => clearTimeout(t);
   }, [q]);
 
-  const [personFilter, setPersonFilter] = useState("");
-  const [catFilter, setCatFilter] = useState(() => params.get("category") ?? "");
-  const [month, setMonth] = useState("");
+  const [personFilter, setPersonFilter] = useQueryState("person", { defaultValue: "", history: "replace" });
+  const [catFilter, setCatFilter] = useQueryState("category", { defaultValue: "", history: "replace" });
+  const [month, setMonth] = useQueryState("month", { defaultValue: "", history: "replace" });
 
   // ── Queries ────────────────────────────────────────────────────────────
   const txnKey = useMemo(
@@ -240,7 +242,7 @@ export default function Transactions() {
   const reconcileRun = useCallback((onEvent: (e: AuditEvent) => void) => api.reconcileStream(onEvent, scopedAccount), [scopedAccount]);
 
   // Manual reconcile: filter (incl. "uncategorised only") + bulk-assign.
-  const [flaggedOnly, setFlaggedOnly] = useState(false);
+  const [flaggedOnly, setFlaggedOnly] = useQueryState("flagged", parseAsBoolean.withDefault(false).withOptions({ history: "replace" }));
   const visible = useMemo(
     () => rows.filter((r) => (!catFilter || r.category === catFilter) && (!flaggedOnly || r.flag != null)),
     [rows, catFilter, flaggedOnly],
