@@ -4,6 +4,7 @@ import { api, CATEGORY_OPTIONS } from "../api.ts";
 import type { TransactionDTO, BankDTO } from "../../../shared/types.ts";
 import { formatMoney } from "../format.ts";
 import { AccountSelector } from "../components/AccountSelector.tsx";
+import { AddTransaction } from "../components/AddTransaction.tsx";
 
 export default function Transactions() {
   const [params] = useSearchParams();
@@ -42,6 +43,7 @@ export default function Transactions() {
         <h1>Transactions</h1>
         <AccountSelector />
       </div>
+      <AddTransaction onAdded={load} />
       <input placeholder="Search transactions…" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 320 }} />
       <div className="card" style={{ marginTop: 16 }}>
         <table>

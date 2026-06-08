@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, CATEGORY_OPTIONS } from "../api.ts";
+import { api } from "../api.ts";
 import type { BankDTO } from "../../../shared/types.ts";
 import { formatMoney } from "../format.ts";
 
@@ -48,15 +48,6 @@ export default function Accounts() {
 
   const setBalanceType = (id: string, value: string) =>
     wrap(() => api.patchAccount(id, { balanceType: value || null }));
-
-  const addTxn = (accountId: string) => {
-    const date = window.prompt("Date (YYYY-MM-DD):", new Date().toISOString().slice(0, 10));
-    if (!date) return;
-    const amount = window.prompt("Amount (negative for spending, e.g. -12.50):");
-    if (!amount) return;
-    const category = window.prompt(`Category (${CATEGORY_OPTIONS.join(", ")}):`, "other") ?? "other";
-    wrap(() => api.createTxn({ accountId, date, amount, category }));
-  };
 
   const removeManual = (id: string, name: string) => {
     if (!window.confirm(`Delete ${name} and its manual transactions?`)) return;
@@ -127,7 +118,6 @@ export default function Accounts() {
                 <span className="acct-actions">
                   <button className="btn-sm" onClick={() => rename(a.id, a.nickname ?? "")}>Rename</button>
                   {a.source === "MANUAL" && <button className="btn-sm" onClick={() => editBalance(a.id, a.currentBalance)}>Set balance</button>}
-                  {a.source === "MANUAL" && <button className="btn-sm" onClick={() => addTxn(a.id)}>Add txn</button>}
                   {a.source === "MANUAL" && <button className="btn-danger btn-sm" onClick={() => removeManual(a.id, a.displayName)}>Delete</button>}
                 </span>
               </div>
