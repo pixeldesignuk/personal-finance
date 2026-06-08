@@ -2,7 +2,8 @@ import type {
   InstitutionDTO, ConnectResponse, FinalizeResponse,
   SyncResult, DashboardDTO, TransactionDTO,
   BankDTO, RemoveBankResult, NicknameResult,
-  BudgetDTO, SummaryDTO, ManualAccountInput, ManualTxnInput,
+  SummaryDTO, ManualAccountInput, ManualTxnInput,
+  CategoryGroupDTO, EnvelopeGroupDTO,
 } from "../../shared/types.ts";
 
 async function get<T>(url: string): Promise<T> {
@@ -36,8 +37,20 @@ export const api = {
   createTxn: (input: ManualTxnInput) => send<{ id: string }>("POST", "/api/transactions", input),
   setTxnCategory: (id: string, category: string) => send<{ id: string; category: string }>("PATCH", `/api/transactions/${id}`, { category }),
   deleteTxn: (id: string) => send<{ deleted: boolean }>("DELETE", `/api/transactions/${id}`),
-  budgets: () => get<BudgetDTO[]>("/api/budgets"),
-  setBudget: (category: string, monthlyLimit: number) => send<unknown>("PUT", `/api/budgets/${category}`, { monthlyLimit }),
+  categories: () => get<CategoryGroupDTO[]>("/api/categories"),
+  categoryNames: () => get<string[]>("/api/category-names"),
+  createCategory: (input: { name: string; groupId: number; monthlyAmount?: number; goal?: number | null }) =>
+    send<{ id: number }>("POST", "/api/categories", input),
+  patchCategory: (id: number, patch: { name?: string; groupId?: number; monthlyAmount?: number; goal?: number | null; sortOrder?: number; archived?: boolean }) =>
+    send<{ id: number }>("PATCH", `/api/categories/${id}`, patch),
+  deleteCategory: (id: number) => send<{ deleted: boolean }>("DELETE", `/api/categories/${id}`),
+  createGroup: (name: string) => send<{ id: number }>("POST", "/api/category-groups", { name }),
+  patchGroup: (id: number, patch: { name?: string; sortOrder?: number }) => send<{ id: number }>("PATCH", `/api/category-groups/${id}`, patch),
+  deleteGroup: (id: number) => send<{ deleted: boolean }>("DELETE", `/api/category-groups/${id}`),
+  envelopes: (month?: string) => get<EnvelopeGroupDTO[]>(`/api/envelopes${month ? `?month=${month}` : ""}`),
+  setAllocation: (categoryId: number, month: string, amount: number) => send<unknown>("PUT", `/api/allocations/${categoryId}/${month}`, { amount }),
+  categoryTransfer: (input: { fromName: string; toName: string; month: string; amount: number; note?: string }) =>
+    send<unknown>("POST", "/api/category-transfers", input),
   summary: () => get<SummaryDTO>("/api/summary"),
   dashboard: (accountId?: string) => { const q = acctQuery(accountId); return get<DashboardDTO>(`/api/dashboard${q ? `?${q}` : ""}`); },
   transactions: (search = "", accountId?: string) => {
@@ -45,5 +58,3 @@ export const api = {
     return get<TransactionDTO[]>(`/api/transactions?${parts.join("&")}`);
   },
 };
-
-export const CATEGORY_OPTIONS = ["groceries", "eating-out", "transport", "bills", "shopping", "other", "income", "transfer"];
