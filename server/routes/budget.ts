@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "../lib/db.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
 import { currentMonth, monthOf, round2, personalSpendByCategory, type BudgetTx } from "../lib/budget.ts";
+import { currentBalance } from "../lib/balance.ts";
 import { buildBudgetRows, type BudgetCategory } from "../lib/budgetView.ts";
 import type { BudgetResponseDTO } from "../../shared/types.ts";
 
@@ -13,7 +14,7 @@ budgetRouter.get("/budget", async (req, res, next) => {
     const q = z.object({ month: z.string().regex(/^\d{4}-\d{2}$/).optional(), person: z.string().optional() }).parse(req.query);
     const month = q.month ?? currentMonth();
 
-    const personal = await db.account.findMany({ where: { type: "PERSONAL" }, select: { id: true } });
+    const personal = await db.account.findMany({ where: { type: "PERSONAL" }, include: { balances: true } });
     const ids = personal.map((a) => a.id);
     const txns = await db.transaction.findMany({ where: { accountId: { in: ids } } });
     const filtered = q.person ? txns.filter((t) => (q.person === "none" ? t.personKey == null : t.personKey === q.person)) : txns;
@@ -34,10 +35,23 @@ budgetRouter.get("/budget", async (req, res, next) => {
     const budgeted = categories.reduce((s, c) => s + c.monthlyAmount, 0);
     const spentTotal = Object.values(spent).reduce((s, v) => s + v, 0);
     const pendingCount = filtered.filter((t) => t.status === "pending").length;
+
+    // Balance-based "available to budget": the money you actually hold across
+    // personal accounts (cash + current − card debt) minus this month's budget.
+    let balance = 0;
+    for (const a of personal) {
+      balance += currentBalance(
+        a.source,
+        a.manualBalance != null ? Number(a.manualBalance.toString()) : null,
+        a.balances.map((b) => ({ type: b.type, amount: Number(b.amount.toString()) })),
+        a.balanceType,
+      );
+    }
+
     const response: BudgetResponseDTO = {
       rows,
       summary: {
-        available: round2(income - budgeted),
+        available: round2(balance - budgeted),
         spent: round2(spentTotal),
         budgeted: round2(budgeted),
         income: round2(income),
