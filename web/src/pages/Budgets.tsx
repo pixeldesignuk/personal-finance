@@ -134,7 +134,7 @@ export default function Budgets() {
                     </td>
                     <td className="num">
                       {r.spent > 0
-                        ? <Link className="amount-link" to={`/transactions?category=${encodeURIComponent(r.key)}`} title="View these transactions">£{formatMoney(r.spent)}</Link>
+                        ? <Link className="amount-link" to={`/transactions?category=${encodeURIComponent(r.key)}${month ? `&month=${month}` : ""}${person ? `&person=${encodeURIComponent(person)}` : ""}`} title="View these transactions">£{formatMoney(r.spent)}</Link>
                         : <>£{formatMoney(r.spent)}</>}
                     </td>
                     <td className={`num ${r.left < 0 ? "neg" : "pos"}`}>£{formatMoney(r.left)}</td>
