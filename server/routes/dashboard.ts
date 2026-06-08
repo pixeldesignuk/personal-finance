@@ -4,6 +4,7 @@ import { db } from "../lib/db.ts";
 import { spendingByCategory, monthlyTotals, topMerchants, type AggTx } from "../lib/aggregate.ts";
 import type { DashboardDTO, TransactionDTO } from "../../shared/types.ts";
 import { accountScope } from "../lib/accountScope.ts";
+import { effectiveCategory } from "../lib/effectiveCategory.ts";
 
 export const dashboardRouter = Router();
 
@@ -14,12 +15,14 @@ dashboardRouter.get("/dashboard", async (req, res, next) => {
       .parse(req.query);
     const scope = accountScope(accountId);
     const txns = await db.transaction.findMany({ where: scope });
-    const agg: AggTx[] = txns.map((t) => ({
-      amount: Number(t.amount),
-      category: t.category,
-      merchant: t.merchantName ?? t.creditorName ?? t.debtorName ?? null,
-      bookingDate: t.bookingDate,
-    }));
+    const agg: AggTx[] = txns
+      .map((t) => ({
+        amount: Number(t.amount),
+        category: effectiveCategory(t),
+        merchant: t.merchantName ?? t.creditorName ?? t.debtorName ?? null,
+        bookingDate: t.bookingDate,
+      }))
+      .filter((t) => t.category !== "transfer");
     const balances = await db.balance.findMany({ where: scope });
     const dto: DashboardDTO = {
       balances: balances.map((b) => ({
@@ -58,6 +61,7 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
       },
       orderBy: { bookingDate: "desc" },
       take: q.limit,
+      include: { account: true },
     });
     const dto: TransactionDTO[] = txns.map((t) => ({
       id: t.id,
@@ -67,7 +71,9 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
       currency: t.currency,
       name: t.merchantName ?? t.creditorName ?? t.debtorName ?? null,
       remittanceInfo: t.remittanceInfo,
-      category: t.category,
+      category: effectiveCategory(t),
+      autoCategory: t.category,
+      source: t.account.source,
       status: t.status,
     }));
     res.json(dto);
