@@ -2,10 +2,14 @@ import { Router } from "express";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { db } from "../lib/db.ts";
-import { CATEGORIES } from "../lib/categorize.ts";
 
 export const transactionsRouter = Router();
-const isCategory = (c: string) => CATEGORIES.includes(c);
+
+const RESERVED = new Set(["income", "transfer"]);
+async function categoryExists(name: string): Promise<boolean> {
+  if (RESERVED.has(name)) return true;
+  return !!(await db.category.findFirst({ where: { name } }));
+}
 
 transactionsRouter.post("/transactions", async (req, res, next) => {
   try {
@@ -14,10 +18,14 @@ transactionsRouter.post("/transactions", async (req, res, next) => {
         accountId: z.string().min(1),
         date: z.string().min(1),
         amount: z.string().regex(/^-?\d+(\.\d+)?$/, "amount must be a number"),
-        category: z.string().refine(isCategory, "unknown category"),
+        category: z.string().min(1),
         note: z.string().optional(),
       })
       .parse(req.body);
+    if (!(await categoryExists(body.category))) {
+      res.status(400).json({ error: "Unknown category" });
+      return;
+    }
     const account = await db.account.findUnique({ where: { id: body.accountId } });
     if (!account) {
       res.status(404).json({ error: "Account not found" });
@@ -49,8 +57,12 @@ transactionsRouter.post("/transactions", async (req, res, next) => {
 transactionsRouter.patch("/transactions/:id", async (req, res, next) => {
   try {
     const { category } = z
-      .object({ category: z.string().refine(isCategory, "unknown category") })
+      .object({ category: z.string().min(1) })
       .parse(req.body);
+    if (!(await categoryExists(category))) {
+      res.status(400).json({ error: "Unknown category" });
+      return;
+    }
     const tx = await db.transaction.findUnique({ where: { id: req.params.id } });
     if (!tx) {
       res.status(404).json({ error: "Transaction not found" });

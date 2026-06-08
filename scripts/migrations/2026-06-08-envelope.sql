@@ -21,14 +21,7 @@ INSERT INTO "CategoryGroup" ("name","sortOrder") VALUES
   ('Yearly Bills',5),('Long-term Funds',6),('System',7)
   ON CONFLICT ("name") DO NOTHING;
 
--- Categories (idempotent upsert by name). gid() resolves the group id.
-DO $$
-DECLARE gid INT;
-BEGIN
-  PERFORM 1;
-END $$;
-
--- helper inserts per group
+-- Categories (idempotent upsert by name).
 INSERT INTO "Category" ("name","groupId","monthlyAmount","goal","sortOrder")
 SELECT v.name, g.id, v.amt, v.goal, v.ord FROM (VALUES
   ('Halima expenses','Halima Expenses',200,NULL,1),
@@ -59,9 +52,14 @@ SELECT v.name, g.id, v.amt, v.goal, v.ord FROM (VALUES
 JOIN "CategoryGroup" g ON g.name = v.grp
 ON CONFLICT ("name") DO NOTHING;
 
--- Migrate old Budget.monthlyLimit into matching category monthlyAmount (by name, case-insensitive 'groceries')
-UPDATE "Category" c SET "monthlyAmount" = b."monthlyLimit"
-  FROM "Budget" b WHERE lower(b."category") = lower(c."name") AND b."monthlyLimit" > 0;
+-- Migrate old Budget.monthlyLimit into matching category monthlyAmount.
+-- Guarded so re-running after the Budget table is dropped is a no-op (not an error).
+DO $$ BEGIN
+  IF to_regclass('"Budget"') IS NOT NULL THEN
+    UPDATE "Category" c SET "monthlyAmount" = b."monthlyLimit"
+      FROM "Budget" b WHERE lower(b."category") = lower(c."name") AND b."monthlyLimit" > 0;
+  END IF;
+END $$;
 
 -- Map old transaction categories -> new
 UPDATE "Transaction" SET "category"='Groceries' WHERE "category"='groceries';

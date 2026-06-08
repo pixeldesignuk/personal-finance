@@ -75,6 +75,14 @@ envelopesRouter.post("/category-transfers", async (req, res, next) => {
       amount: z.number().min(0),
       note: z.string().optional(),
     }).parse(req.body);
+    const [from, to] = await Promise.all([
+      db.category.findFirst({ where: { name: b.fromName } }),
+      db.category.findFirst({ where: { name: b.toName } }),
+    ]);
+    if (!from || !to) {
+      res.status(400).json({ error: "Both from and to must be existing categories" });
+      return;
+    }
     await db.categoryTransfer.create({ data: { ...b, note: b.note ?? null } });
     res.json({ ok: true });
   } catch (err) { next(err); }

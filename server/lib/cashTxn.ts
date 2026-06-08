@@ -1,5 +1,3 @@
-import { CATEGORIES, categorize } from "./categorize.ts";
-
 export interface ParsedExpense {
   amount: number;
   category: string;
@@ -8,8 +6,8 @@ export interface ParsedExpense {
 }
 
 // Free, no-API text parser: pulls the first amount, defaults to a spend
-// (negative), and uses the keyword categorizer. A leading "+" marks income.
-// e.g. "£12.50 lunch" -> spend; "+2500 salary" -> income.
+// (negative). A leading "+" marks income. New entries land Uncategorised (the
+// user picks a real category via the inline buttons). e.g. "£12.50 lunch".
 export function parseTextExpense(text: string): ParsedExpense | null {
   const m = text.match(/([+-])?\s*[£$]?\s*(\d+(?:\.\d{1,2})?)/);
   if (!m) return null;
@@ -17,7 +15,7 @@ export function parseTextExpense(text: string): ParsedExpense | null {
   if (!Number.isFinite(value) || value === 0) return null;
   const amount = m[1] === "+" ? value : -value;
   const note = text.replace(m[0], "").trim();
-  return { amount, category: categorize({ amount, text }), merchant: note, date: "" };
+  return { amount, category: amount > 0 ? "income" : "Uncategorised", merchant: note, date: "" };
 }
 
 export interface NormalizedTxn {
@@ -30,7 +28,7 @@ export interface NormalizedTxn {
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export function normalizeParsed(p: ParsedExpense, todayISO: string): NormalizedTxn {
-  const category = CATEGORIES.includes(p.category) ? p.category : "other";
+  const category = p.category && p.category.trim() ? p.category : "Uncategorised";
   let amount = Number.isFinite(p.amount) ? p.amount : 0;
   // Spends are negative; only income may be positive.
   if (category !== "income" && amount > 0) amount = -amount;
