@@ -60,6 +60,10 @@ export default function Transactions() {
   });
   const people = useMemo<PersonDTO[]>(() => peopleQuery.data ?? [], [peopleQuery.data]);
 
+  const accountsQuery = useQuery({ queryKey: ["accounts"], queryFn: () => api.accounts(), staleTime: 5 * 60_000 });
+  const liabilities = useMemo(() => (accountsQuery.data ?? []).flatMap((b) => b.accounts).filter((a) => a.source === "LIABILITY"), [accountsQuery.data]);
+  const debtName = (id: string | null) => liabilities.find((l) => l.id === id)?.displayName ?? "debt";
+
   const invalidateTxns = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["transactions"] });
   }, [qc]);
@@ -189,6 +193,18 @@ export default function Transactions() {
   });
   const cycleFlag = (r: TransactionDTO) => flagMutation.mutate({ id: r.id, flag: FLAG_NEXT[r.flag ?? ""] });
 
+  const invalidateAfterDebt = () => { invalidateTxns(); qc.invalidateQueries({ queryKey: ["accounts"] }); qc.invalidateQueries({ queryKey: ["summary"] }); };
+  const linkMut = useMutation({
+    mutationFn: ({ id, debtAccountId }: { id: string; debtAccountId: string }) => api.linkDebt(id, debtAccountId),
+    onSuccess: () => { invalidateAfterDebt(); notify("Linked as repayment — debt reduced", { tone: "success" }); },
+    onError: (e: Error) => notify(e.message, { tone: "error" }),
+  });
+  const unlinkMut = useMutation({
+    mutationFn: (id: string) => api.unlinkDebt(id),
+    onSuccess: invalidateAfterDebt,
+    onError: (e: Error) => notify(e.message, { tone: "error" }),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.deleteTxn(id),
     onMutate: async (id) => {
@@ -231,6 +247,7 @@ export default function Transactions() {
     deleteMutation.mutate(id);
   };
 
+  const [linkEditId, setLinkEditId] = useState<string | null>(null);
   // Inline quick-note editing.
   const [noteEditId, setNoteEditId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
@@ -320,7 +337,7 @@ export default function Transactions() {
             <col style={{ width: 230 }} />
             <col style={{ width: 120 }} />
             <col style={{ width: 112 }} />
-            <col style={{ width: 104 }} />
+            <col style={{ width: 136 }} />
           </colgroup>
           <thead><tr>
             <th><input type="checkbox" checked={allVisibleSelected} onChange={toggleAll} title="Select all shown" /></th>
@@ -352,6 +369,13 @@ export default function Transactions() {
                   ) : r.note ? (
                     <div className="note-line" onClick={() => startNote(r)} title="Edit note">✎ {r.note}</div>
                   ) : null}
+                  {linkEditId === r.id && !r.debtAccountId && (
+                    <select className="note-input" autoFocus value="" onChange={(e) => { if (e.target.value) { linkMut.mutate({ id: r.id, debtAccountId: e.target.value }); setLinkEditId(null); } }}>
+                      <option value="">— repay which debt? —</option>
+                      {liabilities.map((l) => <option key={l.id} value={l.id}>{l.displayName}</option>)}
+                    </select>
+                  )}
+                  {r.debtAccountId && <div className="note-line" title="Debt repayment">⛓ repayment → {debtName(r.debtAccountId)}</div>}
                 </td>
                 <td>
                   <select value={r.category} onChange={(e) => setCategory(r.id, e.target.value)}>
@@ -367,6 +391,11 @@ export default function Transactions() {
                 <td className={`num td-amount ${Number(r.amount) < 0 ? "neg" : "pos"}`}>{r.currency} {formatMoney(r.amount)}</td>
                 <td style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
                   <button className={`btn-sm flag-btn${r.flag ? ` flag-${r.flag}` : ""}`} title={r.flag ? `Reduction flag: ${r.flag} (click to change)` : "Flag for reduction"} onClick={() => cycleFlag(r)}>⚑</button>
+                  {(liabilities.length > 0 || r.debtAccountId) && (
+                    <button className={`btn-sm${r.debtAccountId ? " flag-orange" : ""}`}
+                      title={r.debtAccountId ? `Repayment → ${debtName(r.debtAccountId)} (click to unlink)` : "Link as debt repayment"}
+                      onClick={() => { if (r.debtAccountId) { if (window.confirm("Unlink this repayment? Restores the debt balance.")) unlinkMut.mutate(r.id); } else setLinkEditId(linkEditId === r.id ? null : r.id); }}>⛓</button>
+                  )}
                   {noteEditId !== r.id && <button className="btn-sm" title={r.note ? "Edit note" : "Add note"} onClick={() => startNote(r)}>✎</button>}
                   {r.source === "MANUAL" && <button className="btn-danger btn-sm" onClick={() => del(r.id)}>✕</button>}
                 </td>

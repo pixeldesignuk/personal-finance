@@ -13,6 +13,9 @@ summaryRouter.get("/summary", async (_req, res, next) => {
     const accounts = await db.account.findMany({ include: { balances: true } });
     let netWorth = 0;
     let investments = 0;
+    let assets = 0;
+    let debts = 0;
+    let liquid = 0;
     for (const a of accounts) {
       const bal = currentBalance(
         a.source,
@@ -22,6 +25,9 @@ summaryRouter.get("/summary", async (_req, res, next) => {
       );
       netWorth += bal;
       if (a.source === "INVESTMENT") investments += bal;
+      else if (a.source === "ASSET") assets += bal;
+      else if (a.source === "LIABILITY") debts += -bal; // bal is negative; owed is positive
+      else liquid += bal; // BANK + MANUAL
     }
     const personalIds = accounts.filter((a) => a.type === "PERSONAL").map((a) => a.id);
     const txns = await db.transaction.findMany({ where: { accountId: { in: personalIds } } });
@@ -33,7 +39,9 @@ summaryRouter.get("/summary", async (_req, res, next) => {
       month,
       netWorth: round2(netWorth),
       investments: round2(investments),
-      available: round2(netWorth - investments),
+      assets: round2(assets),
+      debts: round2(debts),
+      available: round2(liquid), // immediately available (banks + cash)
       ...cf,
     };
     res.json(dto);

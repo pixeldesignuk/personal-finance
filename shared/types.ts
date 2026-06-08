@@ -66,6 +66,7 @@ export interface TransactionDTO {
   personName: string | null;
   note: string | null;   // user-editable annotation
   flag: "red" | "orange" | "yellow" | null;  // spend-reduction flag
+  debtAccountId: string | null;  // linked liability (repayment)
   source: AccountSource;
   status: string;
 }
@@ -77,7 +78,7 @@ export interface AccountBalanceDTO {
 }
 
 export type AccountType = "PERSONAL" | "BUSINESS";
-export type AccountSource = "BANK" | "MANUAL" | "INVESTMENT";
+export type AccountSource = "BANK" | "MANUAL" | "INVESTMENT" | "ASSET" | "LIABILITY";
 
 export interface HoldingDTO {
   symbol: string;
@@ -141,9 +142,11 @@ export interface NicknameResult {
 
 export interface SummaryDTO {
   month: string;
-  netWorth: number;
+  netWorth: number;     // everything incl. assets − debts
   investments: number;  // total across INVESTMENT accounts (ISA/crypto)
-  available: number;    // netWorth − investments (immediately available)
+  assets: number;       // total across ASSET accounts (house, car)
+  debts: number;        // total owed across LIABILITY accounts (positive)
+  available: number;    // immediately available (banks + cash)
   income: number;
   expenses: number;
   net: number;
@@ -153,6 +156,7 @@ export interface SummaryDTO {
 export interface ManualAccountInput {
   name: string;
   type: AccountType;
+  source?: "MANUAL" | "ASSET" | "LIABILITY";
   currency?: string;
   manualBalance?: string;
 }

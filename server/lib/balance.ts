@@ -6,12 +6,14 @@ export interface BalanceLike {
 const PREFERRED = ["interimAvailable", "expected", "closingBooked"];
 
 export function currentBalance(
-  source: "BANK" | "MANUAL" | "INVESTMENT",
+  source: "BANK" | "MANUAL" | "INVESTMENT" | "ASSET" | "LIABILITY",
   manualBalance: number | null,
   balances: BalanceLike[],
   preferredType?: string | null,
 ): number {
-  // Manual and investment accounts carry their value in manualBalance.
+  // Liabilities are entered as a positive amount owed but subtract from net worth.
+  if (source === "LIABILITY") return -(manualBalance ?? 0);
+  // Manual / investment / asset accounts carry their value in manualBalance.
   if (source !== "BANK") return manualBalance ?? 0;
   // An explicit per-account choice wins, when that type is present.
   if (preferredType) {

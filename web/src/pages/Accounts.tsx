@@ -31,6 +31,20 @@ export default function Accounts() {
     wrap(() => api.createManualAccount({ name, type: isBiz ? "BUSINESS" : "PERSONAL", manualBalance: bal }));
   };
 
+  const addAsset = () => {
+    const name = window.prompt("Asset name (e.g. House, Car):");
+    if (!name) return;
+    const val = window.prompt(`Current value of ${name} (£):`, "0") ?? "0";
+    wrap(() => api.createManualAccount({ name, type: "PERSONAL", source: "ASSET", manualBalance: val }));
+  };
+
+  const addDebt = () => {
+    const name = window.prompt("Debt name (e.g. Mortgage, Loan from Dad):");
+    if (!name) return;
+    const owed = window.prompt(`Amount owed on ${name} (£):`, "0") ?? "0";
+    wrap(() => api.createManualAccount({ name, type: "PERSONAL", source: "LIABILITY", manualBalance: owed }));
+  };
+
   const editBalance = (id: string, current: number) => {
     const bal = window.prompt("New balance (£):", String(current));
     if (bal === null) return;
@@ -68,6 +82,8 @@ export default function Accounts() {
         <h1>Manage accounts</h1>
         <div className="toolbar">
           <button onClick={addManual}>Add cash / manual</button>
+          <button onClick={addAsset}>Add asset</button>
+          <button onClick={addDebt}>Add debt</button>
           <button className="btn-primary" onClick={() => navigate("/connect")}>Add bank</button>
         </div>
       </div>
@@ -117,8 +133,8 @@ export default function Accounts() {
                 </span>
                 <span className="acct-actions">
                   <button className="btn-sm" onClick={() => rename(a.id, a.nickname ?? "")}>Rename</button>
-                  {a.source === "MANUAL" && <button className="btn-sm" onClick={() => editBalance(a.id, a.currentBalance)}>Set balance</button>}
-                  {a.source === "MANUAL" && <button className="btn-danger btn-sm" onClick={() => removeManual(a.id, a.displayName)}>Delete</button>}
+                  {["MANUAL", "ASSET", "LIABILITY"].includes(a.source) && <button className="btn-sm" onClick={() => editBalance(a.id, a.source === "LIABILITY" ? -a.currentBalance : a.currentBalance)}>Set {a.source === "LIABILITY" ? "owed" : "balance"}</button>}
+                  {["MANUAL", "ASSET", "LIABILITY"].includes(a.source) && <button className="btn-danger btn-sm" onClick={() => removeManual(a.id, a.displayName)}>Delete</button>}
                 </span>
               </div>
             ))}

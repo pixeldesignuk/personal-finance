@@ -148,6 +148,44 @@ transactionsRouter.post("/transactions/:id/apply-to-matching", async (req, res, 
   } catch (err) { next(err); }
 });
 
+const dec2 = (v: { toString(): string } | null | undefined): number => (v == null ? 0 : Number(v.toString()));
+
+// Link a repayment to a debt: reduces the debt's balance by the payment amount
+// and excludes the transaction from spending (it's a transfer, not consumption).
+transactionsRouter.post("/transactions/:id/link-debt", async (req, res, next) => {
+  try {
+    const b = z.object({ debtAccountId: z.string().min(1) }).parse(req.body);
+    const tx = await db.transaction.findUnique({ where: { id: req.params.id } });
+    if (!tx) { res.status(404).json({ error: "Transaction not found" }); return; }
+    const debt = await db.account.findUnique({ where: { id: b.debtAccountId } });
+    if (!debt || debt.source !== "LIABILITY") { res.status(400).json({ error: "Not a debt account" }); return; }
+    if (tx.debtAccountId === debt.id) { res.json({ linked: true }); return; } // already linked — don't double-apply
+
+    const amount = Math.abs(Number(tx.amount));
+    // Reverse a previous link to a different debt.
+    if (tx.debtAccountId) {
+      const old = await db.account.findUnique({ where: { id: tx.debtAccountId } });
+      if (old?.source === "LIABILITY") await db.account.update({ where: { id: old.id }, data: { manualBalance: (dec2(old.manualBalance) + amount).toString() } });
+    }
+    await db.account.update({ where: { id: debt.id }, data: { manualBalance: (dec2(debt.manualBalance) - amount).toString() } });
+    await db.transaction.update({ where: { id: tx.id }, data: { debtAccountId: debt.id, categoryOverride: "transfer" } });
+    res.json({ linked: true });
+  } catch (err) { next(err); }
+});
+
+transactionsRouter.post("/transactions/:id/unlink-debt", async (req, res, next) => {
+  try {
+    const tx = await db.transaction.findUnique({ where: { id: req.params.id } });
+    if (!tx) { res.status(404).json({ error: "Transaction not found" }); return; }
+    if (tx.debtAccountId) {
+      const debt = await db.account.findUnique({ where: { id: tx.debtAccountId } });
+      if (debt?.source === "LIABILITY") await db.account.update({ where: { id: debt.id }, data: { manualBalance: (dec2(debt.manualBalance) + Math.abs(Number(tx.amount))).toString() } });
+    }
+    await db.transaction.update({ where: { id: tx.id }, data: { debtAccountId: null, categoryOverride: null } });
+    res.json({ unlinked: true });
+  } catch (err) { next(err); }
+});
+
 // Assign one category to many transactions at once (manual reconcile).
 transactionsRouter.post("/transactions/bulk-category", async (req, res, next) => {
   try {

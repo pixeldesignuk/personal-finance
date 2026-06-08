@@ -70,19 +70,17 @@ accountsRouter.get("/accounts", async (_req, res, next) => {
         accounts: manual.map((a) => toAccountDTO(a as unknown as AccountWithBalances)),
       });
     }
-    const investments = await db.account.findMany({
-      where: { source: "INVESTMENT" },
-      include: { balances: true },
-      orderBy: { createdAt: "asc" },
-    });
-    if (investments.length) {
-      banks.push({
-        requisitionId: "investments",
-        institutionId: "investments",
-        institutionName: "Investments",
-        status: "INVESTMENT",
-        accounts: investments.map((a) => toAccountDTO(a as unknown as AccountWithBalances)),
-      });
+    for (const [source, label] of [["INVESTMENT", "Investments"], ["ASSET", "Assets"], ["LIABILITY", "Debts"]] as const) {
+      const group = await db.account.findMany({ where: { source }, include: { balances: true }, orderBy: { createdAt: "asc" } });
+      if (group.length) {
+        banks.push({
+          requisitionId: source.toLowerCase(),
+          institutionId: source.toLowerCase(),
+          institutionName: label,
+          status: source,
+          accounts: group.map((a) => toAccountDTO(a as unknown as AccountWithBalances)),
+        });
+      }
     }
     res.json(banks);
   } catch (err) {
@@ -96,14 +94,16 @@ accountsRouter.post("/accounts/manual", async (req, res, next) => {
       .object({
         name: z.string().min(1),
         type: z.enum(["PERSONAL", "BUSINESS"]),
+        source: z.enum(["MANUAL", "ASSET", "LIABILITY"]).default("MANUAL"),
         currency: z.string().optional(),
         manualBalance: z.string().regex(/^-?\d+(\.\d+)?$/, "manualBalance must be a number").optional(),
       })
       .parse(req.body);
+    const prefix = body.source === "ASSET" ? "asset" : body.source === "LIABILITY" ? "debt" : "manual";
     const account = await db.account.create({
       data: {
-        id: `manual-${randomUUID()}`,
-        source: "MANUAL",
+        id: `${prefix}-${randomUUID()}`,
+        source: body.source,
         type: body.type,
         name: body.name,
         currency: body.currency ?? "GBP",
@@ -132,8 +132,9 @@ accountsRouter.patch("/accounts/:id", async (req, res, next) => {
       res.status(404).json({ error: "Account not found" });
       return;
     }
-    if (body.manualBalance !== undefined && account.source !== "MANUAL") {
-      res.status(400).json({ error: "manualBalance is only valid for manual accounts" });
+    const MANUALISH = ["MANUAL", "ASSET", "LIABILITY"];
+    if (body.manualBalance !== undefined && !MANUALISH.includes(account.source)) {
+      res.status(400).json({ error: "manualBalance is only valid for manual/asset/debt accounts" });
       return;
     }
     const data: Record<string, unknown> = {};
@@ -156,13 +157,15 @@ accountsRouter.delete("/accounts/:id", async (req, res, next) => {
       res.status(404).json({ error: "Account not found" });
       return;
     }
-    if (account.source !== "MANUAL") {
+    if (!["MANUAL", "ASSET", "LIABILITY"].includes(account.source)) {
       res.status(400).json({ error: "Use DELETE /api/banks/:requisitionId for bank accounts" });
       return;
     }
     await db.syncLog.deleteMany({ where: { accountId: account.id } });
     await db.transaction.deleteMany({ where: { accountId: account.id } });
     await db.balance.deleteMany({ where: { accountId: account.id } });
+    await db.holding.deleteMany({ where: { accountId: account.id } });
+    await db.transaction.updateMany({ where: { debtAccountId: account.id }, data: { debtAccountId: null } });
     await db.account.delete({ where: { id: account.id } });
     res.json({ deleted: true });
   } catch (err) {

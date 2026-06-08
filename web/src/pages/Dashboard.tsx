@@ -28,7 +28,12 @@ export default function Dashboard() {
   const [syncOpen, setSyncOpen] = useState(false);
   const syncRun = useCallback((onEvent: (e: AuditEvent) => void) => api.syncStream(onEvent), []);
 
+  // Feature flag: include assets & debts in net worth (persisted).
+  const [inclAD, setInclAD] = useState(() => localStorage.getItem("nw.inclAD") !== "0");
+  const toggleAD = () => setInclAD((v) => { localStorage.setItem("nw.inclAD", v ? "0" : "1"); return !v; });
+
   if (!data) return <p>{msg ?? "Loading..."}</p>;
+  const netWorth = summary ? (inclAD ? summary.netWorth : summary.netWorth - summary.assets + summary.debts) : 0;
   return (
     <div>
       <div className="row-between">
@@ -43,9 +48,17 @@ export default function Dashboard() {
       {summary && (
         <div className="grid">
           <div className="card stat">
-            <span className="label">Net worth</span>
-            <span className="value">{formatGBP(summary.netWorth)}</span>
-            <span className="delta muted">{formatGBP(summary.available)} available</span>
+            <span className="label">Net worth {!inclAD && <span className="muted" style={{ textTransform: "none", letterSpacing: 0 }}>· excl. assets/debts</span>}</span>
+            <span className="value">{formatGBP(netWorth)}</span>
+            <span className="delta muted">
+              {formatGBP(summary.available)} available
+              {inclAD && summary.assets > 0 && ` · ${formatGBP(summary.assets)} assets`}
+              {inclAD && summary.debts > 0 && ` · ${formatGBP(summary.debts)} debt`}
+              <label style={{ marginLeft: 8, cursor: "pointer" }} title="Include assets & debts in net worth">
+                <input type="checkbox" checked={inclAD} onChange={toggleAD} style={{ width: "auto", marginRight: 4, verticalAlign: "middle" }} />
+                incl. A&D
+              </label>
+            </span>
           </div>
           <div className="card stat"><span className="label">Income · {summary.month}</span><span className="value pos">{formatGBP(summary.income)}</span></div>
           <div className="card stat"><span className="label">Expenses</span><span className="value neg">{formatGBP(summary.expenses)}</span></div>

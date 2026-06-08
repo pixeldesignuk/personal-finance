@@ -16,6 +16,8 @@ enum AccountSource {
   BANK
   MANUAL
   INVESTMENT
+  ASSET
+  LIABILITY
 }
 
 model Requisition {
@@ -97,6 +99,7 @@ model Transaction {
   personKey        String?
   note             String?
   flag             String?
+  debtAccountId    String?  // links a repayment to a LIABILITY account
   status         String
   raw            Json
 

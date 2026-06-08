@@ -52,6 +52,8 @@ export const api = {
   sync: () => send<SyncResult[]>("POST", "/api/sync"),
   accounts: () => get<BankDTO[]>("/api/accounts"),
   createManualAccount: (input: ManualAccountInput) => send<{ id: string }>("POST", "/api/accounts/manual", input),
+  linkDebt: (id: string, debtAccountId: string) => send<{ linked: boolean }>("POST", `/api/transactions/${id}/link-debt`, { debtAccountId }),
+  unlinkDebt: (id: string) => send<{ unlinked: boolean }>("POST", `/api/transactions/${id}/unlink-debt`),
   patchAccount: (id: string, patch: { nickname?: string | null; type?: string; name?: string; manualBalance?: string; balanceType?: string | null }) =>
     send<NicknameResult>("PATCH", `/api/accounts/${id}`, patch),
   deleteManualAccount: (id: string) => send<{ deleted: boolean }>("DELETE", `/api/accounts/${id}`),
