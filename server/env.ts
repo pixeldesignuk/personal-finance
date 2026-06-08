@@ -12,6 +12,8 @@ const schema = z.object({
   TELEGRAM_ALLOWED_CHAT_ID: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().default("gemini-flash-latest"),
+  TRADING212_API_KEY: z.string().optional(),
+  TRADING212_BASE_URL: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);

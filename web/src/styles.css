@@ -123,11 +123,38 @@ nav a {
 }
 nav a:hover { color: var(--ink); }
 nav a.active { color: var(--ink); }
-nav a.active::after {
+nav a.active:not(.nav-cta)::after {
   content: ""; position: absolute; left: 0; right: 0; bottom: -17px; height: 2px;
   background: var(--jade);
   box-shadow: 0 0 12px var(--jade);
 }
+
+/* settings cog + dropdown */
+.cog { position: relative; display: flex; align-items: center; }
+.cog-btn {
+  background: transparent; border: 1px solid var(--line-strong); border-radius: 999px;
+  width: 34px; height: 34px; padding: 0; font-size: 15px; color: var(--ink-2); line-height: 1;
+}
+.cog-btn:hover { color: var(--ink); transform: none; }
+.cog-menu {
+  position: absolute; top: calc(100% + 12px); right: 0; z-index: 30;
+  display: flex; flex-direction: column; min-width: 168px;
+  background: linear-gradient(180deg, var(--surface), var(--bg-2));
+  border: 1px solid var(--line-strong); border-radius: var(--r-sm);
+  box-shadow: 0 24px 50px -22px rgba(0, 0, 0, 0.8); padding: 6px;
+  animation: pop 0.14s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.cog-menu a { padding: 8px 12px; border-radius: 7px; color: var(--ink-2); font-size: 14px; }
+.cog-menu a::after { display: none !important; }
+.cog-menu a:hover { background: var(--surface-2); color: var(--ink); }
+.cog-menu a.active { color: var(--jade); }
+
+/* Connect call-to-action in the nav */
+.nav-cta {
+  color: #06251a !important; padding: 7px 15px; border-radius: var(--r-sm);
+  font-weight: 640; font-size: 13px;
+}
+.nav-cta:hover { filter: brightness(1.06); }
 
 /* ---- layout -------------------------------------------------------------- */
 .container { max-width: 1040px; margin: 0 auto; padding: clamp(22px, 4vw, 38px) clamp(18px, 5vw, 40px) 80px; }

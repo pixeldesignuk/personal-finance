@@ -15,6 +15,7 @@ enum AccountType {
 enum AccountSource {
   BANK
   MANUAL
+  INVESTMENT
 }
 
 model Requisition {
@@ -40,10 +41,30 @@ model Account {
   ownerName     String?
   manualBalance Decimal?
   balanceType   String?
+  provider      String?        // investment provider key, e.g. "trading212", "bitget"
   createdAt     DateTime       @default(now())
   balances      Balance[]
   transactions  Transaction[]
   syncLogs      SyncLog[]
+  holdings      Holding[]
+}
+
+// A normalised investment position — equities (Trading 212) or crypto (Bitget).
+model Holding {
+  id        Int      @id @default(autoincrement())
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId String
+  symbol    String   // provider ticker, e.g. "AAPL_US_EQ" or "BTC"
+  name      String?
+  quantity  Decimal
+  price     Decimal  // current price (account currency)
+  value     Decimal  // current value (account currency)
+  cost      Decimal?
+  pnl       Decimal?
+  currency  String?
+  updatedAt DateTime @updatedAt
+
+  @@index([accountId])
 }
 
 model Balance {

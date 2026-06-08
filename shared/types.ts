@@ -77,7 +77,35 @@ export interface AccountBalanceDTO {
 }
 
 export type AccountType = "PERSONAL" | "BUSINESS";
-export type AccountSource = "BANK" | "MANUAL";
+export type AccountSource = "BANK" | "MANUAL" | "INVESTMENT";
+
+export interface HoldingDTO {
+  symbol: string;
+  name: string;
+  quantity: number;
+  price: number;
+  value: number;
+  pnl: number | null;
+  currency: string | null;
+}
+
+export interface InvestmentAccountDTO {
+  id: string;
+  name: string;
+  provider: string;
+  currency: string;
+  total: number;
+  cash: number;
+  invested: number;
+  pnl: number;
+  holdings: HoldingDTO[];
+}
+
+export interface InvestmentsDTO {
+  providers: { key: string; name: string; configured: boolean }[];
+  accounts: InvestmentAccountDTO[];
+  total: number;
+}
 
 export interface AccountDTO {
   id: string;

@@ -6,12 +6,13 @@ export interface BalanceLike {
 const PREFERRED = ["interimAvailable", "expected", "closingBooked"];
 
 export function currentBalance(
-  source: "BANK" | "MANUAL",
+  source: "BANK" | "MANUAL" | "INVESTMENT",
   manualBalance: number | null,
   balances: BalanceLike[],
   preferredType?: string | null,
 ): number {
-  if (source === "MANUAL") return manualBalance ?? 0;
+  // Manual and investment accounts carry their value in manualBalance.
+  if (source !== "BANK") return manualBalance ?? 0;
   // An explicit per-account choice wins, when that type is present.
   if (preferredType) {
     const chosen = balances.find((b) => b.type === preferredType);

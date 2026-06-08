@@ -4,7 +4,7 @@ import type {
   BankDTO, RemoveBankResult, NicknameResult,
   SummaryDTO, ManualAccountInput, ManualTxnInput,
   CategoryDTO, BudgetResponseDTO, CategoryInfoDTO, ReportDTO,
-  PersonDTO, RuleDTO, CategoryNameDTO, ReconcileResult, AuditEvent,
+  PersonDTO, RuleDTO, CategoryNameDTO, ReconcileResult, AuditEvent, InvestmentsDTO,
 } from "../../shared/types.ts";
 
 async function get<T>(url: string): Promise<T> {
@@ -96,6 +96,8 @@ export const api = {
     send<{ id: number }>("PATCH", `/api/categories/${id}`, patch),
   deleteCategory: (id: number) => send<{ deleted: boolean }>("DELETE", `/api/categories/${id}`),
   summary: () => get<SummaryDTO>("/api/summary"),
+  investments: () => get<InvestmentsDTO>("/api/investments"),
+  syncInvestment: (provider: string) => send<{ provider: string; total: number; holdings: number }>("POST", `/api/investments/${provider}/sync`),
   dashboard: (accountId?: string) => { const q = acctQuery(accountId); return get<DashboardDTO>(`/api/dashboard${q ? `?${q}` : ""}`); },
   transactions: (search = "", accountId?: string, person?: string, month?: string) => {
     const parts = [`search=${encodeURIComponent(search)}`, acctQuery(accountId), person ? `person=${encodeURIComponent(person)}` : "", month ? `month=${month}` : ""].filter(Boolean);
