@@ -5,6 +5,7 @@ import { spendingByCategory, monthlyTotals, topMerchants, type AggTx } from "../
 import type { DashboardDTO, TransactionDTO } from "../../shared/types.ts";
 import { accountScope } from "../lib/accountScope.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
+import { displayName } from "../../shared/displayName.ts";
 
 export const dashboardRouter = Router();
 
@@ -69,6 +70,7 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
     const dto: TransactionDTO[] = txns.map((t) => ({
       id: t.id,
       accountId: t.accountId,
+      accountName: displayName(t.account),
       bookingDate: t.bookingDate,
       amount: t.amount.toString(),
       currency: t.currency,

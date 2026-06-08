@@ -54,6 +54,7 @@ export interface DashboardDTO {
 export interface TransactionDTO {
   id: string;
   accountId: string;
+  accountName: string;   // resolved display name, so the list is self-labelling
   bookingDate: string | null;
   amount: string;
   currency: string;

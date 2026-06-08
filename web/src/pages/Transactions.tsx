@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api.ts";
-import type { TransactionDTO, BankDTO, CategoryNameDTO, PersonDTO } from "../../../shared/types.ts";
+import type { TransactionDTO, CategoryNameDTO, PersonDTO } from "../../../shared/types.ts";
 import { formatMoney } from "../format.ts";
 import { useToast } from "../components/Toasts.tsx";
 import { AccountSelector } from "../components/AccountSelector.tsx";
@@ -40,13 +40,6 @@ export default function Transactions() {
   });
   const rows = useMemo(() => txnQuery.data ?? [], [txnQuery.data]);
 
-  const banksQuery = useQuery({
-    queryKey: ["accounts"],
-    queryFn: () => api.accounts(),
-    staleTime: 5 * 60_000,
-  });
-  const banks = useMemo<BankDTO[]>(() => banksQuery.data ?? [], [banksQuery.data]);
-
   const catNamesQuery = useQuery({
     queryKey: ["categoryNames"],
     queryFn: () => api.categoryNames(),
@@ -60,12 +53,6 @@ export default function Transactions() {
     staleTime: 5 * 60_000,
   });
   const people = useMemo<PersonDTO[]>(() => peopleQuery.data ?? [], [peopleQuery.data]);
-
-  const nameById = useMemo(() => {
-    const m = new Map<string, string>();
-    banks.forEach((b) => b.accounts.forEach((a) => m.set(a.id, a.displayName)));
-    return m;
-  }, [banks]);
 
   const invalidateTxns = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["transactions"] });
@@ -291,7 +278,7 @@ export default function Transactions() {
           </tr></thead>
           <tbody>
             {visible.map((r) => {
-              const acct = nameById.get(r.accountId) ?? r.accountId.slice(-4);
+              const acct = r.accountName;
               return (
               <tr key={r.id} className={selected.has(r.id) ? "row-selected" : undefined}>
                 <td><input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} /></td>
