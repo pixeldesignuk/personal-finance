@@ -52,7 +52,10 @@ export default function Transactions() {
             {rows.map((r) => (
               <tr key={r.id}>
                 <td>{r.bookingDate ?? ""}</td>
-                <td>{nameById.get(r.accountId) ?? r.accountId.slice(-4)}</td>
+                <td>
+                  {nameById.get(r.accountId) ?? r.accountId.slice(-4)}
+                  {r.source === "MANUAL" && <span className="badge manual" style={{ marginLeft: 8 }}>manual</span>}
+                </td>
                 <td>{r.name ?? r.remittanceInfo ?? ""}</td>
                 <td>
                   <select value={r.category} onChange={(e) => setCategory(r.id, e.target.value)}>

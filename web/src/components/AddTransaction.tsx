@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, CATEGORY_OPTIONS } from "../api.ts";
 import type { BankDTO, AccountDTO } from "../../../shared/types.ts";
 
 export function AddTransaction({ onAdded }: { onAdded: () => void }) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const [manual, setManual] = useState<AccountDTO[]>([]);
   const [accountId, setAccountId] = useState("");
   const [date, setDate] = useState(new Date().toLocaleDateString("en-CA"));
+  const [sign, setSign] = useState<"-" | "+">("-");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("other");
   const [note, setNote] = useState("");
@@ -15,37 +17,88 @@ export function AddTransaction({ onAdded }: { onAdded: () => void }) {
     api.accounts().then((banks: BankDTO[]) => {
       const m = banks.flatMap((b) => b.accounts).filter((a) => a.source === "MANUAL");
       setManual(m);
-      if (m[0]) setAccountId(m[0].id);
+      setAccountId((prev) => prev || (m[0]?.id ?? ""));
     }).catch(() => setManual([]));
   }, []);
 
-  if (manual.length === 0) {
-    return <div className="card"><span className="muted">Add a cash / manual account on <a href="/accounts">Manage</a> to log transactions here.</span></div>;
-  }
+  const noAccounts = manual.length === 0;
+  const open = () => { setMsg(null); dialogRef.current?.showModal(); };
+  const close = () => dialogRef.current?.close();
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!/^-?\d+(\.\d+)?$/.test(amount)) { setMsg("Enter a number (negative for spending)"); return; }
+    const raw = amount.trim();
+    if (!/^\d+(\.\d+)?$/.test(raw)) { setMsg("Enter an amount, e.g. 12.50"); return; }
+    const signed = (sign === "-" ? "-" : "") + raw;
     try {
-      await api.createTxn({ accountId, date, amount, category, note: note || undefined });
+      await api.createTxn({ accountId, date, amount: signed, category, note: note || undefined });
       setAmount(""); setNote(""); setMsg(null);
+      close();
       onAdded();
     } catch (err) { setMsg((err as Error).message); }
   };
 
   return (
-    <form className="card" onSubmit={submit} style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-      <select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-        {manual.map((a) => <option key={a.id} value={a.id}>{a.displayName}</option>)}
-      </select>
-      <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ width: "auto" }} />
-      <input placeholder="-12.50" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: 110 }} />
-      <select value={category} onChange={(e) => setCategory(e.target.value)}>
-        {CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
-      </select>
-      <input placeholder="note (optional)" value={note} onChange={(e) => setNote(e.target.value)} style={{ flex: 1, minWidth: 120 }} />
-      <button className="btn-primary" type="submit">Add</button>
-      {msg && <span className="neg" style={{ width: "100%" }}>{msg}</span>}
-    </form>
+    <>
+      <button
+        className="btn-primary"
+        onClick={noAccounts ? () => { window.location.href = "/accounts"; } : open}
+        title={noAccounts ? "Create a cash / manual account first" : "Add a manual transaction"}
+      >
+        + Add transaction
+      </button>
+
+      <dialog ref={dialogRef} className="modal" onClick={(e) => { if (e.target === dialogRef.current) close(); }}>
+        <form className="modal-body" onSubmit={submit}>
+          <h3 style={{ marginTop: 0 }}>Add transaction</h3>
+
+          <label className="field">
+            <span>Account</span>
+            <select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+              {manual.map((a) => <option key={a.id} value={a.id}>{a.displayName}</option>)}
+            </select>
+          </label>
+
+          <div style={{ display: "flex", gap: 12 }}>
+            <label className="field" style={{ flex: 1 }}>
+              <span>Date</span>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </label>
+            <label className="field" style={{ flex: 1 }}>
+              <span>Direction</span>
+              <select value={sign} onChange={(e) => setSign(e.target.value as "-" | "+")}>
+                <option value="-">Spend</option>
+                <option value="+">Income</option>
+              </select>
+            </label>
+          </div>
+
+          <div style={{ display: "flex", gap: 12 }}>
+            <label className="field" style={{ flex: 1 }}>
+              <span>Amount (£)</span>
+              <input placeholder="0.00" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus />
+            </label>
+            <label className="field" style={{ flex: 1 }}>
+              <span>Category</span>
+              <select value={category} onChange={(e) => setCategory(e.target.value)}>
+                {CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </label>
+          </div>
+
+          <label className="field">
+            <span>Note</span>
+            <input placeholder="optional" value={note} onChange={(e) => setNote(e.target.value)} />
+          </label>
+
+          {msg && <p className="neg" style={{ margin: 0 }}>{msg}</p>}
+
+          <div className="modal-actions">
+            <button type="button" onClick={close}>Cancel</button>
+            <button className="btn-primary" type="submit">Add transaction</button>
+          </div>
+        </form>
+      </dialog>
+    </>
   );
 }
