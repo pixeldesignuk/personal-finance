@@ -6,9 +6,12 @@ import { db } from "../lib/db.ts";
 export const transactionsRouter = Router();
 
 const RESERVED = new Set(["income", "transfer"]);
-async function categoryExists(name: string): Promise<boolean> {
-  if (RESERVED.has(name)) return true;
-  return !!(await db.category.findFirst({ where: { name } }));
+async function categoryExists(key: string): Promise<boolean> {
+  if (RESERVED.has(key)) return true;
+  return !!(await db.category.findFirst({ where: { key } }));
+}
+async function personExists(key: string): Promise<boolean> {
+  return !!(await db.person.findFirst({ where: { key } }));
 }
 
 transactionsRouter.post("/transactions", async (req, res, next) => {
@@ -56,23 +59,20 @@ transactionsRouter.post("/transactions", async (req, res, next) => {
 
 transactionsRouter.patch("/transactions/:id", async (req, res, next) => {
   try {
-    const { category } = z
-      .object({ category: z.string().min(1) })
-      .parse(req.body);
-    if (!(await categoryExists(category))) {
-      res.status(400).json({ error: "Unknown category" });
-      return;
-    }
+    const b = z.object({
+      category: z.string().min(1).optional(),
+      personKey: z.string().nullable().optional(),
+    }).parse(req.body);
     const tx = await db.transaction.findUnique({ where: { id: req.params.id } });
-    if (!tx) {
-      res.status(404).json({ error: "Transaction not found" });
-      return;
-    }
-    await db.transaction.update({ where: { id: req.params.id }, data: { categoryOverride: category } });
-    res.json({ id: req.params.id, category });
-  } catch (err) {
-    next(err);
-  }
+    if (!tx) { res.status(404).json({ error: "Transaction not found" }); return; }
+    if (b.category !== undefined && !(await categoryExists(b.category))) { res.status(400).json({ error: "Unknown category" }); return; }
+    if (b.personKey != null && !(await personExists(b.personKey))) { res.status(400).json({ error: "Unknown person" }); return; }
+    const data: { categoryOverride?: string; personKey?: string | null } = {};
+    if (b.category !== undefined) data.categoryOverride = b.category;
+    if (b.personKey !== undefined) data.personKey = b.personKey;
+    await db.transaction.update({ where: { id: req.params.id }, data });
+    res.json({ id: req.params.id });
+  } catch (err) { next(err); }
 });
 
 transactionsRouter.delete("/transactions/:id", async (req, res, next) => {
