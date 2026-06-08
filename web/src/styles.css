@@ -434,24 +434,21 @@ select {
 .toast-item.t-loading { border-left-color: var(--amber); }
 
 .toast-action {
-  background: transparent;
+  flex: none;
+  margin-left: 4px;
+  background: var(--jade);
+  color: #06251a;
   border: none;
-  padding: 0 2px;
-  color: var(--jade);
+  border-radius: var(--r-sm);
+  padding: 6px 12px;
   font-family: var(--font-text);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 640;
   cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  transform: none;
+  box-shadow: 0 6px 16px -8px rgba(111, 227, 176, 0.6);
 }
-.toast-action:hover {
-  color: var(--jade);
-  border-color: transparent;
-  background: transparent;
-  transform: none;
-}
+.toast-action:hover { filter: brightness(1.06); transform: translateY(-1px); }
+.toast-action:active { transform: translateY(0); }
 
 .toast-x {
   margin-left: auto;

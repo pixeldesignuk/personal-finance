@@ -102,10 +102,10 @@ export default function Transactions() {
       const action = { label, onClick: () => applyMutation.mutate({ id, fields }) };
 
       if (existing && existing.rowId === id) {
-        update(existing.toastId, `Updated ${merchant}`, { tone: "success", action });
+        update(existing.toastId, `Updated ${merchant}`, { tone: "success", action, duration: 10000 });
         offerRef.current = { rowId: id, toastId: existing.toastId, fields };
       } else {
-        const toastId = notify(`Updated ${merchant}`, { tone: "success", action });
+        const toastId = notify(`Updated ${merchant}`, { tone: "success", action, duration: 10000 });
         offerRef.current = { rowId: id, toastId, fields };
       }
     },
