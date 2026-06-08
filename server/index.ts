@@ -13,6 +13,8 @@ import { summaryRouter } from "./routes/summary.ts";
 import { telegramRouter } from "./routes/telegram.ts";
 import { categoriesRouter } from "./routes/categories.ts";
 import { envelopesRouter } from "./routes/envelopes.ts";
+import { peopleRouter } from "./routes/people.ts";
+import { rulesRouter } from "./routes/rules.ts";
 
 const app = express();
 app.use(express.json());
@@ -27,6 +29,8 @@ app.use("/api", summaryRouter);
 app.use("/api", telegramRouter);
 app.use("/api", categoriesRouter);
 app.use("/api", envelopesRouter);
+app.use("/api", peopleRouter);
+app.use("/api", rulesRouter);
 
 // Serve built frontend in production.
 const __dirname = dirname(fileURLToPath(import.meta.url));

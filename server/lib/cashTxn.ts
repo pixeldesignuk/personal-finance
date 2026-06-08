@@ -15,7 +15,7 @@ export function parseTextExpense(text: string): ParsedExpense | null {
   if (!Number.isFinite(value) || value === 0) return null;
   const amount = m[1] === "+" ? value : -value;
   const note = text.replace(m[0], "").trim();
-  return { amount, category: amount > 0 ? "income" : "Uncategorised", merchant: note, date: "" };
+  return { amount, category: amount > 0 ? "income" : "uncategorised", merchant: note, date: "" };
 }
 
 export interface NormalizedTxn {
@@ -28,7 +28,7 @@ export interface NormalizedTxn {
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export function normalizeParsed(p: ParsedExpense, todayISO: string): NormalizedTxn {
-  const category = p.category && p.category.trim() ? p.category : "Uncategorised";
+  const category = p.category && p.category.trim() ? p.category : "uncategorised";
   let amount = Number.isFinite(p.amount) ? p.amount : 0;
   // Spends are negative; only income may be positive.
   if (category !== "income" && amount > 0) amount = -amount;

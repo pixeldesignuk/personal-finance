@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { env } from "../env.ts";
 import { db } from "../lib/db.ts";
 import { isAllowed, normalizeParsed, confirmText, parseTextExpense } from "../lib/cashTxn.ts";
+import { applyRules, type Rule } from "../lib/rules.ts";
 import { sendMessage, editMessageText, answerCallbackQuery } from "../telegram/api.ts";
 import { getOrCreateCashAccount } from "../telegram/cashAccount.ts";
 
@@ -11,16 +12,16 @@ export const telegramRouter = Router();
 const configured = () =>
   !!(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_WEBHOOK_SECRET && env.TELEGRAM_ALLOWED_CHAT_ID);
 
-async function activeCategoryNames(): Promise<string[]> {
+async function activeCategories(): Promise<{ key: string; name: string }[]> {
   const cats = await db.category.findMany({ where: { archived: false }, orderBy: { sortOrder: "asc" } });
-  return cats.map((c) => c.name);
+  return cats.map((c) => ({ key: c.key, name: c.name }));
 }
 
-function categoryKeyboard(txId: string, names: string[]) {
+function categoryKeyboard(txId: string, cats: { key: string; name: string }[]) {
   const rows = [];
-  const top = names.slice(0, 9); // keep the keyboard small
+  const top = cats.slice(0, 9); // keep the keyboard small
   for (let i = 0; i < top.length; i += 3) {
-    rows.push(top.slice(i, i + 3).map((c) => ({ text: c, callback_data: `cat:${c}:${txId}` })));
+    rows.push(top.slice(i, i + 3).map((c) => ({ text: c.name, callback_data: `cat:${c.key}:${txId}` })));
   }
   rows.push([{ text: "↩︎ Undo", callback_data: `undo:${txId}` }]);
   return { inline_keyboard: rows };
@@ -54,7 +55,8 @@ telegramRouter.post("/telegram/webhook", async (req, res) => {
         if (chatId && messageId) await editMessageText(chatId, messageId, "↩︎ Removed.");
       } else if (data.startsWith("cat:")) {
         const [, category, id] = data.split(":");
-        if ((await activeCategoryNames()).includes(category) || category === "income" || category === "transfer") {
+        const cats = await activeCategories();
+        if (cats.some((c) => c.key === category) || category === "income" || category === "transfer") {
           const tx = await db.transaction.findUnique({ where: { id } });
           if (tx) {
             await db.transaction.update({ where: { id }, data: { categoryOverride: category } });
@@ -62,7 +64,7 @@ telegramRouter.post("/telegram/webhook", async (req, res) => {
             if (chatId && messageId) {
               await editMessageText(chatId, messageId,
                 confirmText({ amount: tx.amount.toString(), category, note: tx.remittanceInfo ?? "", date: tx.bookingDate ?? "" }),
-                categoryKeyboard(id, await activeCategoryNames()));
+                categoryKeyboard(id, cats));
             }
           }
         }
@@ -87,15 +89,19 @@ telegramRouter.post("/telegram/webhook", async (req, res) => {
 
     const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
     const n = normalizeParsed(parsed, today);
+    const ruleRows = await db.rule.findMany();
+    const ruled = applyRules(msg.text, ruleRows.map((r) => ({ matchText: r.matchText, categoryKey: r.categoryKey, personKey: r.personKey, priority: r.priority }) as Rule));
+    const category = ruled.categoryKey ?? n.category; // n.category is "income"/"uncategorised"
+    const personKey = ruled.personKey ?? null;
     const accountId = await getOrCreateCashAccount();
     const id = `manual-${randomUUID()}`;
     await db.transaction.create({
       data: {
         id, accountId, bookingDate: n.date, amount: n.amount, currency: "GBP",
-        remittanceInfo: n.note || null, category: n.category, status: "booked", raw: { telegram: true },
+        remittanceInfo: n.note || null, category, personKey, status: "booked", raw: { telegram: true },
       },
     });
-    await sendMessage(chatId, confirmText(n), categoryKeyboard(id, await activeCategoryNames()));
+    await sendMessage(chatId, confirmText({ ...n, category }), categoryKeyboard(id, await activeCategories()));
   } catch (err) {
     console.error("telegram webhook error", err);
   }
