@@ -95,41 +95,44 @@ export default function Accounts() {
               </div>
             )}
           </div>
-          <table style={{ marginTop: 10 }}>
-            <thead><tr><th>Account</th><th>Type</th><th>Balance</th><th></th></tr></thead>
-            <tbody>
-              {bank.accounts.map((a) => (
-                <tr key={a.id}>
-                  <td>{a.displayName}</td>
-                  <td>
-                    <button className="btn-sm" onClick={() => toggleType(a.id, a.type)}>{a.type}</button>
-                  </td>
-                  <td className="num">
-                    {a.currency ?? "GBP"} {formatMoney(a.currentBalance)}
-                    {a.source === "BANK" && a.balances.length > 1 && (
-                      <select
-                        value={a.balanceType ?? ""}
-                        onChange={(e) => setBalanceType(a.id, e.target.value)}
-                        style={{ marginLeft: 10, fontSize: 12, padding: "2px 6px" }}
-                        title="Which GoCardless balance type to use"
-                      >
-                        <option value="">auto</option>
-                        {a.balances.map((b) => (
-                          <option key={b.type} value={b.type}>{b.type}: {b.amount}</option>
-                        ))}
-                      </select>
-                    )}
-                  </td>
-                  <td style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                    <button className="btn-sm" onClick={() => rename(a.id, a.nickname ?? "")}>Rename</button>
-                    {a.source === "MANUAL" && <button className="btn-sm" onClick={() => editBalance(a.id, a.currentBalance)}>Set balance</button>}
-                    {a.source === "MANUAL" && <button className="btn-sm" onClick={() => addTxn(a.id)}>Add txn</button>}
-                    {a.source === "MANUAL" && <button className="btn-danger btn-sm" onClick={() => removeManual(a.id, a.displayName)}>Delete</button>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="acct-list">
+            <div className="acct-grid acct-head">
+              <span className="eyebrow">Account</span>
+              <span className="eyebrow">Type</span>
+              <span className="eyebrow">Balance</span>
+              <span />
+            </div>
+            {bank.accounts.map((a) => (
+              <div className="acct-grid acct-row" key={a.id}>
+                <span className="acct-name">{a.displayName}</span>
+                <span>
+                  <button className="chip" onClick={() => toggleType(a.id, a.type)}>{a.type}</button>
+                </span>
+                <span className="acct-bal">
+                  <span className="num">{a.currency ?? "GBP"} {formatMoney(a.currentBalance)}</span>
+                  {a.source === "BANK" && a.balances.length > 1 && (
+                    <select
+                      className="select-xs"
+                      value={a.balanceType ?? ""}
+                      onChange={(e) => setBalanceType(a.id, e.target.value)}
+                      title="Which GoCardless balance figure to display"
+                    >
+                      <option value="">auto</option>
+                      {a.balances.map((b) => (
+                        <option key={b.type} value={b.type}>{b.type} · {b.amount}</option>
+                      ))}
+                    </select>
+                  )}
+                </span>
+                <span className="acct-actions">
+                  <button className="btn-sm" onClick={() => rename(a.id, a.nickname ?? "")}>Rename</button>
+                  {a.source === "MANUAL" && <button className="btn-sm" onClick={() => editBalance(a.id, a.currentBalance)}>Set balance</button>}
+                  {a.source === "MANUAL" && <button className="btn-sm" onClick={() => addTxn(a.id)}>Add txn</button>}
+                  {a.source === "MANUAL" && <button className="btn-danger btn-sm" onClick={() => removeManual(a.id, a.displayName)}>Delete</button>}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       ))}
     </div>
