@@ -33,3 +33,9 @@ export function categorize(tx: CategorizeInput): Category {
   }
   return "other";
 }
+
+export const SPENDING_CATEGORIES = [
+  "groceries", "eating-out", "transport", "bills", "shopping", "other",
+] as const;
+
+export const CATEGORIES: string[] = [...SPENDING_CATEGORIES, "income", "transfer"];
