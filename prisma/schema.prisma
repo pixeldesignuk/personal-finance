@@ -88,8 +88,45 @@ model SyncLog {
   status    String
 }
 
-model Budget {
-  category     String   @id
-  monthlyLimit Decimal
-  updatedAt    DateTime @updatedAt
+model CategoryGroup {
+  id         Int        @id @default(autoincrement())
+  name       String     @unique
+  sortOrder  Int        @default(0)
+  categories Category[]
+}
+
+model Category {
+  id            Int           @id @default(autoincrement())
+  name          String        @unique
+  group         CategoryGroup @relation(fields: [groupId], references: [id])
+  groupId       Int
+  monthlyAmount Decimal       @default(0)
+  goal          Decimal?
+  sortOrder     Int           @default(0)
+  archived      Boolean       @default(false)
+  allocations   Allocation[]
+}
+
+model Allocation {
+  id         Int      @id @default(autoincrement())
+  category   Category @relation(fields: [categoryId], references: [id])
+  categoryId Int
+  month      String
+  amount     Decimal
+  @@unique([categoryId, month])
+}
+
+model CategoryTransfer {
+  id        Int      @id @default(autoincrement())
+  fromName  String
+  toName    String
+  month     String
+  amount    Decimal
+  note      String?
+  createdAt DateTime @default(now())
+}
+
+model Setting {
+  key   String @id
+  value String
 }
