@@ -36,32 +36,32 @@ export default function Dashboard() {
   if (!data) return <p>{msg ?? "Loading..."}</p>;
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="row-between">
         <h1>Dashboard</h1>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div className="toolbar">
           <AccountSelector />
-          <button onClick={sync}>Sync now</button>
+          <button className="btn-primary" onClick={sync}>Sync now</button>
         </div>
       </div>
-      {msg && <p>{msg}</p>}
+      {msg && <p className="muted">{msg}</p>}
       {summary && (
-        <div className="grid" style={{ marginBottom: 16 }}>
-          <div className="card"><div style={{ fontSize: 12, color: "#6b7280" }}>Net worth</div><div style={{ fontSize: 22 }}>{formatGBP(summary.netWorth)}</div></div>
-          <div className="card"><div style={{ fontSize: 12, color: "#6b7280" }}>Income ({summary.month})</div><div style={{ fontSize: 22, color: "#16a34a" }}>{formatGBP(summary.income)}</div></div>
-          <div className="card"><div style={{ fontSize: 12, color: "#6b7280" }}>Expenses</div><div style={{ fontSize: 22, color: "#dc2626" }}>{formatGBP(summary.expenses)}</div></div>
-          <div className="card"><div style={{ fontSize: 12, color: "#6b7280" }}>Net · savings rate</div><div style={{ fontSize: 22 }}>{formatGBP(summary.net)} · {summary.savingsRate}%</div></div>
+        <div className="grid">
+          <div className="card stat"><span className="label">Net worth</span><span className="value">{formatGBP(summary.netWorth)}</span></div>
+          <div className="card stat"><span className="label">Income · {summary.month}</span><span className="value pos">{formatGBP(summary.income)}</span></div>
+          <div className="card stat"><span className="label">Expenses</span><span className="value neg">{formatGBP(summary.expenses)}</span></div>
+          <div className="card stat"><span className="label">Net · savings rate</span><span className="value">{formatGBP(summary.net)} <span className="muted" style={{ fontSize: 15 }}>· {summary.savingsRate}%</span></span></div>
         </div>
       )}
       <div className="card">
         <h3>Balances by account</h3>
-        {banks.length === 0 && <div>No accounts yet.</div>}
+        {banks.length === 0 && <div className="muted">No accounts yet.</div>}
         {banks.map((bank) =>
           bank.accounts
             .filter((a) => !accountId || a.id === accountId)
             .map((a) => (
-              <div key={a.id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
-                <span>{bank.institutionName} — {a.displayName}</span>
-                <span>{a.balances.map((b) => `${b.currency} ${formatMoney(b.amount)}`).join(" / ") || "—"}</span>
+              <div key={a.id} className="lrow">
+                <span>{bank.institutionName} <span className="muted">— {a.displayName}</span></span>
+                <span className="num">{a.balances.map((b) => `${b.currency} ${formatMoney(b.amount)}`).join(" / ") || "—"}</span>
               </div>
             )),
         )}

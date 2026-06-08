@@ -24,13 +24,14 @@ export default function Connect() {
   return (
     <div>
       <h1>Connect a bank</h1>
-      {error && <p style={{ color: "crimson" }}>{error}</p>}
-      <input placeholder="Search banks..." value={q} onChange={(e) => setQ(e.target.value)} />
+      <p className="muted" style={{ marginTop: "-0.4em" }}>Pick your bank, authenticate, and we'll pull balances &amp; transactions.</p>
+      {error && <p className="neg">{error}</p>}
+      <input placeholder="Search banks…" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 360 }} />
       <div className="card" style={{ marginTop: 16 }}>
         {filtered.map((i) => (
-          <div key={i.id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0" }}>
+          <div key={i.id} className="lrow">
             <span>{i.name}</span>
-            <button onClick={() => choose(i.id)}>Connect</button>
+            <button className="btn-primary btn-sm" onClick={() => choose(i.id)}>Connect</button>
           </div>
         ))}
       </div>

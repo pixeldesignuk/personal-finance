@@ -3,10 +3,10 @@ import { api } from "../api.ts";
 import type { BudgetDTO } from "../../../shared/types.ts";
 import { formatMoney } from "../format.ts";
 
-function barColor(percent: number): string {
-  if (percent > 100) return "#dc2626";
-  if (percent >= 80) return "#f59e0b";
-  return "#16a34a";
+function barState(percent: number): "ok" | "warn" | "over" {
+  if (percent > 100) return "over";
+  if (percent >= 80) return "warn";
+  return "ok";
 }
 
 export default function Budgets() {
@@ -26,21 +26,21 @@ export default function Budgets() {
 
   return (
     <div>
-      <h1>Budgets <span style={{ fontSize: 13, color: "#6b7280" }}>(personal accounts, this month)</span></h1>
-      {msg && <p>{msg}</p>}
+      <h1>Budgets <span className="muted" style={{ fontSize: 14, fontFamily: "var(--font-text)" }}>· personal, this month</span></h1>
+      {msg && <p className="muted">{msg}</p>}
       {rows.map((r) => (
         <div className="card" key={r.category}>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <strong>{r.category}</strong>
+          <div className="row-between">
+            <strong style={{ fontWeight: 600, textTransform: "capitalize" }}>{r.category.replace("-", " ")}</strong>
             <span>
-              £{formatMoney(r.spent)} / £{formatMoney(r.monthlyLimit)}{" "}
-              <button onClick={() => edit(r.category, r.monthlyLimit)}>Set</button>
+              <span className="num">£{formatMoney(r.spent)}</span> <span className="muted">/ £{formatMoney(r.monthlyLimit)}</span>{" "}
+              <button className="btn-sm" onClick={() => edit(r.category, r.monthlyLimit)}>Set</button>
             </span>
           </div>
-          <div style={{ background: "#eee", borderRadius: 6, height: 10, marginTop: 8, overflow: "hidden" }}>
-            <div style={{ width: `${Math.min(r.percent, 100)}%`, height: "100%", background: barColor(r.percent) }} />
+          <div className="progress">
+            <i className={barState(r.percent)} style={{ width: `${Math.min(r.percent, 100)}%` }} />
           </div>
-          <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
+          <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
             {r.monthlyLimit > 0 ? `${r.percent}% used · £${formatMoney(r.remaining)} remaining` : "no limit set"}
           </div>
         </div>

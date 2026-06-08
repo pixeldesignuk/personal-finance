@@ -1,4 +1,4 @@
-import { Link, Route, Routes } from "react-router-dom";
+import { Link, NavLink, Route, Routes } from "react-router-dom";
 import Connect from "./pages/Connect.tsx";
 import Callback from "./pages/Callback.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
@@ -10,11 +10,12 @@ export default function App() {
   return (
     <>
       <nav>
-        <Link to="/">Dashboard</Link>
-        <Link to="/transactions">Transactions</Link>
-        <Link to="/budgets">Budgets</Link>
-        <Link to="/accounts">Manage</Link>
-        <Link to="/connect">Connect bank</Link>
+        <Link to="/" className="wordmark">Led<b>·</b>ger</Link>
+        <NavLink to="/" end>Dashboard</NavLink>
+        <NavLink to="/transactions">Transactions</NavLink>
+        <NavLink to="/budgets">Budgets</NavLink>
+        <NavLink to="/accounts">Manage</NavLink>
+        <NavLink to="/connect">Connect</NavLink>
       </nav>
       <div className="container">
         <Routes>

@@ -38,11 +38,11 @@ export default function Transactions() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="row-between">
         <h1>Transactions</h1>
         <AccountSelector />
       </div>
-      <input placeholder="Search..." value={q} onChange={(e) => setQ(e.target.value)} />
+      <input placeholder="Search transactions…" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 320 }} />
       <div className="card" style={{ marginTop: 16 }}>
         <table>
           <thead><tr><th>Date</th><th>Account</th><th>Name</th><th>Category</th><th>Amount</th><th></th></tr></thead>
@@ -57,8 +57,8 @@ export default function Transactions() {
                     {CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </td>
-                <td style={{ color: Number(r.amount) < 0 ? "#dc2626" : "#16a34a" }}>{r.currency} {formatMoney(r.amount)}</td>
-                <td>{r.source === "MANUAL" && <button style={{ background: "#dc2626" }} onClick={() => del(r.id)}>✕</button>}</td>
+                <td className={`num ${Number(r.amount) < 0 ? "neg" : "pos"}`}>{r.currency} {formatMoney(r.amount)}</td>
+                <td>{r.source === "MANUAL" && <button className="btn-danger btn-sm" onClick={() => del(r.id)}>✕</button>}</td>
               </tr>
             ))}
           </tbody>

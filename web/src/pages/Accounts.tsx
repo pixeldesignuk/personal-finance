@@ -63,43 +63,43 @@ export default function Accounts() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div className="row-between">
         <h1>Manage accounts</h1>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="toolbar">
           <button onClick={addManual}>Add cash / manual</button>
-          <button onClick={() => navigate("/connect")}>Add bank</button>
+          <button className="btn-primary" onClick={() => navigate("/connect")}>Add bank</button>
         </div>
       </div>
-      {msg && <p>{msg}</p>}
+      {msg && <p className="muted">{msg}</p>}
       {banks.map((bank) => (
         <div className="card" key={bank.requisitionId}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="row-between">
             <h3 style={{ margin: 0 }}>
               {bank.institutionName}{" "}
-              <span style={{ fontSize: 12, color: bank.status === "LN" ? "#16a34a" : "#6b7280" }}>({bank.status})</span>
+              <span className={`badge ${bank.status === "LN" ? "pos" : ""}`}>{bank.status}</span>
             </h3>
             {bank.requisitionId !== "manual" && (
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => reconnect(bank.institutionId)}>Reconnect</button>
-                <button style={{ background: "#dc2626" }} onClick={() => removeBank(bank.requisitionId, bank.institutionName)}>Remove</button>
+              <div className="toolbar">
+                <button className="btn-sm" onClick={() => reconnect(bank.institutionId)}>Reconnect</button>
+                <button className="btn-danger btn-sm" onClick={() => removeBank(bank.requisitionId, bank.institutionName)}>Remove</button>
               </div>
             )}
           </div>
-          <table style={{ marginTop: 8 }}>
+          <table style={{ marginTop: 10 }}>
             <thead><tr><th>Account</th><th>Type</th><th>Balance</th><th></th></tr></thead>
             <tbody>
               {bank.accounts.map((a) => (
                 <tr key={a.id}>
                   <td>{a.displayName}</td>
                   <td>
-                    <button onClick={() => toggleType(a.id, a.type)}>{a.type}</button>
+                    <button className="btn-sm" onClick={() => toggleType(a.id, a.type)}>{a.type}</button>
                   </td>
-                  <td>{a.currency ?? "GBP"} {formatMoney(a.currentBalance)}</td>
-                  <td style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    <button onClick={() => rename(a.id, a.nickname ?? "")}>Rename</button>
-                    {a.source === "MANUAL" && <button onClick={() => editBalance(a.id, a.currentBalance)}>Set balance</button>}
-                    {a.source === "MANUAL" && <button onClick={() => addTxn(a.id)}>Add txn</button>}
-                    {a.source === "MANUAL" && <button style={{ background: "#dc2626" }} onClick={() => removeManual(a.id, a.displayName)}>Delete</button>}
+                  <td className="num">{a.currency ?? "GBP"} {formatMoney(a.currentBalance)}</td>
+                  <td style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                    <button className="btn-sm" onClick={() => rename(a.id, a.nickname ?? "")}>Rename</button>
+                    {a.source === "MANUAL" && <button className="btn-sm" onClick={() => editBalance(a.id, a.currentBalance)}>Set balance</button>}
+                    {a.source === "MANUAL" && <button className="btn-sm" onClick={() => addTxn(a.id)}>Add txn</button>}
+                    {a.source === "MANUAL" && <button className="btn-danger btn-sm" onClick={() => removeManual(a.id, a.displayName)}>Delete</button>}
                   </td>
                 </tr>
               ))}

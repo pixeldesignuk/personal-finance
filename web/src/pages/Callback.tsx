@@ -17,5 +17,10 @@ export default function Callback() {
       .catch((e) => setStatus(`Error: ${e.message}`));
   }, [params, navigate]);
 
-  return <div><h1>Bank connection</h1><p>{status}</p></div>;
+  return (
+    <div className="card" style={{ textAlign: "center", padding: "40px 24px" }}>
+      <h1 style={{ marginBottom: "0.3em" }}>Bank connection</h1>
+      <p className="muted">{status}</p>
+    </div>
+  );
 }
