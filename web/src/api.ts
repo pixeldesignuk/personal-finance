@@ -81,9 +81,9 @@ export const api = {
     }
     if (buf.trim()) onEvent(JSON.parse(buf) as AuditEvent);
   },
-  createCategory: (input: { name: string; monthlyAmount?: number }) =>
+  createCategory: (input: { name: string; group?: string | null; monthlyAmount?: number }) =>
     send<{ id: number }>("POST", "/api/categories", input),
-  patchCategory: (id: number, patch: { name?: string; monthlyAmount?: number; sortOrder?: number; archived?: boolean }) =>
+  patchCategory: (id: number, patch: { name?: string; group?: string | null; monthlyAmount?: number; sortOrder?: number; archived?: boolean }) =>
     send<{ id: number }>("PATCH", `/api/categories/${id}`, patch),
   deleteCategory: (id: number) => send<{ deleted: boolean }>("DELETE", `/api/categories/${id}`),
   summary: () => get<SummaryDTO>("/api/summary"),

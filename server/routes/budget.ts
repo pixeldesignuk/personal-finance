@@ -20,7 +20,7 @@ budgetRouter.get("/budget", async (req, res, next) => {
     const budgetTxns: BudgetTx[] = filtered.map((t) => ({ amount: Number(t.amount), category: effectiveCategory(t), bookingDate: t.bookingDate }));
     const spent = personalSpendByCategory(budgetTxns, month);
 
-    const cats = await db.category.findMany({ where: { archived: false }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] });
+    const cats = await db.category.findMany({ where: { archived: false, key: { not: "uncategorised" } }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] });
     const categories: BudgetCategory[] = cats.map((c) => ({ key: c.key, name: c.name, monthlyAmount: Number(c.monthlyAmount.toString()) }));
     const rows: BudgetRowDTO[] = buildBudgetRows(categories, spent);
     res.json(rows);

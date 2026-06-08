@@ -349,6 +349,12 @@ select {
 /* bulk-select highlight */
 .row-selected > td { background: color-mix(in srgb, var(--jade) 9%, transparent); }
 
+/* category group subheader */
+.cat-group {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--ink-3); font-weight: 700; padding-top: 18px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }

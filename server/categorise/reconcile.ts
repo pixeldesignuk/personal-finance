@@ -44,8 +44,8 @@ export async function reconcile(opts: ReconcileOpts = {}): Promise<ReconcileResu
   })) as TxnRow[];
   const candidates = rows.filter((t) => effectiveCategory(t) === "uncategorised");
 
-  const cats = await db.category.findMany({ where: { archived: false }, select: { key: true, name: true } });
-  const categoryOptions = cats.map((c) => ({ key: c.key, name: c.name }));
+  const cats = await db.category.findMany({ where: { archived: false }, select: { key: true, name: true, group: true } });
+  const categoryOptions = cats.map((c) => ({ key: c.key, name: c.name, group: c.group }));
   const validKeys = new Set(categoryOptions.map((c) => c.key));
   audit?.({ kind: "scope", total: rows.length, uncategorised: candidates.length, categories: categoryOptions.map((c) => c.key) });
 

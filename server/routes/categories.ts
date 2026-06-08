@@ -6,17 +6,22 @@ import type { CategoryDTO } from "../../shared/types.ts";
 
 export const categoriesRouter = Router();
 
+// "uncategorised" is an internal sentinel (the "no category yet" state), not a
+// real category — kept out of the manager and budgets, like income/transfer.
+const RESERVED = ["uncategorised"];
+
 categoriesRouter.get("/categories", async (req, res, next) => {
   try {
     const all = req.query.all === "1";
     const cats = await db.category.findMany({
-      where: all ? {} : { archived: false },
+      where: { key: { notIn: RESERVED }, ...(all ? {} : { archived: false }) },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     });
     const dto: CategoryDTO[] = cats.map((c) => ({
       id: c.id,
       key: c.key,
       name: c.name,
+      group: c.group,
       monthlyAmount: Number(c.monthlyAmount.toString()),
       sortOrder: c.sortOrder,
       archived: c.archived,
@@ -37,6 +42,7 @@ categoriesRouter.post("/categories", async (req, res, next) => {
   try {
     const b = z.object({
       name: z.string().min(1),
+      group: z.string().nullable().optional(),
       monthlyAmount: z.number().min(0).default(0),
     }).parse(req.body);
     const key = slug(b.name);
@@ -44,7 +50,7 @@ categoriesRouter.post("/categories", async (req, res, next) => {
       res.status(409).json({ error: "A category with that name already exists" });
       return;
     }
-    const c = await db.category.create({ data: { name: b.name, key, monthlyAmount: b.monthlyAmount } });
+    const c = await db.category.create({ data: { name: b.name, key, group: b.group ?? null, monthlyAmount: b.monthlyAmount } });
     res.json({ id: c.id });
   } catch (err) { next(err); }
 });
@@ -54,6 +60,7 @@ categoriesRouter.patch("/categories/:id", async (req, res, next) => {
     const id = Number(req.params.id);
     const b = z.object({
       name: z.string().min(1).optional(),
+      group: z.string().nullable().optional(),
       monthlyAmount: z.number().min(0).optional(),
       sortOrder: z.number().int().optional(),
       archived: z.boolean().optional(),

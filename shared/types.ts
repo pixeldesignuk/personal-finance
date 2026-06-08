@@ -136,6 +136,7 @@ export interface CategoryDTO {
   id: number;
   key: string;
   name: string;
+  group: string | null;
   monthlyAmount: number;
   sortOrder: number;
   archived: boolean;

@@ -10,6 +10,7 @@ export interface ClassifyItem {
 export interface CategoryOption {
   key: string;
   name: string;
+  group?: string | null;
 }
 
 const BATCH = 40;
@@ -33,7 +34,7 @@ export function geminiEnabled(): boolean {
 }
 
 function buildPrompt(items: { ref: string; text: string }[], categories: CategoryOption[]): string {
-  const cats = categories.map((c) => `- ${c.key}: ${c.name}`).join("\n");
+  const cats = categories.map((c) => `- ${c.key}: ${c.name}${c.group ? ` (${c.group})` : ""}`).join("\n");
   const txns = items.map((it) => `- ${it.ref} | ${it.text}`).join("\n");
   return `You categorise personal bank transactions. For each transaction below, choose exactly ONE category KEY from the list, based on the merchant/description. If it is genuinely unclear, use "uncategorised".
 

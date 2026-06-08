@@ -93,6 +93,7 @@ model Category {
   id            Int      @id @default(autoincrement())
   name          String   @unique
   key           String   @unique
+  group         String?
   monthlyAmount Decimal  @default(0)
   sortOrder     Int      @default(0)
   archived      Boolean  @default(false)
