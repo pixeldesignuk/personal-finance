@@ -104,14 +104,12 @@ export default function Budgets() {
         const gBudget = gr.reduce((s, r) => s + r.budgeted, 0);
         const gSpent = gr.reduce((s, r) => s + r.spent, 0);
         const gPct = gBudget > 0 ? Math.round((gSpent / gBudget) * 100) : (gSpent > 0 ? 100 : 0);
+        const gTone = gSpent > gBudget ? "neg" : gPct >= 80 ? "warn-text" : "muted";
         return (
           <div className="card" key={g}>
-            <div style={{ marginBottom: 14 }}>
-              <div className="row-between" style={{ marginBottom: 7 }}>
-                <h3 style={{ margin: 0 }}>{g}</h3>
-                <span className="num muted" style={{ fontSize: 13 }}>£{formatMoney(gSpent)} / £{formatMoney(gBudget)} · {gPct}%</span>
-              </div>
-              <div className="progress"><i className={barClass(gPct)} style={{ width: `${Math.min(gPct, 100)}%` }} /></div>
+            <div className="row-between" style={{ marginBottom: 12 }}>
+              <h3 style={{ margin: 0 }}>{g}</h3>
+              <span className={`num ${gTone}`} style={{ fontSize: 13 }}>£{formatMoney(gSpent)} / £{formatMoney(gBudget)} · {gPct}%</span>
             </div>
             <table className="budget-table">
               <colgroup><col /><col style={{ width: 120 }} /><col style={{ width: 110 }} /><col style={{ width: 110 }} /><col style={{ width: 96 }} /></colgroup>

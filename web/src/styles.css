@@ -427,6 +427,7 @@ select {
 .delta { font-size: 12px; margin-top: 2px; font-weight: 500; }
 .amount-link { color: var(--ink-2); text-decoration: none; border-bottom: 1px dotted var(--line-strong); }
 .amount-link:hover { color: var(--jade); border-bottom-color: var(--jade); }
+.warn-text { color: var(--amber); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
