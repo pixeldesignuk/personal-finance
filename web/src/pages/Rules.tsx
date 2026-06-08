@@ -44,7 +44,7 @@ export default function Rules() {
           <tbody>
             {rules.map((r) => (
               <tr key={r.id}>
-                <td>{r.matchText}</td>
+                <td>{r.matchText} {r.auto && <span className="badge" style={{ marginLeft: 6, fontSize: 11 }} title="Learned automatically from an AI categorisation">auto</span>}</td>
                 <td>{cats.find((c) => c.key === r.categoryKey)?.name ?? "—"}</td>
                 <td>{people.find((p) => p.key === r.personKey)?.name ?? "—"}</td>
                 <td className="num">{r.priority}</td>

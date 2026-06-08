@@ -4,7 +4,7 @@ import type {
   BankDTO, RemoveBankResult, NicknameResult,
   SummaryDTO, ManualAccountInput, ManualTxnInput,
   CategoryDTO, BudgetRowDTO, ReportDTO,
-  PersonDTO, RuleDTO, CategoryNameDTO,
+  PersonDTO, RuleDTO, CategoryNameDTO, ReconcileResult,
 } from "../../shared/types.ts";
 
 async function get<T>(url: string): Promise<T> {
@@ -55,6 +55,7 @@ export const api = {
   patchRule: (id: number, input: { matchText: string; categoryKey?: string | null; personKey?: string | null; priority: number }) => send<{ id: number }>("PATCH", `/api/rules/${id}`, input),
   deleteRule: (id: number) => send<{ deleted: boolean }>("DELETE", `/api/rules/${id}`),
   applyRules: () => send<{ categorised: number; personed: number }>("POST", "/api/rules/apply"),
+  reconcile: () => send<ReconcileResult>("POST", "/api/reconcile"),
   createCategory: (input: { name: string; monthlyAmount?: number }) =>
     send<{ id: number }>("POST", "/api/categories", input),
   patchCategory: (id: number, patch: { name?: string; monthlyAmount?: number; sortOrder?: number; archived?: boolean }) =>

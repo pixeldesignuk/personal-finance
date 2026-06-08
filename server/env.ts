@@ -10,6 +10,8 @@ const schema = z.object({
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_WEBHOOK_SECRET: z.string().optional(),
   TELEGRAM_ALLOWED_CHAT_ID: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().default("gemini-flash-latest"),
 });
 
 const parsed = schema.safeParse(process.env);

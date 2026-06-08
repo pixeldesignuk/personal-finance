@@ -112,5 +112,6 @@ model Rule {
   categoryKey String?
   personKey   String?
   priority    Int      @default(0)
+  auto        Boolean  @default(false)
   createdAt   DateTime @default(now())
 }

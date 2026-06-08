@@ -43,6 +43,26 @@ export default function Transactions() {
     try { await api.deleteTxn(id); await load(); } catch { /* ignore */ }
   };
 
+  const [reconciling, setReconciling] = useState(false);
+  const [reconcileMsg, setReconcileMsg] = useState<string | null>(null);
+  const reconcile = async () => {
+    setReconciling(true);
+    setReconcileMsg(null);
+    try {
+      const r = await api.reconcile();
+      const parts = [`${r.byRules} by rules`, `${r.byLlm} by AI`];
+      if (r.rulesLearned) parts.push(`${r.rulesLearned} rules learned`);
+      let msg = r.total === 0 ? "Nothing to categorise — all done." : `Categorised ${r.byRules + r.byLlm}/${r.total} (${parts.join(", ")}).`;
+      if (r.llmSkipped) msg += " AI step skipped (no GEMINI_API_KEY set).";
+      setReconcileMsg(msg);
+      await load();
+    } catch (e) {
+      setReconcileMsg((e as Error).message);
+    } finally {
+      setReconciling(false);
+    }
+  };
+
   return (
     <div>
       <div className="row-between">
@@ -51,8 +71,14 @@ export default function Transactions() {
           <option value="none">Unassigned</option>
           {people.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
         </select></h1>
-        <AccountSelector />
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button className="btn-primary" onClick={reconcile} disabled={reconciling}>
+            {reconciling ? "Reconciling…" : "Reconcile"}
+          </button>
+          <AccountSelector />
+        </div>
       </div>
+      {reconcileMsg && <p className="muted" style={{ marginTop: 0 }}>{reconcileMsg}</p>}
       <AddTransaction onAdded={load} />
       <input placeholder="Search transactions…" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 320 }} />
       <div className="card" style={{ marginTop: 16 }}>

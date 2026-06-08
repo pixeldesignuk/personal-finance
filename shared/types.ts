@@ -179,6 +179,15 @@ export interface RuleDTO {
   categoryKey: string | null;
   personKey: string | null;
   priority: number;
+  auto: boolean;
+}
+
+export interface ReconcileResult {
+  total: number;       // transactions that were uncategorised at the start
+  byRules: number;     // categorised by the free rules engine
+  byLlm: number;       // categorised by Gemini Flash
+  rulesLearned: number; // merchant rules auto-created from LLM picks
+  llmSkipped: boolean; // true when no GEMINI_API_KEY is configured
 }
 export interface CategoryNameDTO {
   key: string;

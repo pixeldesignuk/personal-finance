@@ -17,7 +17,7 @@ const ruleBody = z.object({
 rulesRouter.get("/rules", async (_req, res, next) => {
   try {
     const rules = await db.rule.findMany({ orderBy: [{ priority: "desc" }, { createdAt: "asc" }] });
-    const dto: RuleDTO[] = rules.map((r) => ({ id: r.id, matchText: r.matchText, categoryKey: r.categoryKey, personKey: r.personKey, priority: r.priority }));
+    const dto: RuleDTO[] = rules.map((r) => ({ id: r.id, matchText: r.matchText, categoryKey: r.categoryKey, personKey: r.personKey, priority: r.priority, auto: r.auto }));
     res.json(dto);
   } catch (err) { next(err); }
 });

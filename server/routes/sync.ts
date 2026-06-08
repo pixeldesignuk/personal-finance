@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "../lib/db.ts";
 import { GoCardlessClient, GoCardlessError } from "../gocardless/client.ts";
 import { applyRules, type Rule } from "../lib/rules.ts";
+import { reconcile } from "../categorise/reconcile.ts";
 import type { SyncResult } from "../../shared/types.ts";
 
 export const syncRouter = Router();
@@ -80,6 +81,13 @@ export async function syncAccount(accountId: string): Promise<SyncResult> {
   }
 
   await db.syncLog.create({ data: { accountId, added, status: "ok" } });
+  // Auto-categorise anything the inline rules didn't catch (Gemini Flash).
+  // Never let categorisation failure fail the sync itself.
+  try {
+    await reconcile(accountId);
+  } catch (err) {
+    console.error("reconcile after sync failed:", err instanceof Error ? err.message : err);
+  }
   return { accountId, added, skipped: false };
 }
 

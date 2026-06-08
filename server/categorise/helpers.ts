@@ -1,0 +1,58 @@
+// Pure helpers for the auto-categorisation flow. No I/O — unit-tested.
+
+export interface Pick {
+  id: string;
+  categoryKey: string;
+}
+
+// Parse the JSON Gemini returns into picks. Accepts either a bare array
+// `[{id, categoryKey}]` or an object wrapping one as `{items: [...]}`.
+// Returns [] for anything malformed (the LLM occasionally adds stray text).
+export function parsePicks(jsonText: string): Pick[] {
+  let data: unknown;
+  try {
+    data = JSON.parse(jsonText);
+  } catch {
+    return [];
+  }
+  const arr = Array.isArray(data)
+    ? data
+    : data && typeof data === "object" && Array.isArray((data as { items?: unknown }).items)
+      ? (data as { items: unknown[] }).items
+      : [];
+  const picks: Pick[] = [];
+  for (const el of arr) {
+    if (
+      el && typeof el === "object" &&
+      typeof (el as { id?: unknown }).id === "string" &&
+      typeof (el as { categoryKey?: unknown }).categoryKey === "string"
+    ) {
+      picks.push({ id: (el as Pick).id, categoryKey: (el as Pick).categoryKey });
+    }
+  }
+  return picks;
+}
+
+// Keep only picks whose categoryKey is a real category. Guards against the
+// LLM inventing keys. Returns a Map of id -> categoryKey.
+export function mapPicks(picks: Pick[], validKeys: Set<string>): Map<string, string> {
+  const m = new Map<string, string>();
+  for (const p of picks) {
+    if (p && typeof p.id === "string" && validKeys.has(p.categoryKey)) m.set(p.id, p.categoryKey);
+  }
+  return m;
+}
+
+// Derive a stable merchant token to use as the matchText of a learned rule,
+// from a clean name field (merchantName/creditorName). Lowercases, drops
+// punctuation and pure-number tokens (store/branch numbers), keeps up to the
+// first three words so it stays a substring of future transactions' text.
+// Returns null when there's nothing meaningful to learn from.
+export function merchantToken(name: string | null | undefined): string | null {
+  if (!name) return null;
+  const cleaned = name.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+  const words = cleaned.split(" ").filter((w) => w && !/^\d+$/.test(w));
+  if (!words.length) return null;
+  const token = words.slice(0, 3).join(" ");
+  return token.length < 3 ? null : token;
+}
