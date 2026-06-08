@@ -105,21 +105,33 @@ export default function Transactions() {
         </div>
       )}
       <div className="card" style={{ marginTop: 16 }}>
-        <table>
+        <table className="txn-table">
+          <colgroup>
+            <col style={{ width: 36 }} />
+            <col style={{ width: 104 }} />
+            <col style={{ width: 150 }} />
+            <col />
+            <col style={{ width: 230 }} />
+            <col style={{ width: 120 }} />
+            <col style={{ width: 112 }} />
+            <col style={{ width: 44 }} />
+          </colgroup>
           <thead><tr>
-            <th style={{ width: 24 }}><input type="checkbox" checked={allVisibleSelected} onChange={toggleAll} title="Select all shown" /></th>
+            <th><input type="checkbox" checked={allVisibleSelected} onChange={toggleAll} title="Select all shown" /></th>
             <th>Date</th><th>Account</th><th>Name</th><th>Category</th><th>Person</th><th>Amount</th><th></th>
           </tr></thead>
           <tbody>
-            {visible.map((r) => (
+            {visible.map((r) => {
+              const acct = nameById.get(r.accountId) ?? r.accountId.slice(-4);
+              return (
               <tr key={r.id} className={selected.has(r.id) ? "row-selected" : undefined}>
                 <td><input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} /></td>
-                <td>{r.bookingDate ?? ""}</td>
-                <td>
-                  {nameById.get(r.accountId) ?? r.accountId.slice(-4)}
+                <td className="td-date">{r.bookingDate ?? ""}</td>
+                <td className="td-clip" title={acct}>
+                  {acct}
                   {r.source === "MANUAL" && <span className="badge manual" style={{ marginLeft: 8 }}>manual</span>}
                 </td>
-                <td>{r.name ?? r.remittanceInfo ?? ""}</td>
+                <td className="td-clip" title={r.name ?? r.remittanceInfo ?? ""}>{r.name ?? r.remittanceInfo ?? ""}</td>
                 <td>
                   <select value={r.category} onChange={(e) => setCategory(r.id, e.target.value)}>
                     {catNames.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
@@ -131,10 +143,11 @@ export default function Transactions() {
                     {people.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
                   </select>
                 </td>
-                <td className={`num ${Number(r.amount) < 0 ? "neg" : "pos"}`}>{r.currency} {formatMoney(r.amount)}</td>
+                <td className={`num td-amount ${Number(r.amount) < 0 ? "neg" : "pos"}`}>{r.currency} {formatMoney(r.amount)}</td>
                 <td>{r.source === "MANUAL" && <button className="btn-danger btn-sm" onClick={() => del(r.id)}>✕</button>}</td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

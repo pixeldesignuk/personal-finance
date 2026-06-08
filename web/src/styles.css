@@ -355,6 +355,18 @@ select {
   color: var(--ink-3); font-weight: 700; padding-top: 18px;
 }
 
+/* ---- transactions table: fixed columns, no reflow ----------------------- */
+.txn-table { table-layout: fixed; }
+.txn-table td, .txn-table th { vertical-align: middle; }
+/* Date never wraps (e.g. "2026-06-08" on one line), tabular figures */
+.txn-table .td-date { white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* Account + Name truncate with an ellipsis instead of wrapping */
+.txn-table .td-clip { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.txn-table .td-amount { white-space: nowrap; }
+/* Dropdowns fill their fixed column rather than sizing to content */
+.txn-table select { width: 100%; min-width: 0; }
+.txn-table th:first-child, .txn-table td:first-child { padding-right: 0; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
