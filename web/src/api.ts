@@ -38,6 +38,7 @@ export const api = {
   createTxn: (input: ManualTxnInput) => send<{ id: string }>("POST", "/api/transactions", input),
   setTxnCategory: (id: string, category: string) => send<{ id: string }>("PATCH", `/api/transactions/${id}`, { category }),
   setTxnPerson: (id: string, personKey: string | null) => send<{ id: string }>("PATCH", `/api/transactions/${id}`, { personKey }),
+  setTxnNote: (id: string, note: string | null) => send<{ id: string }>("PATCH", `/api/transactions/${id}`, { note }),
   bulkCategory: (ids: string[], category: string) => send<{ updated: number }>("POST", "/api/transactions/bulk-category", { ids, category }),
   applyToMatching: (id: string, fields: ("category" | "person")[]) =>
     send<{ matched: number; applied: string[]; token: string }>("POST", `/api/transactions/${id}/apply-to-matching`, { fields }),

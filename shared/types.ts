@@ -64,6 +64,7 @@ export interface TransactionDTO {
   autoCategory: string;  // auto-derived (before override)
   personKey: string | null;
   personName: string | null;
+  note: string | null;   // user-editable annotation
   source: AccountSource;
   status: string;
 }

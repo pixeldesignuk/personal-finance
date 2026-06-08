@@ -65,14 +65,16 @@ transactionsRouter.patch("/transactions/:id", async (req, res, next) => {
     const b = z.object({
       category: z.string().min(1).optional(),
       personKey: z.string().nullable().optional(),
+      note: z.string().nullable().optional(),
     }).parse(req.body);
     const tx = await db.transaction.findUnique({ where: { id: req.params.id } });
     if (!tx) { res.status(404).json({ error: "Transaction not found" }); return; }
     if (b.category !== undefined && !(await categoryExists(b.category))) { res.status(400).json({ error: "Unknown category" }); return; }
     if (b.personKey != null && !(await personExists(b.personKey))) { res.status(400).json({ error: "Unknown person" }); return; }
-    const data: { categoryOverride?: string; personKey?: string | null } = {};
+    const data: { categoryOverride?: string; personKey?: string | null; note?: string | null } = {};
     if (b.category !== undefined) data.categoryOverride = b.category;
     if (b.personKey !== undefined) data.personKey = b.personKey;
+    if (b.note !== undefined) { const n = b.note?.trim(); data.note = n ? n : null; }
     await db.transaction.update({ where: { id: req.params.id }, data });
     res.json({ id: req.params.id });
   } catch (err) { next(err); }

@@ -154,6 +154,20 @@ export default function Transactions() {
     onSuccess: (_res, { id }) => offerPropagation(id, "person"),
   });
 
+  const noteMutation = useMutation({
+    mutationFn: ({ id, note }: { id: string; note: string | null }) => api.setTxnNote(id, note),
+    onMutate: async ({ id, note }) => {
+      await qc.cancelQueries({ queryKey: ["transactions"] });
+      const snap = snapshotTxns();
+      patchRow(id, { note: note?.trim() ? note.trim() : null });
+      return { snap };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx) restoreTxns(ctx.snap);
+      notify("Couldn't save note", { tone: "error" });
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.deleteTxn(id),
     onMutate: async (id) => {
@@ -195,6 +209,12 @@ export default function Transactions() {
     if (!window.confirm("Delete this manual transaction?")) return;
     deleteMutation.mutate(id);
   };
+
+  // Inline quick-note editing.
+  const [noteEditId, setNoteEditId] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
+  const startNote = (r: TransactionDTO) => { setNoteEditId(r.id); setNoteDraft(r.note ?? ""); };
+  const saveNote = (id: string) => { noteMutation.mutate({ id, note: noteDraft.trim() || null }); setNoteEditId(null); };
 
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -270,7 +290,7 @@ export default function Transactions() {
             <col style={{ width: 230 }} />
             <col style={{ width: 120 }} />
             <col style={{ width: 112 }} />
-            <col style={{ width: 44 }} />
+            <col style={{ width: 72 }} />
           </colgroup>
           <thead><tr>
             <th><input type="checkbox" checked={allVisibleSelected} onChange={toggleAll} title="Select all shown" /></th>
@@ -287,7 +307,22 @@ export default function Transactions() {
                   {acct}
                   {r.source === "MANUAL" && <span className="badge manual" style={{ marginLeft: 8 }}>manual</span>}
                 </td>
-                <td className="td-clip" title={r.name ?? r.remittanceInfo ?? ""}>{r.name ?? r.remittanceInfo ?? ""}</td>
+                <td>
+                  <div className="td-clip" title={r.name ?? r.remittanceInfo ?? ""}>{r.name ?? r.remittanceInfo ?? ""}</div>
+                  {noteEditId === r.id ? (
+                    <input
+                      className="note-input"
+                      value={noteDraft}
+                      autoFocus
+                      placeholder="Add a note…"
+                      onChange={(e) => setNoteDraft(e.target.value)}
+                      onBlur={() => saveNote(r.id)}
+                      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setNoteEditId(null); }}
+                    />
+                  ) : r.note ? (
+                    <div className="note-line" onClick={() => startNote(r)} title="Edit note">✎ {r.note}</div>
+                  ) : null}
+                </td>
                 <td>
                   <select value={r.category} onChange={(e) => setCategory(r.id, e.target.value)}>
                     {catNames.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
@@ -300,7 +335,10 @@ export default function Transactions() {
                   </select>
                 </td>
                 <td className={`num td-amount ${Number(r.amount) < 0 ? "neg" : "pos"}`}>{r.currency} {formatMoney(r.amount)}</td>
-                <td>{r.source === "MANUAL" && <button className="btn-danger btn-sm" onClick={() => del(r.id)}>✕</button>}</td>
+                <td style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
+                  {noteEditId !== r.id && <button className="btn-sm" title={r.note ? "Edit note" : "Add note"} onClick={() => startNote(r)}>✎</button>}
+                  {r.source === "MANUAL" && <button className="btn-danger btn-sm" onClick={() => del(r.id)}>✕</button>}
+                </td>
               </tr>
               );
             })}

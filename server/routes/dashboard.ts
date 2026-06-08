@@ -80,6 +80,7 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
       autoCategory: t.category,
       personKey: t.personKey,
       personName: personName(t.personKey),
+      note: t.note,
       source: t.account.source,
       status: t.status,
     }));

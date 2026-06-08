@@ -366,6 +366,13 @@ select {
 /* Dropdowns fill their fixed column rather than sizing to content */
 .txn-table select { width: 100%; min-width: 0; }
 .txn-table th:first-child, .txn-table td:first-child { padding-right: 0; }
+/* quick note under the transaction name */
+.note-line {
+  margin-top: 4px; font-size: 12px; color: var(--ink-3); cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.note-line:hover { color: var(--ink-2); }
+.note-input { margin-top: 5px; width: 100%; padding: 5px 8px; font-size: 12px; }
 
 /* account selector: fixed width regardless of the selected account name */
 .account-select { width: 240px; flex: none; }
