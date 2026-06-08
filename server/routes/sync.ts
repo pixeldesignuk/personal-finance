@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { db } from "../lib/db.ts";
 import { GoCardlessClient, GoCardlessError } from "../gocardless/client.ts";
-import { categorize } from "../lib/categorize.ts";
 import type { SyncResult } from "../../shared/types.ts";
 
 export const syncRouter = Router();
@@ -51,10 +50,7 @@ export async function syncAccount(accountId: string): Promise<SyncResult> {
     const id = t.transactionId ?? t.internalTransactionId;
     if (!id) continue;
     const amount = Number(t.transactionAmount.amount);
-    const text = [t.merchantName, t.creditorName, t.debtorName, t.remittanceInformationUnstructured]
-      .filter(Boolean)
-      .join(" ");
-    const category = categorize({ amount, text });
+    const category = amount > 0 ? "income" : "Uncategorised";
     await db.transaction.upsert({
       where: { id },
       create: {
