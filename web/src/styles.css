@@ -167,7 +167,14 @@ nav a.active:not(.nav-cta)::after {
 .drawer-link:hover { color: var(--ink); }
 .drawer-link.active { color: var(--jade); }
 .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; font-size: 14px; color: var(--ink-2); cursor: pointer; }
-.setting-row input { width: auto; }
+
+/* toggle switch */
+.switch { position: relative; display: inline-block; width: 38px; height: 22px; flex: none; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch .slider { position: absolute; inset: 0; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 999px; transition: background 0.18s ease, border-color 0.18s ease; }
+.switch .slider::before { content: ""; position: absolute; height: 16px; width: 16px; left: 2px; top: 2px; background: var(--ink-3); border-radius: 50%; transition: transform 0.18s ease, background 0.18s ease; }
+.switch input:checked + .slider { background: color-mix(in srgb, var(--jade) 28%, transparent); border-color: var(--jade); }
+.switch input:checked + .slider::before { transform: translateX(16px); background: var(--jade); }
 
 /* Connect call-to-action in the nav */
 .nav-cta {

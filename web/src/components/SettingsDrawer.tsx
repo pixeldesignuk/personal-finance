@@ -55,7 +55,10 @@ export function SettingsDrawer() {
                   {data!.defs.filter((d) => d.group === g).map((d) => (
                     <label className="setting-row" key={d.key}>
                       <span>{d.label}</span>
-                      <input type="checkbox" checked={data!.values[d.key] ?? d.default} onChange={(e) => mut.mutate({ [d.key]: e.target.checked })} />
+                      <span className="switch">
+                        <input type="checkbox" checked={data!.values[d.key] ?? d.default} onChange={(e) => mut.mutate({ [d.key]: e.target.checked })} />
+                        <span className="slider" />
+                      </span>
                     </label>
                   ))}
                 </div>
