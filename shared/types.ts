@@ -61,6 +61,8 @@ export interface TransactionDTO {
   remittanceInfo: string | null;
   category: string;      // effective
   autoCategory: string;  // auto-derived (before override)
+  personKey: string | null;
+  personName: string | null;
   source: AccountSource;
   status: string;
 }
@@ -132,6 +134,7 @@ export interface ManualTxnInput {
 
 export interface CategoryDTO {
   id: number;
+  key: string;
   name: string;
   groupId: number;
   monthlyAmount: number;
@@ -148,6 +151,7 @@ export interface CategoryGroupDTO {
 }
 
 export interface EnvelopeRowDTO {
+  key: string;
   name: string;
   allocated: number;
   spent: number;
@@ -159,4 +163,23 @@ export interface EnvelopeGroupDTO {
   id: number;
   name: string;
   rows: EnvelopeRowDTO[];
+}
+
+export interface PersonDTO {
+  id: number;
+  key: string;
+  name: string;
+  sortOrder: number;
+  archived: boolean;
+}
+export interface RuleDTO {
+  id: number;
+  matchText: string;
+  categoryKey: string | null;
+  personKey: string | null;
+  priority: number;
+}
+export interface CategoryNameDTO {
+  key: string;
+  name: string;
 }
