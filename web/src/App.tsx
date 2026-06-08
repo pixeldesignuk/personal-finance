@@ -6,6 +6,7 @@ import Transactions from "./pages/Transactions.tsx";
 import Accounts from "./pages/Accounts.tsx";
 import Budgets from "./pages/Budgets.tsx";
 import Categories from "./pages/Categories.tsx";
+import Reports from "./pages/Reports.tsx";
 import People from "./pages/People.tsx";
 import Rules from "./pages/Rules.tsx";
 
@@ -17,6 +18,7 @@ export default function App() {
         <NavLink to="/" end>Dashboard</NavLink>
         <NavLink to="/transactions">Transactions</NavLink>
         <NavLink to="/budgets">Budgets</NavLink>
+        <NavLink to="/reports">Reports</NavLink>
         <NavLink to="/categories">Categories</NavLink>
         <NavLink to="/people">People</NavLink>
         <NavLink to="/rules">Rules</NavLink>
@@ -28,6 +30,7 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/budgets" element={<Budgets />} />
+          <Route path="/reports" element={<Reports />} />
           <Route path="/categories" element={<Categories />} />
           <Route path="/people" element={<People />} />
           <Route path="/rules" element={<Rules />} />

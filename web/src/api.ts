@@ -3,7 +3,7 @@ import type {
   SyncResult, DashboardDTO, TransactionDTO,
   BankDTO, RemoveBankResult, NicknameResult,
   SummaryDTO, ManualAccountInput, ManualTxnInput,
-  CategoryGroupDTO, EnvelopeGroupDTO,
+  CategoryDTO, BudgetRowDTO, ReportDTO,
   PersonDTO, RuleDTO, CategoryNameDTO,
 } from "../../shared/types.ts";
 
@@ -39,7 +39,12 @@ export const api = {
   setTxnCategory: (id: string, category: string) => send<{ id: string }>("PATCH", `/api/transactions/${id}`, { category }),
   setTxnPerson: (id: string, personKey: string | null) => send<{ id: string }>("PATCH", `/api/transactions/${id}`, { personKey }),
   deleteTxn: (id: string) => send<{ deleted: boolean }>("DELETE", `/api/transactions/${id}`),
-  categories: () => get<CategoryGroupDTO[]>("/api/categories"),
+  categories: () => get<CategoryDTO[]>("/api/categories"),
+  budget: (month?: string, person?: string) => {
+    const parts = [month ? `month=${month}` : "", person ? `person=${encodeURIComponent(person)}` : ""].filter(Boolean);
+    return get<BudgetRowDTO[]>(`/api/budget${parts.length ? `?${parts.join("&")}` : ""}`);
+  },
+  report: (month?: string) => get<ReportDTO>(`/api/reports${month ? `?month=${month}` : ""}`),
   categoryNames: () => get<CategoryNameDTO[]>("/api/category-names"),
   people: () => get<PersonDTO[]>("/api/people"),
   createPerson: (name: string) => send<{ id: number; key: string }>("POST", "/api/people", { name }),
@@ -50,21 +55,11 @@ export const api = {
   patchRule: (id: number, input: { matchText: string; categoryKey?: string | null; personKey?: string | null; priority: number }) => send<{ id: number }>("PATCH", `/api/rules/${id}`, input),
   deleteRule: (id: number) => send<{ deleted: boolean }>("DELETE", `/api/rules/${id}`),
   applyRules: () => send<{ categorised: number; personed: number }>("POST", "/api/rules/apply"),
-  createCategory: (input: { name: string; groupId: number; monthlyAmount?: number; goal?: number | null }) =>
+  createCategory: (input: { name: string; monthlyAmount?: number }) =>
     send<{ id: number }>("POST", "/api/categories", input),
-  patchCategory: (id: number, patch: { name?: string; groupId?: number; monthlyAmount?: number; goal?: number | null; sortOrder?: number; archived?: boolean }) =>
+  patchCategory: (id: number, patch: { name?: string; monthlyAmount?: number; sortOrder?: number; archived?: boolean }) =>
     send<{ id: number }>("PATCH", `/api/categories/${id}`, patch),
   deleteCategory: (id: number) => send<{ deleted: boolean }>("DELETE", `/api/categories/${id}`),
-  createGroup: (name: string) => send<{ id: number }>("POST", "/api/category-groups", { name }),
-  patchGroup: (id: number, patch: { name?: string; sortOrder?: number }) => send<{ id: number }>("PATCH", `/api/category-groups/${id}`, patch),
-  deleteGroup: (id: number) => send<{ deleted: boolean }>("DELETE", `/api/category-groups/${id}`),
-  envelopes: (month?: string, person?: string) => {
-    const parts = [month ? `month=${month}` : "", person ? `person=${encodeURIComponent(person)}` : ""].filter(Boolean);
-    return get<EnvelopeGroupDTO[]>(`/api/envelopes${parts.length ? `?${parts.join("&")}` : ""}`);
-  },
-  setAllocation: (categoryId: number, month: string, amount: number) => send<unknown>("PUT", `/api/allocations/${categoryId}/${month}`, { amount }),
-  categoryTransfer: (input: { fromKey: string; toKey: string; month: string; amount: number; note?: string }) =>
-    send<unknown>("POST", "/api/category-transfers", input),
   summary: () => get<SummaryDTO>("/api/summary"),
   dashboard: (accountId?: string) => { const q = acctQuery(accountId); return get<DashboardDTO>(`/api/dashboard${q ? `?${q}` : ""}`); },
   transactions: (search = "", accountId?: string, person?: string) => {
