@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { env } from "../env.ts";
 import { db } from "../lib/db.ts";
 import { isAllowed, normalizeParsed, confirmText } from "../lib/cashTxn.ts";
-import { CATEGORIES } from "../lib/categorize.ts";
+import { CATEGORIES, SPENDING_CATEGORIES } from "../lib/categorize.ts";
 import { parseText, parseImage } from "../telegram/parse.ts";
 import { sendMessage, editMessageText, answerCallbackQuery, downloadPhoto } from "../telegram/api.ts";
 import { getOrCreateCashAccount } from "../telegram/cashAccount.ts";
@@ -14,7 +14,7 @@ const configured = () =>
   !!(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_WEBHOOK_SECRET && env.TELEGRAM_ALLOWED_CHAT_ID && env.ANTHROPIC_API_KEY);
 
 function categoryKeyboard(txId: string) {
-  const spend = ["groceries", "eating-out", "transport", "bills", "shopping", "other"];
+  const spend = [...SPENDING_CATEGORIES];
   const rows = [];
   for (let i = 0; i < spend.length; i += 3) {
     rows.push(spend.slice(i, i + 3).map((c) => ({ text: c, callback_data: `cat:${c}:${txId}` })));
@@ -44,7 +44,9 @@ telegramRouter.post("/telegram/webhook", async (req, res) => {
       const messageId = cq.message?.message_id;
       if (data.startsWith("undo:")) {
         const id = data.slice(5);
-        await db.transaction.deleteMany({ where: { id } });
+        // Only ever delete manual transactions (never synced bank rows).
+        const tx = await db.transaction.findUnique({ where: { id }, include: { account: true } });
+        if (tx && tx.account.source === "MANUAL") await db.transaction.delete({ where: { id } });
         await answerCallbackQuery(cq.id, "Removed");
         if (chatId && messageId) await editMessageText(chatId, messageId, "↩︎ Removed.");
       } else if (data.startsWith("cat:")) {
@@ -66,7 +68,8 @@ telegramRouter.post("/telegram/webhook", async (req, res) => {
     }
 
     const msg = update.message;
-    const chatId = msg?.chat?.id;
+    if (!msg) return;
+    const chatId = msg.chat?.id;
     if (!isAllowed(chatId, env.TELEGRAM_ALLOWED_CHAT_ID)) return;
 
     // Parse text or the largest photo.

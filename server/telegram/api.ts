@@ -28,6 +28,7 @@ export async function downloadPhoto(fileId: string): Promise<{ base64: string; m
   const path = meta?.file_path;
   if (!path) throw new Error("Telegram getFile returned no path");
   const res = await fetch(`https://api.telegram.org/file/bot${env.TELEGRAM_BOT_TOKEN}/${path}`);
+  if (!res.ok) throw new Error(`Telegram file download failed (${res.status})`);
   const buf = Buffer.from(await res.arrayBuffer());
   const mediaType = path.endsWith(".png") ? "image/png" : path.endsWith(".webp") ? "image/webp" : "image/jpeg";
   return { base64: buf.toString("base64"), mediaType };
