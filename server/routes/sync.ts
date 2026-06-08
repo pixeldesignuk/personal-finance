@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db } from "../lib/db.ts";
 import { GoCardlessClient, GoCardlessError } from "../gocardless/client.ts";
+import { applyRules, type Rule } from "../lib/rules.ts";
 import type { SyncResult } from "../../shared/types.ts";
 
 export const syncRouter = Router();
@@ -45,12 +46,16 @@ export async function syncAccount(accountId: string): Promise<SyncResult> {
     ...pending.map((t) => ({ t, status: "pending" })),
   ];
   await db.transaction.deleteMany({ where: { accountId, status: "pending" } });
+  const ruleRows = await db.rule.findMany();
+  const rules: Rule[] = ruleRows.map((r) => ({ matchText: r.matchText, categoryKey: r.categoryKey, personKey: r.personKey, priority: r.priority }));
   let added = 0;
   for (const { t, status } of rows) {
     const id = t.transactionId ?? t.internalTransactionId;
     if (!id) continue;
     const amount = Number(t.transactionAmount.amount);
-    const category = amount > 0 ? "income" : "Uncategorised";
+    const text = [t.merchantName, t.creditorName, t.debtorName, t.remittanceInformationUnstructured].filter(Boolean).join(" ");
+    const ruled = applyRules(text, rules);
+    const category = ruled.categoryKey ?? (amount > 0 ? "income" : "uncategorised");
     await db.transaction.upsert({
       where: { id },
       create: {
@@ -65,6 +70,7 @@ export async function syncAccount(accountId: string): Promise<SyncResult> {
         remittanceInfo: t.remittanceInformationUnstructured,
         merchantName: t.merchantName,
         category,
+        personKey: ruled.personKey ?? null,
         status,
         raw: t as object,
       },

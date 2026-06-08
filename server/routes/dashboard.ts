@@ -10,11 +10,11 @@ export const dashboardRouter = Router();
 
 dashboardRouter.get("/dashboard", async (req, res, next) => {
   try {
-    const { accountId } = z
-      .object({ accountId: z.string().optional() })
+    const { accountId, person } = z
+      .object({ accountId: z.string().optional(), person: z.string().optional() })
       .parse(req.query);
     const scope = accountScope(accountId);
-    const txns = await db.transaction.findMany({ where: scope });
+    const txns = await db.transaction.findMany({ where: { ...scope, ...(person && person !== "all" ? { personKey: person === "none" ? null : person } : {}) } });
     const agg: AggTx[] = txns
       .map((t) => ({
         amount: Number(t.amount),
@@ -44,11 +44,12 @@ dashboardRouter.get("/dashboard", async (req, res, next) => {
 dashboardRouter.get("/transactions", async (req, res, next) => {
   try {
     const q = z
-      .object({ search: z.string().optional(), accountId: z.string().optional(), limit: z.coerce.number().max(500).default(200) })
+      .object({ search: z.string().optional(), accountId: z.string().optional(), person: z.string().optional(), limit: z.coerce.number().max(500).default(200) })
       .parse(req.query);
     const txns = await db.transaction.findMany({
       where: {
         ...accountScope(q.accountId),
+        ...(q.person ? { personKey: q.person === "none" ? null : q.person } : {}),
         ...(q.search
           ? {
               OR: [
@@ -63,6 +64,8 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
       take: q.limit,
       include: { account: true },
     });
+    const people = await db.person.findMany();
+    const personName = (k: string | null) => people.find((p) => p.key === k)?.name ?? null;
     const dto: TransactionDTO[] = txns.map((t) => ({
       id: t.id,
       accountId: t.accountId,
@@ -73,6 +76,8 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
       remittanceInfo: t.remittanceInfo,
       category: effectiveCategory(t),
       autoCategory: t.category,
+      personKey: t.personKey,
+      personName: personName(t.personKey),
       source: t.account.source,
       status: t.status,
     }));
