@@ -75,6 +75,7 @@ model Transaction {
   categoryOverride String?
   personKey        String?
   note             String?
+  flag             String?
   status         String
   raw            Json
 

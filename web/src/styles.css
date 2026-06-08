@@ -373,6 +373,14 @@ select {
 }
 .note-line:hover { color: var(--ink-2); }
 .note-input { margin-top: 5px; width: 100%; padding: 5px 8px; font-size: 12px; }
+/* spend-reduction flag */
+.flag-btn { color: var(--ink-3); padding-left: 7px; padding-right: 7px; }
+.flag-btn.flag-red { color: #ff6b6b; border-color: color-mix(in srgb, #ff6b6b 45%, transparent); }
+.flag-btn.flag-orange { color: #f2994a; border-color: color-mix(in srgb, #f2994a 45%, transparent); }
+.flag-btn.flag-yellow { color: #f2c94c; border-color: color-mix(in srgb, #f2c94c 45%, transparent); }
+.txn-table tr.flag-row-red td:first-child { box-shadow: inset 3px 0 0 #ff6b6b; }
+.txn-table tr.flag-row-orange td:first-child { box-shadow: inset 3px 0 0 #f2994a; }
+.txn-table tr.flag-row-yellow td:first-child { box-shadow: inset 3px 0 0 #f2c94c; }
 
 /* account selector: fixed width regardless of the selected account name */
 .account-select { width: 240px; flex: none; }

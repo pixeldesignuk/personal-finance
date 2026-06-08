@@ -81,6 +81,7 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
       personKey: t.personKey,
       personName: personName(t.personKey),
       note: t.note,
+      flag: (t.flag as "red" | "orange" | "yellow" | null) ?? null,
       source: t.account.source,
       status: t.status,
     }));

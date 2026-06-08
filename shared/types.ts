@@ -65,6 +65,7 @@ export interface TransactionDTO {
   personKey: string | null;
   personName: string | null;
   note: string | null;   // user-editable annotation
+  flag: "red" | "orange" | "yellow" | null;  // spend-reduction flag
   source: AccountSource;
   status: string;
 }

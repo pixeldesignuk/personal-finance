@@ -10,6 +10,9 @@ import { AddTransaction } from "../components/AddTransaction.tsx";
 import { ReconcileSheet } from "../components/ReconcileSheet.tsx";
 
 type PropField = "category" | "person";
+type Flag = "red" | "orange" | "yellow" | null;
+// Click cycles: none → red → orange → yellow → none.
+const FLAG_NEXT: Record<string, Flag> = { "": "red", red: "orange", orange: "yellow", yellow: null };
 
 export default function Transactions() {
   const [params] = useSearchParams();
@@ -168,6 +171,21 @@ export default function Transactions() {
     },
   });
 
+  const flagMutation = useMutation({
+    mutationFn: ({ id, flag }: { id: string; flag: Flag }) => api.setTxnFlag(id, flag),
+    onMutate: async ({ id, flag }) => {
+      await qc.cancelQueries({ queryKey: ["transactions"] });
+      const snap = snapshotTxns();
+      patchRow(id, { flag });
+      return { snap };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx) restoreTxns(ctx.snap);
+      notify("Couldn't update flag", { tone: "error" });
+    },
+  });
+  const cycleFlag = (r: TransactionDTO) => flagMutation.mutate({ id: r.id, flag: FLAG_NEXT[r.flag ?? ""] });
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.deleteTxn(id),
     onMutate: async (id) => {
@@ -290,7 +308,7 @@ export default function Transactions() {
             <col style={{ width: 230 }} />
             <col style={{ width: 120 }} />
             <col style={{ width: 112 }} />
-            <col style={{ width: 72 }} />
+            <col style={{ width: 104 }} />
           </colgroup>
           <thead><tr>
             <th><input type="checkbox" checked={allVisibleSelected} onChange={toggleAll} title="Select all shown" /></th>
@@ -300,7 +318,7 @@ export default function Transactions() {
             {visible.map((r) => {
               const acct = r.accountName;
               return (
-              <tr key={r.id} className={selected.has(r.id) ? "row-selected" : undefined}>
+              <tr key={r.id} className={[selected.has(r.id) ? "row-selected" : "", r.flag ? `flag-row-${r.flag}` : ""].filter(Boolean).join(" ") || undefined}>
                 <td><input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} /></td>
                 <td className="td-date">{r.bookingDate ?? ""}</td>
                 <td className="td-clip" title={acct}>
@@ -336,6 +354,7 @@ export default function Transactions() {
                 </td>
                 <td className={`num td-amount ${Number(r.amount) < 0 ? "neg" : "pos"}`}>{r.currency} {formatMoney(r.amount)}</td>
                 <td style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
+                  <button className={`btn-sm flag-btn${r.flag ? ` flag-${r.flag}` : ""}`} title={r.flag ? `Reduction flag: ${r.flag} (click to change)` : "Flag for reduction"} onClick={() => cycleFlag(r)}>⚑</button>
                   {noteEditId !== r.id && <button className="btn-sm" title={r.note ? "Edit note" : "Add note"} onClick={() => startNote(r)}>✎</button>}
                   {r.source === "MANUAL" && <button className="btn-danger btn-sm" onClick={() => del(r.id)}>✕</button>}
                 </td>
