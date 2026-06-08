@@ -456,6 +456,16 @@ select {
 .amount-link:hover { color: var(--jade); border-bottom-color: var(--jade); }
 .warn-text { color: var(--amber); }
 
+/* filter tabs */
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
+.tab {
+  background: transparent; border: none; border-bottom: 2px solid transparent;
+  border-radius: 0; padding: 8px 14px; color: var(--ink-3); font-size: 14px; font-weight: 500;
+  margin-bottom: -1px;
+}
+.tab:hover { color: var(--ink); transform: none; border-color: transparent; }
+.tab.active { color: var(--ink); border-bottom-color: var(--jade); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
