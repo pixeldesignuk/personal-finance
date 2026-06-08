@@ -42,13 +42,17 @@ accountsRouter.get("/accounts", async (_req, res, next) => {
       include: { accounts: { include: { balances: true } } },
       orderBy: { createdAt: "asc" },
     });
-    const banks: BankDTO[] = reqs.map((r) => ({
-      requisitionId: r.id,
-      institutionId: r.institutionId,
-      institutionName: r.institutionName,
-      status: r.status,
-      accounts: r.accounts.map((a) => toAccountDTO(a as unknown as AccountWithBalances)),
-    }));
+    const banks: BankDTO[] = reqs
+      // Hide incomplete/abandoned connection attempts: a requisition that never
+      // finished linking (status !== "LN") and has no accounts is clutter.
+      .filter((r) => r.status === "LN" || r.accounts.length > 0)
+      .map((r) => ({
+        requisitionId: r.id,
+        institutionId: r.institutionId,
+        institutionName: r.institutionName,
+        status: r.status,
+        accounts: r.accounts.map((a) => toAccountDTO(a as unknown as AccountWithBalances)),
+      }));
     const manual = await db.account.findMany({
       where: { source: "MANUAL" },
       include: { balances: true },
