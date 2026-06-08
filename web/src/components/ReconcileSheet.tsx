@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { api } from "../api.ts";
 import type { AuditEvent } from "../../../shared/types.ts";
 
@@ -91,7 +92,7 @@ export function ReconcileSheet({ open, accountId, onClose, onDone }: {
   }, [lines]);
 
   if (!open) return null;
-  return (
+  return createPortal(
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(ev) => ev.stopPropagation()}>
         <div className="sheet-head">
@@ -105,6 +106,7 @@ export function ReconcileSheet({ open, accountId, onClose, onDone }: {
           {running && <div className="tline t-dim">▍</div>}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
