@@ -20,7 +20,7 @@ export function AccountSelector() {
   };
 
   return (
-    <select value={selected} onChange={(e) => onChange(e.target.value)}>
+    <select className="account-select" value={selected} onChange={(e) => onChange(e.target.value)}>
       <option value="all">All accounts</option>
       {banks.flatMap((bank) =>
         bank.accounts.map((a) => (

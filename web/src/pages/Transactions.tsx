@@ -82,15 +82,15 @@ export default function Transactions() {
         </div>
       </div>
       <ReconcileSheet open={sheetOpen} accountId={accountId && accountId !== "all" ? accountId : undefined} onClose={() => setSheetOpen(false)} onDone={load} />
-      <AddTransaction onAdded={load} />
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <input placeholder="Search transactions…" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 320 }} />
+        <input placeholder="Search transactions…" value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: "1 1 220px", maxWidth: 320 }} />
         <select value={catFilter} onChange={(e) => setCatFilter(e.target.value)} style={{ fontSize: 13 }}>
           <option value="">All categories</option>
           <option value="uncategorised">Uncategorised only</option>
           {catNames.filter((c) => c.key !== "uncategorised").map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
         </select>
         <span className="muted" style={{ fontSize: 12 }}>{visible.length} shown</span>
+        <div style={{ marginLeft: "auto" }}><AddTransaction onAdded={load} /></div>
       </div>
       {selected.size > 0 && (
         <div className="card" style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>

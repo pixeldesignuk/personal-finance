@@ -367,6 +367,9 @@ select {
 .txn-table select { width: 100%; min-width: 0; }
 .txn-table th:first-child, .txn-table td:first-child { padding-right: 0; }
 
+/* account selector: fixed width regardless of the selected account name */
+.account-select { width: 240px; flex: none; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
