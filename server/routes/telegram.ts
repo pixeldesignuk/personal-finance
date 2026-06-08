@@ -3,7 +3,6 @@ import { randomUUID } from "node:crypto";
 import { env } from "../env.ts";
 import { db } from "../lib/db.ts";
 import { isAllowed, normalizeParsed, confirmText, parseTextExpense } from "../lib/cashTxn.ts";
-import { CATEGORIES, SPENDING_CATEGORIES } from "../lib/categorize.ts";
 import { sendMessage, editMessageText, answerCallbackQuery } from "../telegram/api.ts";
 import { getOrCreateCashAccount } from "../telegram/cashAccount.ts";
 
@@ -12,11 +11,16 @@ export const telegramRouter = Router();
 const configured = () =>
   !!(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_WEBHOOK_SECRET && env.TELEGRAM_ALLOWED_CHAT_ID);
 
-function categoryKeyboard(txId: string) {
-  const spend = [...SPENDING_CATEGORIES];
+async function activeCategoryNames(): Promise<string[]> {
+  const cats = await db.category.findMany({ where: { archived: false }, orderBy: { sortOrder: "asc" } });
+  return cats.map((c) => c.name);
+}
+
+function categoryKeyboard(txId: string, names: string[]) {
   const rows = [];
-  for (let i = 0; i < spend.length; i += 3) {
-    rows.push(spend.slice(i, i + 3).map((c) => ({ text: c, callback_data: `cat:${c}:${txId}` })));
+  const top = names.slice(0, 9); // keep the keyboard small
+  for (let i = 0; i < top.length; i += 3) {
+    rows.push(top.slice(i, i + 3).map((c) => ({ text: c, callback_data: `cat:${c}:${txId}` })));
   }
   rows.push([{ text: "↩︎ Undo", callback_data: `undo:${txId}` }]);
   return { inline_keyboard: rows };
@@ -50,7 +54,7 @@ telegramRouter.post("/telegram/webhook", async (req, res) => {
         if (chatId && messageId) await editMessageText(chatId, messageId, "↩︎ Removed.");
       } else if (data.startsWith("cat:")) {
         const [, category, id] = data.split(":");
-        if (CATEGORIES.includes(category)) {
+        if ((await activeCategoryNames()).includes(category) || category === "income" || category === "transfer") {
           const tx = await db.transaction.findUnique({ where: { id } });
           if (tx) {
             await db.transaction.update({ where: { id }, data: { categoryOverride: category } });
@@ -58,7 +62,7 @@ telegramRouter.post("/telegram/webhook", async (req, res) => {
             if (chatId && messageId) {
               await editMessageText(chatId, messageId,
                 confirmText({ amount: tx.amount.toString(), category, note: tx.remittanceInfo ?? "", date: tx.bookingDate ?? "" }),
-                categoryKeyboard(id));
+                categoryKeyboard(id, await activeCategoryNames()));
             }
           }
         }
@@ -91,7 +95,7 @@ telegramRouter.post("/telegram/webhook", async (req, res) => {
         remittanceInfo: n.note || null, category: n.category, status: "booked", raw: { telegram: true },
       },
     });
-    await sendMessage(chatId, confirmText(n), categoryKeyboard(id));
+    await sendMessage(chatId, confirmText(n), categoryKeyboard(id, await activeCategoryNames()));
   } catch (err) {
     console.error("telegram webhook error", err);
   }
