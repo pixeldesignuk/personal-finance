@@ -9,8 +9,14 @@ export function currentBalance(
   source: "BANK" | "MANUAL",
   manualBalance: number | null,
   balances: BalanceLike[],
+  preferredType?: string | null,
 ): number {
   if (source === "MANUAL") return manualBalance ?? 0;
+  // An explicit per-account choice wins, when that type is present.
+  if (preferredType) {
+    const chosen = balances.find((b) => b.type === preferredType);
+    if (chosen) return chosen.amount;
+  }
   for (const t of PREFERRED) {
     const b = balances.find((x) => x.type === t);
     if (b) return b.amount;

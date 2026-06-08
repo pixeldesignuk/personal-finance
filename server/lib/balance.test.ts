@@ -20,6 +20,17 @@ test("bank account prefers interimAvailable, then expected, then closingBooked, 
   assert.equal(currentBalance("BANK", null, []), 0);
 });
 
+test("explicit preferredType wins when present, else falls back", () => {
+  const bals = [
+    { type: "expected", amount: -6593.74 },
+    { type: "forwardAvailable", amount: -6.26 },
+  ];
+  assert.equal(currentBalance("BANK", null, bals, "forwardAvailable"), -6.26);
+  assert.equal(currentBalance("BANK", null, bals, "expected"), -6593.74);
+  // unknown/absent preferred type → default order (expected before others here)
+  assert.equal(currentBalance("BANK", null, bals, "interimBooked"), -6593.74);
+});
+
 test("effectiveCategory prefers override", () => {
   assert.equal(effectiveCategory({ category: "groceries", categoryOverride: "transfer" }), "transfer");
   assert.equal(effectiveCategory({ category: "groceries", categoryOverride: null }), "groceries");

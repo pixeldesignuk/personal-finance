@@ -84,6 +84,7 @@ export interface AccountDTO {
   type: AccountType;
   source: AccountSource;
   currentBalance: number;
+  balanceType: string | null;
   balances: AccountBalanceDTO[];
 }
 

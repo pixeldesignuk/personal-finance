@@ -17,6 +17,7 @@ summaryRouter.get("/summary", async (_req, res, next) => {
         a.source,
         a.manualBalance != null ? Number(a.manualBalance.toString()) : null,
         a.balances.map((b) => ({ type: b.type, amount: Number(b.amount.toString()) })),
+        a.balanceType,
       );
     }
     const personalIds = accounts.filter((a) => a.type === "PERSONAL").map((a) => a.id);

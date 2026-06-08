@@ -14,6 +14,7 @@ type AccountWithBalances = {
   id: string; name: string | null; nickname: string | null; iban: string | null;
   currency: string | null; type: "PERSONAL" | "BUSINESS"; source: "BANK" | "MANUAL";
   manualBalance: { toString(): string } | null;
+  balanceType: string | null;
   balances: { type: string; amount: { toString(): string }; currency: string }[];
 };
 
@@ -27,10 +28,12 @@ function toAccountDTO(a: AccountWithBalances): AccountDTO {
     currency: a.currency,
     type: a.type,
     source: a.source,
+    balanceType: a.balanceType,
     currentBalance: currentBalance(
       a.source,
       a.manualBalance != null ? Number(a.manualBalance.toString()) : null,
       a.balances.map((b) => ({ type: b.type, amount: Number(b.amount.toString()) })),
+      a.balanceType,
     ),
     balances: a.balances.map((b) => ({ type: b.type, amount: b.amount.toString(), currency: b.currency })),
   };
@@ -107,6 +110,7 @@ accountsRouter.patch("/accounts/:id", async (req, res, next) => {
         type: z.enum(["PERSONAL", "BUSINESS"]).optional(),
         name: z.string().optional(),
         manualBalance: z.string().regex(/^-?\d+(\.\d+)?$/, "manualBalance must be a number").optional(),
+        balanceType: z.string().nullable().optional(),
       })
       .parse(req.body);
     const account = await db.account.findUnique({ where: { id: req.params.id } });
@@ -123,6 +127,7 @@ accountsRouter.patch("/accounts/:id", async (req, res, next) => {
     if (body.type !== undefined) data.type = body.type;
     if (body.name !== undefined) data.name = body.name;
     if (body.manualBalance !== undefined) data.manualBalance = body.manualBalance;
+    if (body.balanceType !== undefined) data.balanceType = body.balanceType || null;
     const updated = await db.account.update({ where: { id: req.params.id }, data });
     res.json({ id: updated.id, displayName: displayName(updated) });
   } catch (err) {

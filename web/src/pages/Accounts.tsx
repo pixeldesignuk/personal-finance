@@ -46,6 +46,9 @@ export default function Accounts() {
   const toggleType = (id: string, type: string) =>
     wrap(() => api.patchAccount(id, { type: type === "PERSONAL" ? "BUSINESS" : "PERSONAL" }));
 
+  const setBalanceType = (id: string, value: string) =>
+    wrap(() => api.patchAccount(id, { balanceType: value || null }));
+
   const addTxn = (accountId: string) => {
     const date = window.prompt("Date (YYYY-MM-DD):", new Date().toISOString().slice(0, 10));
     if (!date) return;
@@ -101,7 +104,22 @@ export default function Accounts() {
                   <td>
                     <button className="btn-sm" onClick={() => toggleType(a.id, a.type)}>{a.type}</button>
                   </td>
-                  <td className="num">{a.currency ?? "GBP"} {formatMoney(a.currentBalance)}</td>
+                  <td className="num">
+                    {a.currency ?? "GBP"} {formatMoney(a.currentBalance)}
+                    {a.source === "BANK" && a.balances.length > 1 && (
+                      <select
+                        value={a.balanceType ?? ""}
+                        onChange={(e) => setBalanceType(a.id, e.target.value)}
+                        style={{ marginLeft: 10, fontSize: 12, padding: "2px 6px" }}
+                        title="Which GoCardless balance type to use"
+                      >
+                        <option value="">auto</option>
+                        {a.balances.map((b) => (
+                          <option key={b.type} value={b.type}>{b.type}: {b.amount}</option>
+                        ))}
+                      </select>
+                    )}
+                  </td>
                   <td style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
                     <button className="btn-sm" onClick={() => rename(a.id, a.nickname ?? "")}>Rename</button>
                     {a.source === "MANUAL" && <button className="btn-sm" onClick={() => editBalance(a.id, a.currentBalance)}>Set balance</button>}

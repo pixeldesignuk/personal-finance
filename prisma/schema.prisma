@@ -39,6 +39,7 @@ model Account {
   currency      String?
   ownerName     String?
   manualBalance Decimal?
+  balanceType   String?
   createdAt     DateTime       @default(now())
   balances      Balance[]
   transactions  Transaction[]
