@@ -18,6 +18,7 @@ import { peopleRouter } from "./routes/people.ts";
 import { rulesRouter } from "./routes/rules.ts";
 import { reconcileRouter } from "./routes/reconcile.ts";
 import { investmentsRouter } from "./routes/investments.ts";
+import { settingsRouter } from "./routes/settings.ts";
 
 const app = express();
 app.use(express.json());
@@ -37,6 +38,7 @@ app.use("/api", peopleRouter);
 app.use("/api", rulesRouter);
 app.use("/api", reconcileRouter);
 app.use("/api", investmentsRouter);
+app.use("/api", settingsRouter);
 
 // Serve built frontend in production.
 const __dirname = dirname(fileURLToPath(import.meta.url));

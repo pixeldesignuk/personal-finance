@@ -133,6 +133,12 @@ model Person {
   archived  Boolean @default(false)
 }
 
+// App config / feature flags (key/value).
+model Setting {
+  key   String @id
+  value String
+}
+
 model Rule {
   id          Int      @id @default(autoincrement())
   matchText   String

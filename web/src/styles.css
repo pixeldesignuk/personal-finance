@@ -149,6 +149,26 @@ nav a.active:not(.nav-cta)::after {
 .cog-menu a:hover { background: var(--surface-2); color: var(--ink); }
 .cog-menu a.active { color: var(--jade); }
 
+/* settings side-nav drawer */
+.drawer-backdrop { position: fixed; inset: 0; z-index: 60; background: rgba(6, 7, 8, 0.5); backdrop-filter: blur(2px); display: flex; justify-content: flex-end; }
+.drawer {
+  width: 340px; max-width: 88vw; height: 100%;
+  background: linear-gradient(180deg, var(--surface), var(--bg-2));
+  border-left: 1px solid var(--line-strong); box-shadow: -30px 0 70px -28px rgba(0, 0, 0, 0.8);
+  display: flex; flex-direction: column;
+  animation: drawer-in 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes drawer-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.drawer-body { padding: 8px 18px 24px; overflow-y: auto; }
+.drawer-section { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.drawer-section .eyebrow { margin-bottom: 8px; }
+.drawer-link { display: block; padding: 8px 0; color: var(--ink-2); text-decoration: none; font-size: 14px; }
+.drawer-link:hover { color: var(--ink); }
+.drawer-link.active { color: var(--jade); }
+.setting-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; font-size: 14px; color: var(--ink-2); cursor: pointer; }
+.setting-row input { width: auto; }
+
 /* Connect call-to-action in the nav */
 .nav-cta {
   color: #06251a !important; padding: 7px 15px; border-radius: var(--r-sm);

@@ -277,3 +277,15 @@ export interface CategoryNameDTO {
   key: string;
   name: string;
 }
+
+export interface SettingDef {
+  key: string;
+  label: string;
+  group: string;
+  type: "boolean";
+  default: boolean;
+}
+export interface SettingsDTO {
+  defs: SettingDef[];
+  values: Record<string, boolean>;
+}
