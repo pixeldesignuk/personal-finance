@@ -39,8 +39,8 @@ export const api = {
   setTxnCategory: (id: string, category: string) => send<{ id: string }>("PATCH", `/api/transactions/${id}`, { category }),
   setTxnPerson: (id: string, personKey: string | null) => send<{ id: string }>("PATCH", `/api/transactions/${id}`, { personKey }),
   bulkCategory: (ids: string[], category: string) => send<{ updated: number }>("POST", "/api/transactions/bulk-category", { ids, category }),
-  applyToMatching: (id: string, field: "category" | "person") =>
-    send<{ matched: number; token: string; value: string | null }>("POST", `/api/transactions/${id}/apply-to-matching`, { field }),
+  applyToMatching: (id: string, fields: ("category" | "person")[]) =>
+    send<{ matched: number; applied: string[]; token: string }>("POST", `/api/transactions/${id}/apply-to-matching`, { fields }),
   deleteTxn: (id: string) => send<{ deleted: boolean }>("DELETE", `/api/transactions/${id}`),
   categories: () => get<CategoryDTO[]>("/api/categories"),
   budget: (month?: string, person?: string) => {

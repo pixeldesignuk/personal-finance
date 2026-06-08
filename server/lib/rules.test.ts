@@ -20,6 +20,11 @@ test("applyRules sets category and person independently, case-insensitive", () =
   assert.deepEqual(applyRules("BRITISH GAS", rules), { categoryKey: "electric-gas", personKey: "household" });
 });
 
+test("matching is whitespace-insensitive (bank data pads names with spaces)", () => {
+  const r: Rule[] = [{ matchText: "hasan khan mujahid", categoryKey: "transfer", personKey: "you", priority: 1 }];
+  assert.deepEqual(applyRules("Hasan Khan      Mujahid", r), { categoryKey: "transfer", personKey: "you" });
+});
+
 test("highest priority wins per field; no match -> empty", () => {
   const r: Rule[] = [
     { matchText: "amazon", categoryKey: "shopping", personKey: null, priority: 1 },

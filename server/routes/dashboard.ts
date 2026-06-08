@@ -60,7 +60,7 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
             }
           : {}),
       },
-      orderBy: { bookingDate: "desc" },
+      orderBy: [{ bookingDate: "desc" }, { id: "asc" }],
       take: q.limit,
       include: { account: true },
     });

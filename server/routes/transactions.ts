@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "../lib/db.ts";
 import { merchantToken } from "../categorise/helpers.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
+import { normalizeText } from "../lib/rules.ts";
 
 export const transactionsRouter = Router();
 
@@ -94,18 +95,6 @@ function deriveToken(tx: {
   return raw.length >= 2 ? raw.slice(0, 60) : null;
 }
 
-// Text filter matching any transaction whose name/description contains the token.
-function matchWhere(token: string) {
-  return {
-    OR: [
-      { merchantName: { contains: token, mode: "insensitive" as const } },
-      { creditorName: { contains: token, mode: "insensitive" as const } },
-      { debtorName: { contains: token, mode: "insensitive" as const } },
-      { remittanceInfo: { contains: token, mode: "insensitive" as const } },
-    ],
-  };
-}
-
 // Create or update the merchant rule for `token`, setting only the given field.
 async function upsertRule(token: string, patch: { categoryKey?: string; personKey?: string | null }) {
   const existing = await db.rule.findFirst({ where: { matchText: token } });
@@ -117,28 +106,41 @@ async function upsertRule(token: string, patch: { categoryKey?: string; personKe
 // (old and new) by learning/updating a merchant rule, then applying it.
 transactionsRouter.post("/transactions/:id/apply-to-matching", async (req, res, next) => {
   try {
-    const b = z.object({ field: z.enum(["category", "person"]) }).parse(req.body);
+    const b = z.object({ fields: z.array(z.enum(["category", "person"])).min(1) }).parse(req.body);
     const tx = await db.transaction.findUnique({ where: { id: req.params.id } });
     if (!tx) { res.status(404).json({ error: "Transaction not found" }); return; }
     const token = deriveToken(tx);
     if (!token) { res.status(400).json({ error: "This transaction has no name/description to build a rule from." }); return; }
-    const where = matchWhere(token);
-    const matched = await db.transaction.count({ where });
 
-    if (b.field === "category") {
+    // Match in app code with whitespace-insensitive comparison — bank data pads
+    // names with multiple spaces, which a literal SQL `contains` would miss.
+    const all = await db.transaction.findMany({
+      select: { id: true, merchantName: true, creditorName: true, debtorName: true, remittanceInfo: true, categoryOverride: true },
+    });
+    const matches = all.filter((t) =>
+      normalizeText([t.merchantName, t.creditorName, t.debtorName, t.remittanceInfo].filter(Boolean).join(" ")).includes(token),
+    );
+    const ids = matches.map((m) => m.id);
+    const applied: string[] = [];
+
+    if (b.fields.includes("category")) {
       const value = effectiveCategory(tx);
-      if (!value || value === "uncategorised") { res.status(400).json({ error: "Set a category first." }); return; }
-      await upsertRule(token, { categoryKey: value });
-      // Set base category on matching rows; leave manual overrides alone.
-      await db.transaction.updateMany({ where: { AND: [where, { categoryOverride: null }] }, data: { category: value } });
-      res.json({ matched, token, value });
-    } else {
+      if (value && value !== "uncategorised") {
+        await upsertRule(token, { categoryKey: value });
+        // Set base category on matching rows; leave manual overrides alone.
+        const noOverride = matches.filter((m) => m.categoryOverride == null).map((m) => m.id);
+        if (noOverride.length) await db.transaction.updateMany({ where: { id: { in: noOverride } }, data: { category: value } });
+        applied.push("category");
+      }
+    }
+    if (b.fields.includes("person")) {
       const value = tx.personKey;
       if (value != null) await upsertRule(token, { personKey: value });
       else { const ex = await db.rule.findFirst({ where: { matchText: token } }); if (ex) await db.rule.update({ where: { id: ex.id }, data: { personKey: null } }); }
-      await db.transaction.updateMany({ where, data: { personKey: value } });
-      res.json({ matched, token, value });
+      if (ids.length) await db.transaction.updateMany({ where: { id: { in: ids } }, data: { personKey: value } });
+      applied.push("person");
     }
+    res.json({ matched: ids.length, applied, token });
   } catch (err) { next(err); }
 });
 

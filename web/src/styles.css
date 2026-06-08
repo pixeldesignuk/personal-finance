@@ -393,3 +393,95 @@ select {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Toast notifications */
+.toast-stack {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 380px;
+  pointer-events: none;
+}
+.toast-stack > * { pointer-events: auto; }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+.toast-item {
+  background: linear-gradient(180deg, var(--surface), var(--bg-2));
+  border: 1px solid var(--line-strong);
+  border-left: 3px solid var(--ink-3);
+  border-radius: var(--r-sm);
+  padding: 11px 13px;
+  box-shadow: var(--shadow);
+  color: var(--ink-2);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: toast-in 0.18s ease;
+}
+
+.toast-item.t-success { border-left-color: var(--jade); }
+.toast-item.t-error { border-left-color: var(--coral); }
+.toast-item.t-info { border-left-color: var(--ink-3); }
+.toast-item.t-loading { border-left-color: var(--amber); }
+
+.toast-action {
+  background: transparent;
+  border: none;
+  padding: 0 2px;
+  color: var(--jade);
+  font-family: var(--font-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transform: none;
+}
+.toast-action:hover {
+  color: var(--jade);
+  border-color: transparent;
+  background: transparent;
+  transform: none;
+}
+
+.toast-x {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  padding: 0 2px;
+  color: var(--ink-3);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transform: none;
+}
+.toast-x:hover {
+  color: var(--ink);
+  border-color: transparent;
+  background: transparent;
+  transform: none;
+}
+
+.toast-spinner {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  border: 2px solid color-mix(in srgb, var(--jade) 22%, transparent);
+  border-top-color: var(--jade);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
