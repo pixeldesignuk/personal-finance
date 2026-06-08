@@ -92,7 +92,7 @@ export function ToastProvider(props: {
               {t.action && (
                 <button
                   className="toast-action"
-                  onClick={t.action.onClick}
+                  onClick={() => { t.action!.onClick(); dismiss(t.id); }}
                 >
                   {t.action.label}
                 </button>
