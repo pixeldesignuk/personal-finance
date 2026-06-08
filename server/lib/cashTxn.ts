@@ -1,10 +1,23 @@
-import { CATEGORIES } from "./categorize.ts";
+import { CATEGORIES, categorize } from "./categorize.ts";
 
 export interface ParsedExpense {
   amount: number;
   category: string;
   merchant: string;
   date: string;
+}
+
+// Free, no-API text parser: pulls the first amount, defaults to a spend
+// (negative), and uses the keyword categorizer. A leading "+" marks income.
+// e.g. "£12.50 lunch" -> spend; "+2500 salary" -> income.
+export function parseTextExpense(text: string): ParsedExpense | null {
+  const m = text.match(/([+-])?\s*[£$]?\s*(\d+(?:\.\d{1,2})?)/);
+  if (!m) return null;
+  const value = Number(m[2]);
+  if (!Number.isFinite(value) || value === 0) return null;
+  const amount = m[1] === "+" ? value : -value;
+  const note = text.replace(m[0], "").trim();
+  return { amount, category: categorize({ amount, text }), merchant: note, date: "" };
 }
 
 export interface NormalizedTxn {

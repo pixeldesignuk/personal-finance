@@ -1,6 +1,30 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeParsed, isAllowed, confirmText } from "./cashTxn.ts";
+import { normalizeParsed, isAllowed, confirmText, parseTextExpense } from "./cashTxn.ts";
+
+test("parseTextExpense: spend default negative, keyword category, note", () => {
+  const r = parseTextExpense("-20 tesco")!;
+  assert.equal(r.amount, -20);
+  assert.equal(r.category, "groceries");
+  assert.equal(r.merchant, "tesco");
+});
+
+test("parseTextExpense: £ amount defaults to spend", () => {
+  const r = parseTextExpense("£12.50 lunch")!;
+  assert.equal(r.amount, -12.5);
+  assert.equal(r.merchant, "lunch");
+});
+
+test("parseTextExpense: leading + marks income", () => {
+  const r = parseTextExpense("+2500 salary")!;
+  assert.equal(r.amount, 2500);
+  assert.equal(r.category, "income");
+});
+
+test("parseTextExpense: no number -> null", () => {
+  assert.equal(parseTextExpense("no amount here"), null);
+  assert.equal(parseTextExpense("£0 nope"), null);
+});
 
 test("spend is forced negative; non-income positive flips", () => {
   const r = normalizeParsed({ amount: 12.5, category: "eating-out", merchant: "Pret", date: "2026-06-08" }, "2026-06-08");

@@ -2,16 +2,15 @@ import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import { env } from "../env.ts";
 import { db } from "../lib/db.ts";
-import { isAllowed, normalizeParsed, confirmText } from "../lib/cashTxn.ts";
+import { isAllowed, normalizeParsed, confirmText, parseTextExpense } from "../lib/cashTxn.ts";
 import { CATEGORIES, SPENDING_CATEGORIES } from "../lib/categorize.ts";
-import { parseText, parseImage } from "../telegram/parse.ts";
-import { sendMessage, editMessageText, answerCallbackQuery, downloadPhoto } from "../telegram/api.ts";
+import { sendMessage, editMessageText, answerCallbackQuery } from "../telegram/api.ts";
 import { getOrCreateCashAccount } from "../telegram/cashAccount.ts";
 
 export const telegramRouter = Router();
 
 const configured = () =>
-  !!(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_WEBHOOK_SECRET && env.TELEGRAM_ALLOWED_CHAT_ID && env.ANTHROPIC_API_KEY);
+  !!(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_WEBHOOK_SECRET && env.TELEGRAM_ALLOWED_CHAT_ID);
 
 function categoryKeyboard(txId: string) {
   const spend = [...SPENDING_CATEGORIES];
@@ -72,17 +71,12 @@ telegramRouter.post("/telegram/webhook", async (req, res) => {
     const chatId = msg.chat?.id;
     if (!isAllowed(chatId, env.TELEGRAM_ALLOWED_CHAT_ID)) return;
 
-    // Parse text or the largest photo.
-    let parsed = null;
-    if (msg.photo && msg.photo.length) {
-      const fileId = msg.photo[msg.photo.length - 1].file_id;
-      const { base64, mediaType } = await downloadPhoto(fileId);
-      parsed = await parseImage(base64, mediaType, msg.caption);
-    } else if (msg.text) {
-      parsed = await parseText(msg.text);
+    if (!msg.text) {
+      await sendMessage(chatId, "Send a text expense like '£12.50 lunch' (photos aren't supported).");
+      return;
     }
-
-    if (!parsed || !Number.isFinite(parsed.amount) || parsed.amount === 0) {
+    const parsed = parseTextExpense(msg.text);
+    if (!parsed) {
       await sendMessage(chatId, "Couldn't read an amount — try e.g. '£12.50 lunch'.");
       return;
     }

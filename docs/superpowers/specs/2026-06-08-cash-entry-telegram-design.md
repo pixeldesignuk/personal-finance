@@ -13,8 +13,13 @@ photo**, which Claude parses into a categorised transaction on a "Cash" account.
 
 ## Decisions (from brainstorming)
 
-- Parsing: **Claude Haiku** reads both text and receipt photos → `{ amount,
-  category, merchant, date }`. Needs `ANTHROPIC_API_KEY`.
+- **UPDATE 2026-06-08:** dropped the Claude/API parsing and receipt-photo support
+  to avoid any API cost. The bot is now **text-only and free**: a regex pulls the
+  amount and the existing keyword categorizer (`categorize.ts`) assigns the
+  category (`parseTextExpense` in `cashTxn.ts`). No `@anthropic-ai/sdk`, no
+  `ANTHROPIC_API_KEY`. Photos get a "text only" reply. (Original AI design below,
+  kept for history.)
+- ~~Parsing: **Claude Haiku** reads both text and receipt photos~~ (removed).
 - Bot hosting: a **webhook on the existing Railway Express server**
   (`POST /api/telegram/webhook`) — no new service.
 - Security: only an allow-listed Telegram `chat_id`, plus Telegram's secret-token
