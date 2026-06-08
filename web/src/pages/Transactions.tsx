@@ -16,8 +16,9 @@ export default function Transactions() {
   const loadBanks = () => api.accounts().then(setBanks).catch(() => setBanks([]));
   useEffect(() => { loadBanks(); }, []);
 
-  const [catNames, setCatNames] = useState<string[]>([]);
-  useEffect(() => { api.categoryNames().then(setCatNames).catch(() => setCatNames([])); }, []);
+  const [catNames, setCatNames] = useState<{ key: string; name: string }[]>([]);
+  const [people, setPeople] = useState<{ key: string; name: string }[]>([]);
+  useEffect(() => { api.categoryNames().then(setCatNames).catch(() => setCatNames([])); api.people().then(setPeople).catch(() => setPeople([])); }, []);
 
   const load = () => api.transactions(q, accountId).then(setRows).catch(() => setRows([]));
   useEffect(() => {
@@ -35,6 +36,7 @@ export default function Transactions() {
   const setCategory = async (id: string, category: string) => {
     try { await api.setTxnCategory(id, category); await load(); } catch { /* ignore */ }
   };
+  const setPerson = async (id: string, personKey: string | null) => { try { await api.setTxnPerson(id, personKey); await load(); } catch { /* ignore */ } };
   const del = async (id: string) => {
     if (!window.confirm("Delete this manual transaction?")) return;
     try { await api.deleteTxn(id); await load(); } catch { /* ignore */ }
@@ -50,7 +52,7 @@ export default function Transactions() {
       <input placeholder="Search transactions…" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 320 }} />
       <div className="card" style={{ marginTop: 16 }}>
         <table>
-          <thead><tr><th>Date</th><th>Account</th><th>Name</th><th>Category</th><th>Amount</th><th></th></tr></thead>
+          <thead><tr><th>Date</th><th>Account</th><th>Name</th><th>Category</th><th>Person</th><th>Amount</th><th></th></tr></thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.id}>
@@ -62,7 +64,13 @@ export default function Transactions() {
                 <td>{r.name ?? r.remittanceInfo ?? ""}</td>
                 <td>
                   <select value={r.category} onChange={(e) => setCategory(r.id, e.target.value)}>
-                    {catNames.map((c) => <option key={c} value={c}>{c}</option>)}
+                    {catNames.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
+                  </select>
+                </td>
+                <td>
+                  <select value={r.personKey ?? ""} onChange={(e) => setPerson(r.id, e.target.value || null)}>
+                    <option value="">—</option>
+                    {people.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
                   </select>
                 </td>
                 <td className={`num ${Number(r.amount) < 0 ? "neg" : "pos"}`}>{r.currency} {formatMoney(r.amount)}</td>

@@ -16,13 +16,13 @@ export default function Budgets() {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [month]);
 
   const transfer = async () => {
-    const fromName = window.prompt("Move money FROM category:");
-    if (!fromName) return;
-    const toName = window.prompt("TO category:");
-    if (!toName) return;
+    const fromKey = window.prompt("Move money FROM category (key):");
+    if (!fromKey) return;
+    const toKey = window.prompt("TO category (key):");
+    if (!toKey) return;
     const amt = Number(window.prompt("Amount (£):", "0"));
     if (Number.isNaN(amt) || amt <= 0) return;
-    try { await api.categoryTransfer({ fromName, toName, month, amount: amt }); await load(); } catch (e) { setMsg((e as Error).message); }
+    try { await api.categoryTransfer({ fromKey, toKey, month, amount: amt }); await load(); } catch (e) { setMsg((e as Error).message); }
   };
 
   return (
@@ -46,7 +46,7 @@ export default function Budgets() {
                 const avail = r.available;
                 const cls = avail < 0 ? "neg" : "pos";
                 return (
-                  <tr key={r.name}>
+                  <tr key={r.key}>
                     <td>{r.name}{r.goal ? <span className="muted"> · goal £{formatMoney(r.goal)}</span> : null}</td>
                     <td className="num">£{formatMoney(r.allocated)}</td>
                     <td className="num">£{formatMoney(r.spent)}</td>
