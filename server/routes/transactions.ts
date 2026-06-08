@@ -2,6 +2,8 @@ import { Router } from "express";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { db } from "../lib/db.ts";
+import { merchantToken } from "../categorise/helpers.ts";
+import { effectiveCategory } from "../lib/effectiveCategory.ts";
 
 export const transactionsRouter = Router();
 
@@ -72,6 +74,54 @@ transactionsRouter.patch("/transactions/:id", async (req, res, next) => {
     if (b.personKey !== undefined) data.personKey = b.personKey;
     await db.transaction.update({ where: { id: req.params.id }, data });
     res.json({ id: req.params.id });
+  } catch (err) { next(err); }
+});
+
+// Text filter matching any transaction whose name/description contains the token.
+function matchWhere(token: string) {
+  return {
+    OR: [
+      { merchantName: { contains: token, mode: "insensitive" as const } },
+      { creditorName: { contains: token, mode: "insensitive" as const } },
+      { debtorName: { contains: token, mode: "insensitive" as const } },
+      { remittanceInfo: { contains: token, mode: "insensitive" as const } },
+    ],
+  };
+}
+
+// Create or update the merchant rule for `token`, setting only the given field.
+async function upsertRule(token: string, patch: { categoryKey?: string; personKey?: string | null }) {
+  const existing = await db.rule.findFirst({ where: { matchText: token } });
+  if (existing) { await db.rule.update({ where: { id: existing.id }, data: patch }); return; }
+  await db.rule.create({ data: { matchText: token, categoryKey: patch.categoryKey ?? null, personKey: patch.personKey ?? null, priority: 50 } });
+}
+
+// Propagate a transaction's category OR person to every matching transaction
+// (old and new) by learning/updating a merchant rule, then applying it.
+transactionsRouter.post("/transactions/:id/apply-to-matching", async (req, res, next) => {
+  try {
+    const b = z.object({ field: z.enum(["category", "person"]) }).parse(req.body);
+    const tx = await db.transaction.findUnique({ where: { id: req.params.id } });
+    if (!tx) { res.status(404).json({ error: "Transaction not found" }); return; }
+    const token = merchantToken(tx.merchantName ?? tx.creditorName ?? tx.debtorName ?? tx.remittanceInfo ?? null);
+    if (!token) { res.status(400).json({ error: "Couldn't derive a rule pattern from this transaction's name." }); return; }
+    const where = matchWhere(token);
+    const matched = await db.transaction.count({ where });
+
+    if (b.field === "category") {
+      const value = effectiveCategory(tx);
+      if (!value || value === "uncategorised") { res.status(400).json({ error: "Set a category first." }); return; }
+      await upsertRule(token, { categoryKey: value });
+      // Set base category on matching rows; leave manual overrides alone.
+      await db.transaction.updateMany({ where: { AND: [where, { categoryOverride: null }] }, data: { category: value } });
+      res.json({ matched, token, value });
+    } else {
+      const value = tx.personKey;
+      if (value != null) await upsertRule(token, { personKey: value });
+      else { const ex = await db.rule.findFirst({ where: { matchText: token } }); if (ex) await db.rule.update({ where: { id: ex.id }, data: { personKey: null } }); }
+      await db.transaction.updateMany({ where, data: { personKey: value } });
+      res.json({ matched, token, value });
+    }
   } catch (err) { next(err); }
 });
 

@@ -36,10 +36,25 @@ export default function Transactions() {
     return m;
   }, [banks]);
 
+  const rowName = (id: string) => { const r = rows.find((x) => x.id === id); return r?.name ?? r?.remittanceInfo ?? "this merchant"; };
   const setCategory = async (id: string, category: string) => {
-    try { await api.setTxnCategory(id, category); await load(); } catch { /* ignore */ }
+    try { await api.setTxnCategory(id, category); await load(); setToast({ id, field: "category", name: rowName(id) }); } catch { /* ignore */ }
   };
-  const setPerson = async (id: string, personKey: string | null) => { try { await api.setTxnPerson(id, personKey); await load(); } catch { /* ignore */ } };
+  const setPerson = async (id: string, personKey: string | null) => {
+    try { await api.setTxnPerson(id, personKey); await load(); setToast({ id, field: "person", name: rowName(id) }); } catch { /* ignore */ }
+  };
+
+  // After an edit, offer to propagate it to every matching transaction via a rule.
+  const [toast, setToast] = useState<{ id: string; field: "category" | "person"; name: string; done?: string } | null>(null);
+  const applyToMatching = async () => {
+    if (!toast) return;
+    try {
+      const r = await api.applyToMatching(toast.id, toast.field);
+      setToast({ ...toast, done: `Applied to ${r.matched} matching transaction${r.matched === 1 ? "" : "s"} + saved a rule.` });
+      await load();
+      setTimeout(() => setToast((t) => (t?.done ? null : t)), 4000);
+    } catch (e) { setToast({ ...toast, done: (e as Error).message }); }
+  };
   const del = async (id: string) => {
     if (!window.confirm("Delete this manual transaction?")) return;
     try { await api.deleteTxn(id); await load(); } catch { /* ignore */ }
@@ -102,6 +117,17 @@ export default function Transactions() {
           </select>
           <button className="btn-primary btn-sm" onClick={applyBulk} disabled={!bulkCat}>Assign</button>
           <button className="btn-sm" onClick={() => setSelected(new Set())}>Clear</button>
+        </div>
+      )}
+      {toast && (
+        <div className="toast">
+          {toast.done ? <span>{toast.done}</span> : (
+            <>
+              <span>Updated <strong>{toast.name}</strong>. Apply this {toast.field} to all matching transactions?</span>
+              <button className="btn-primary btn-sm" onClick={applyToMatching}>Apply to all matching</button>
+              <button className="btn-sm" onClick={() => setToast(null)}>Dismiss</button>
+            </>
+          )}
         </div>
       )}
       <div className="card" style={{ marginTop: 16 }}>

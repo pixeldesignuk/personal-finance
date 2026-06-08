@@ -370,6 +370,16 @@ select {
 /* account selector: fixed width regardless of the selected account name */
 .account-select { width: 240px; flex: none; }
 
+/* inline toast offering to propagate an edit to matching transactions */
+.toast {
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  margin-top: 12px; padding: 10px 14px; font-size: 13px;
+  background: color-mix(in srgb, var(--jade) 9%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--jade) 28%, var(--line-strong));
+  border-radius: var(--r-sm);
+}
+.toast strong { color: var(--ink); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
