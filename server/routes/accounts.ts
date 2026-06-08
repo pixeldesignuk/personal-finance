@@ -76,7 +76,7 @@ accountsRouter.post("/accounts/manual", async (req, res, next) => {
         name: z.string().min(1),
         type: z.enum(["PERSONAL", "BUSINESS"]),
         currency: z.string().optional(),
-        manualBalance: z.string().optional(),
+        manualBalance: z.string().regex(/^-?\d+(\.\d+)?$/, "manualBalance must be a number").optional(),
       })
       .parse(req.body);
     const account = await db.account.create({
@@ -102,7 +102,7 @@ accountsRouter.patch("/accounts/:id", async (req, res, next) => {
         nickname: z.string().max(60).nullable().optional(),
         type: z.enum(["PERSONAL", "BUSINESS"]).optional(),
         name: z.string().optional(),
-        manualBalance: z.string().optional(),
+        manualBalance: z.string().regex(/^-?\d+(\.\d+)?$/, "manualBalance must be a number").optional(),
       })
       .parse(req.body);
     const account = await db.account.findUnique({ where: { id: req.params.id } });

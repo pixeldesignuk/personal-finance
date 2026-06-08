@@ -3,13 +3,13 @@ import { z } from "zod";
 import { db } from "../lib/db.ts";
 import { SPENDING_CATEGORIES } from "../lib/categorize.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
-import { personalSpendByCategory, buildBudgetRows, type BudgetTx } from "../lib/budget.ts";
+import { personalSpendByCategory, buildBudgetRows, currentMonth, type BudgetTx } from "../lib/budget.ts";
 
 export const budgetsRouter = Router();
 
 budgetsRouter.get("/budgets", async (_req, res, next) => {
   try {
-    const month = new Date().toISOString().slice(0, 7);
+    const month = currentMonth();
     const budgets = await db.budget.findMany();
     const limits: Record<string, number> = {};
     for (const b of budgets) limits[b.category] = Number(b.monthlyLimit.toString());

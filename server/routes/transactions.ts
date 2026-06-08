@@ -13,7 +13,7 @@ transactionsRouter.post("/transactions", async (req, res, next) => {
       .object({
         accountId: z.string().min(1),
         date: z.string().min(1),
-        amount: z.string().min(1),
+        amount: z.string().regex(/^-?\d+(\.\d+)?$/, "amount must be a number"),
         category: z.string().refine(isCategory, "unknown category"),
       })
       .parse(req.body);

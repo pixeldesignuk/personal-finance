@@ -6,10 +6,16 @@ export interface BudgetTx {
   bookingDate: string | null;
 }
 
-const round2 = (n: number) => Math.round(n * 100) / 100;
+export const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export function monthOf(date: string | null): string | null {
   return date ? date.slice(0, 7) : null;
+}
+
+// Current YYYY-MM in UK local time, so month-boundary reporting matches the
+// user's timezone regardless of the server's (Railway runs UTC).
+export function currentMonth(now: Date = new Date()): string {
+  return now.toLocaleDateString("en-CA", { timeZone: "Europe/London" }).slice(0, 7);
 }
 
 export function personalSpendByCategory(txns: BudgetTx[], month: string): Record<string, number> {

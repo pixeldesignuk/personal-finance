@@ -2,15 +2,14 @@ import { Router } from "express";
 import { db } from "../lib/db.ts";
 import { currentBalance } from "../lib/balance.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
-import { cashFlow, type BudgetTx } from "../lib/budget.ts";
+import { cashFlow, round2, currentMonth, type BudgetTx } from "../lib/budget.ts";
 import type { SummaryDTO } from "../../shared/types.ts";
 
 export const summaryRouter = Router();
-const round2 = (n: number) => Math.round(n * 100) / 100;
 
 summaryRouter.get("/summary", async (_req, res, next) => {
   try {
-    const month = new Date().toISOString().slice(0, 7);
+    const month = currentMonth();
     const accounts = await db.account.findMany({ include: { balances: true } });
     let netWorth = 0;
     for (const a of accounts) {
