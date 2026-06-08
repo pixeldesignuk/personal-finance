@@ -135,4 +135,5 @@ export interface ManualTxnInput {
   date: string;
   amount: string;
   category: string;
+  note?: string;
 }

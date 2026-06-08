@@ -15,6 +15,7 @@ transactionsRouter.post("/transactions", async (req, res, next) => {
         date: z.string().min(1),
         amount: z.string().regex(/^-?\d+(\.\d+)?$/, "amount must be a number"),
         category: z.string().refine(isCategory, "unknown category"),
+        note: z.string().optional(),
       })
       .parse(req.body);
     const account = await db.account.findUnique({ where: { id: body.accountId } });
@@ -34,6 +35,7 @@ transactionsRouter.post("/transactions", async (req, res, next) => {
         amount: body.amount,
         currency: account.currency ?? "GBP",
         category: body.category,
+        remittanceInfo: body.note ?? null,
         status: "booked",
         raw: { manual: true },
       },
