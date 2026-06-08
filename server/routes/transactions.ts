@@ -77,6 +77,23 @@ transactionsRouter.patch("/transactions/:id", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// Derive a matchable token for a rule from a transaction. Prefer a clean
+// merchant token; if every name field is too short/numeric for that, fall back
+// to the raw concatenated text so a rule can still be created (only truly empty
+// transactions — e.g. a note-less cash entry — return null).
+function deriveToken(tx: {
+  merchantName: string | null; creditorName: string | null;
+  debtorName: string | null; remittanceInfo: string | null;
+}): string | null {
+  for (const c of [tx.merchantName, tx.creditorName, tx.debtorName, tx.remittanceInfo]) {
+    const t = merchantToken(c);
+    if (t) return t;
+  }
+  const raw = [tx.merchantName, tx.creditorName, tx.debtorName, tx.remittanceInfo]
+    .filter(Boolean).join(" ").toLowerCase().replace(/\s+/g, " ").trim();
+  return raw.length >= 2 ? raw.slice(0, 60) : null;
+}
+
 // Text filter matching any transaction whose name/description contains the token.
 function matchWhere(token: string) {
   return {
@@ -103,8 +120,8 @@ transactionsRouter.post("/transactions/:id/apply-to-matching", async (req, res, 
     const b = z.object({ field: z.enum(["category", "person"]) }).parse(req.body);
     const tx = await db.transaction.findUnique({ where: { id: req.params.id } });
     if (!tx) { res.status(404).json({ error: "Transaction not found" }); return; }
-    const token = merchantToken(tx.merchantName ?? tx.creditorName ?? tx.debtorName ?? tx.remittanceInfo ?? null);
-    if (!token) { res.status(400).json({ error: "Couldn't derive a rule pattern from this transaction's name." }); return; }
+    const token = deriveToken(tx);
+    if (!token) { res.status(400).json({ error: "This transaction has no name/description to build a rule from." }); return; }
     const where = matchWhere(token);
     const matched = await db.transaction.count({ where });
 

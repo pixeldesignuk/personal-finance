@@ -143,8 +143,10 @@ export interface CategoryDTO {
 }
 
 export interface BudgetRowDTO {
+  id: number;
   key: string;
   name: string;
+  group: string | null;
   budgeted: number;
   spent: number;
   left: number;

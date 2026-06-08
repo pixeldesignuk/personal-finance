@@ -1,14 +1,18 @@
 import { round2 } from "./budget.ts";
 
 export interface BudgetCategory {
+  id: number;
   key: string;
   name: string;
+  group: string | null;
   monthlyAmount: number;
 }
 
 export interface BudgetRow {
+  id: number;
   key: string;
   name: string;
+  group: string | null;
   budgeted: number;
   spent: number;
   left: number;
@@ -23,8 +27,10 @@ export function buildBudgetRows(categories: BudgetCategory[], spentByKey: Record
     const budgeted = round2(c.monthlyAmount);
     const spent = round2(spentByKey[c.key] ?? 0);
     return {
+      id: c.id,
       key: c.key,
       name: c.name,
+      group: c.group,
       budgeted,
       spent,
       left: round2(budgeted - spent),

@@ -380,6 +380,16 @@ select {
 }
 .toast strong { color: var(--ink); }
 
+/* ---- budget table -------------------------------------------------------- */
+.budget-table { table-layout: fixed; }
+.budget-table .budget-group td { padding-top: 16px; border-bottom: 1px solid var(--line-strong); }
+.budget-input { display: flex; align-items: center; gap: 4px; }
+.budget-input > span { color: var(--ink-3); font-family: var(--font-mono); font-size: 13px; }
+.budget-input > input {
+  width: 88px; padding: 6px 8px; text-align: right;
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }

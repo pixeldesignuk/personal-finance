@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "finance-manager": {
+      "source": "ailabs-393/ai-labs-claude-skills",
+      "sourceType": "github",
+      "skillPath": "packages/skills/finance-manager/SKILL.md",
+      "computedHash": "08e3f046b49145fd11fe2d2347400c26e41bbd040cd6d2b1450805b3b2e17aee"
+    }
+  }
+}
