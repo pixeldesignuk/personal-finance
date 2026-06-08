@@ -15,6 +15,10 @@ const schema = z.object({
   TRADING_212_KEY_ID: z.string().optional(),
   TRADING_212_SECRET: z.string().optional(),
   TRADING212_BASE_URL: z.string().optional(),
+  BITGET_API_KEY: z.string().optional(),
+  BITGET_API_SECRET: z.string().optional(),
+  BITGET_PASSPHRASE: z.string().optional(),
+  BITGET_USD_GBP: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);
