@@ -106,14 +106,6 @@ export interface NicknameResult {
   displayName: string;
 }
 
-export interface BudgetDTO {
-  category: string;
-  monthlyLimit: number;
-  spent: number;
-  remaining: number;
-  percent: number;
-}
-
 export interface SummaryDTO {
   month: string;
   netWorth: number;
@@ -136,4 +128,35 @@ export interface ManualTxnInput {
   amount: string;
   category: string;
   note?: string;
+}
+
+export interface CategoryDTO {
+  id: number;
+  name: string;
+  groupId: number;
+  monthlyAmount: number;
+  goal: number | null;
+  sortOrder: number;
+  archived: boolean;
+}
+
+export interface CategoryGroupDTO {
+  id: number;
+  name: string;
+  sortOrder: number;
+  categories: CategoryDTO[];
+}
+
+export interface EnvelopeRowDTO {
+  name: string;
+  allocated: number;
+  spent: number;
+  available: number;
+  goal: number | null;
+}
+
+export interface EnvelopeGroupDTO {
+  id: number;
+  name: string;
+  rows: EnvelopeRowDTO[];
 }
