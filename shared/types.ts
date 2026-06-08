@@ -142,6 +142,8 @@ export interface NicknameResult {
 export interface SummaryDTO {
   month: string;
   netWorth: number;
+  investments: number;  // total across INVESTMENT accounts (ISA/crypto)
+  available: number;    // netWorth − investments (immediately available)
   income: number;
   expenses: number;
   net: number;

@@ -42,10 +42,18 @@ export default function Dashboard() {
       {msg && <p className="muted">{msg}</p>}
       {summary && (
         <div className="grid">
-          <div className="card stat"><span className="label">Net worth</span><span className="value">{formatGBP(summary.netWorth)}</span></div>
+          <div className="card stat">
+            <span className="label">Net worth</span>
+            <span className="value">{formatGBP(summary.netWorth)}</span>
+            <span className="delta muted">{formatGBP(summary.available)} available</span>
+          </div>
           <div className="card stat"><span className="label">Income · {summary.month}</span><span className="value pos">{formatGBP(summary.income)}</span></div>
           <div className="card stat"><span className="label">Expenses</span><span className="value neg">{formatGBP(summary.expenses)}</span></div>
-          <div className="card stat"><span className="label">Net · savings rate</span><span className="value">{formatGBP(summary.net)} <span className="muted" style={{ fontSize: 15 }}>· {summary.savingsRate}%</span></span></div>
+          <div className="card stat">
+            <span className="label">Investments</span>
+            <span className="value">{formatGBP(summary.investments)}</span>
+            <span className="delta muted">{summary.savingsRate}% savings rate</span>
+          </div>
         </div>
       )}
       <div className="card">

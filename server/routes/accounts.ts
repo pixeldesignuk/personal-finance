@@ -12,7 +12,7 @@ const gc = new GoCardlessClient();
 
 type AccountWithBalances = {
   id: string; name: string | null; nickname: string | null; iban: string | null;
-  currency: string | null; type: "PERSONAL" | "BUSINESS"; source: "BANK" | "MANUAL";
+  currency: string | null; type: "PERSONAL" | "BUSINESS"; source: "BANK" | "MANUAL" | "INVESTMENT";
   manualBalance: { toString(): string } | null;
   balanceType: string | null;
   balances: { type: string; amount: { toString(): string }; currency: string }[];
@@ -68,6 +68,20 @@ accountsRouter.get("/accounts", async (_req, res, next) => {
         institutionName: "Manual / Cash",
         status: "MANUAL",
         accounts: manual.map((a) => toAccountDTO(a as unknown as AccountWithBalances)),
+      });
+    }
+    const investments = await db.account.findMany({
+      where: { source: "INVESTMENT" },
+      include: { balances: true },
+      orderBy: { createdAt: "asc" },
+    });
+    if (investments.length) {
+      banks.push({
+        requisitionId: "investments",
+        institutionId: "investments",
+        institutionName: "Investments",
+        status: "INVESTMENT",
+        accounts: investments.map((a) => toAccountDTO(a as unknown as AccountWithBalances)),
       });
     }
     res.json(banks);
