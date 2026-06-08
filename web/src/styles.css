@@ -422,6 +422,12 @@ select {
 .catinfo-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-top: 1px solid var(--line); font-size: 13px; }
 .catinfo-row > span:first-child { color: var(--ink-2); }
 
+/* budget: no-budget flag, month-over-month delta, clickable spent amount */
+.badge.warn { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 45%, transparent); }
+.delta { font-size: 12px; margin-top: 2px; font-weight: 500; }
+.amount-link { color: var(--ink-2); text-decoration: none; border-bottom: 1px dotted var(--line-strong); }
+.amount-link:hover { color: var(--jade); border-bottom-color: var(--jade); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }

@@ -28,7 +28,7 @@ export default function Transactions() {
   }, [q]);
 
   const [personFilter, setPersonFilter] = useState("");
-  const [catFilter, setCatFilter] = useState("");
+  const [catFilter, setCatFilter] = useState(() => params.get("category") ?? "");
   const [month, setMonth] = useState("");
 
   // ── Queries ────────────────────────────────────────────────────────────

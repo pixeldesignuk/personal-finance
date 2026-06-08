@@ -157,11 +157,12 @@ export interface BudgetRowDTO {
 }
 
 export interface BudgetSummaryDTO {
-  available: number;    // personal-account balances − budgeted (money on hand to assign)
-  spent: number;        // total personal spend this month
-  budgeted: number;     // total of category monthly budgets
-  income: number;       // income this month (reference)
-  pendingCount: number; // pending transactions
+  available: number;     // personal-account balances − budgeted (money on hand to assign)
+  spent: number;         // total personal spend this month
+  spentLastMonth: number; // total personal spend last month (for the trend)
+  budgeted: number;      // total of category monthly budgets
+  income: number;        // income this month (reference)
+  pendingCount: number;  // pending transactions
 }
 
 export interface BudgetResponseDTO {

@@ -1,4 +1,5 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api.ts";
 import type { BudgetRowDTO, BudgetSummaryDTO, CategoryInfoDTO } from "../../../shared/types.ts";
 import { formatMoney } from "../format.ts";
@@ -82,62 +83,72 @@ export default function Budgets() {
             <span className="label">Available to budget</span>
             <span className={`value ${summary.available < 0 ? "neg" : "pos"}`}>{summary.available < 0 ? "-" : ""}£{formatMoney(Math.abs(summary.available))}</span>
           </div>
-          <div className="card stat"><span className="label">Spent this month</span><span className="value">£{formatMoney(summary.spent)}</span></div>
+          <div className="card stat">
+            <span className="label">Spent this month</span>
+            <span className="value">£{formatMoney(summary.spent)}</span>
+            {(() => {
+              const d = summary.spent - summary.spentLastMonth;
+              if (Math.abs(d) < 0.005) return <span className="delta muted">— vs last month</span>;
+              const up = d > 0;
+              const pct = summary.spentLastMonth > 0 ? ` (${Math.round((Math.abs(d) / summary.spentLastMonth) * 100)}%)` : "";
+              return <span className={`delta ${up ? "neg" : "pos"}`}>{up ? "↑" : "↓"} £{formatMoney(Math.abs(d))}{pct} vs last month</span>;
+            })()}
+          </div>
           <div className="card stat"><span className="label">Budgeted this month</span><span className="value">£{formatMoney(summary.budgeted)}</span></div>
           <div className="card stat"><span className="label">Pending transactions</span><span className="value">{summary.pendingCount}</span></div>
         </div>
       )}
-      <div className="card">
-        {rows.length === 0 && <p className="muted">No categories yet — add one above.</p>}
-        <table className="budget-table">
-          <colgroup><col /><col style={{ width: 120 }} /><col style={{ width: 110 }} /><col style={{ width: 110 }} /><col style={{ width: 96 }} /></colgroup>
-          <thead><tr><th>Category</th><th>Budget</th><th>Spent</th><th>Left</th><th></th></tr></thead>
-          <tbody>
-            {groups.map((g) => {
-              const gr = rows.filter((r) => (r.group ?? "Other") === g);
-              const gBudget = gr.reduce((s, r) => s + r.budgeted, 0);
-              const gSpent = gr.reduce((s, r) => s + r.spent, 0);
-              return (
-                <Fragment key={g}>
-                  <tr className="budget-group">
-                    <td className="cat-group">{g}</td>
-                    <td className="num cat-group">£{formatMoney(gBudget)}</td>
-                    <td className="num cat-group">£{formatMoney(gSpent)}</td>
-                    <td className="num cat-group">£{formatMoney(gBudget - gSpent)}</td>
-                    <td className="cat-group"></td>
+      {rows.length === 0 && <div className="card"><p className="muted">No categories yet — add one above.</p></div>}
+      {groups.map((g) => {
+        const gr = rows.filter((r) => (r.group ?? "Other") === g);
+        const gBudget = gr.reduce((s, r) => s + r.budgeted, 0);
+        const gSpent = gr.reduce((s, r) => s + r.spent, 0);
+        return (
+          <div className="card" key={g}>
+            <div className="row-between" style={{ marginBottom: 8 }}>
+              <h3 style={{ margin: 0 }}>{g}</h3>
+              <span className="num muted">£{formatMoney(gSpent)} spent / £{formatMoney(gBudget)} · £{formatMoney(gBudget - gSpent)} left</span>
+            </div>
+            <table className="budget-table">
+              <colgroup><col /><col style={{ width: 120 }} /><col style={{ width: 110 }} /><col style={{ width: 110 }} /><col style={{ width: 96 }} /></colgroup>
+              <thead><tr><th>Category</th><th>Budget</th><th>Spent</th><th>Left</th><th></th></tr></thead>
+              <tbody>
+                {gr.map((r) => (
+                  <tr key={r.key}>
+                    <td>
+                      {r.name}
+                      {r.budgeted === 0 && r.spent > 0 && <span className="badge warn" style={{ marginLeft: 8 }} title="Spending with no budget set">no budget</span>}
+                      <div className="progress" style={{ marginTop: 6 }}><i className={barClass(r.percent)} style={{ width: `${Math.min(r.percent, 100)}%` }} /></div>
+                    </td>
+                    <td>
+                      <div className="budget-input">
+                        <span>£</span>
+                        <input
+                          inputMode="decimal"
+                          value={draft[r.key] ?? String(r.budgeted)}
+                          onChange={(e) => setDraft((d) => ({ ...d, [r.key]: e.target.value }))}
+                          onBlur={() => commitAmount(r)}
+                          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                        />
+                      </div>
+                    </td>
+                    <td className="num">
+                      {r.spent > 0
+                        ? <Link className="amount-link" to={`/transactions?category=${encodeURIComponent(r.key)}`} title="View these transactions">£{formatMoney(r.spent)}</Link>
+                        : <>£{formatMoney(r.spent)}</>}
+                    </td>
+                    <td className={`num ${r.left < 0 ? "neg" : "pos"}`}>£{formatMoney(r.left)}</td>
+                    <td style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                      <button className="btn-sm" onClick={() => openEdit(r)}>Edit</button>
+                      <button className="btn-danger btn-sm" onClick={() => archive(r.id)}>Archive</button>
+                    </td>
                   </tr>
-                  {gr.map((r) => (
-                    <tr key={r.key}>
-                      <td>
-                        {r.name}
-                        <div className="progress" style={{ marginTop: 6 }}><i className={barClass(r.percent)} style={{ width: `${Math.min(r.percent, 100)}%` }} /></div>
-                      </td>
-                      <td>
-                        <div className="budget-input">
-                          <span>£</span>
-                          <input
-                            inputMode="decimal"
-                            value={draft[r.key] ?? String(r.budgeted)}
-                            onChange={(e) => setDraft((d) => ({ ...d, [r.key]: e.target.value }))}
-                            onBlur={() => commitAmount(r)}
-                            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                          />
-                        </div>
-                      </td>
-                      <td className="num">£{formatMoney(r.spent)}</td>
-                      <td className={`num ${r.left < 0 ? "neg" : "pos"}`}>£{formatMoney(r.left)}</td>
-                      <td style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                        <button className="btn-sm" onClick={() => openEdit(r)}>Edit</button>
-                        <button className="btn-danger btn-sm" onClick={() => archive(r.id)}>Archive</button>
-                      </td>
-                    </tr>
-                  ))}
-                </Fragment>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      })}
 
       <dialog ref={dialog} className="modal" onClick={(e) => { if (e.target === dialog.current) dialog.current?.close(); }}>
         <form className="modal-body" onSubmit={submit}>

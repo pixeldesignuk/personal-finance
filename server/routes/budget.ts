@@ -39,6 +39,8 @@ budgetRouter.get("/budget", async (req, res, next) => {
     }
     const budgeted = categories.reduce((s, c) => s + c.monthlyAmount, 0);
     const spentTotal = Object.values(spent).reduce((s, v) => s + v, 0);
+    const lastMonthSpend = personalSpendByCategory(budgetTxns, prevMonth(month));
+    const spentLastMonth = Object.values(lastMonthSpend).reduce((s, v) => s + v, 0);
     const pendingCount = filtered.filter((t) => t.status === "pending").length;
 
     // Balance-based "available to budget": the money you actually hold across
@@ -58,6 +60,7 @@ budgetRouter.get("/budget", async (req, res, next) => {
       summary: {
         available: round2(balance - budgeted),
         spent: round2(spentTotal),
+        spentLastMonth: round2(spentLastMonth),
         budgeted: round2(budgeted),
         income: round2(income),
         pendingCount,
