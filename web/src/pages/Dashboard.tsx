@@ -61,7 +61,7 @@ export default function Dashboard() {
             .map((a) => (
               <div key={a.id} className="lrow">
                 <span>{bank.institutionName} <span className="muted">— {a.displayName}</span></span>
-                <span className="num">{a.balances.map((b) => `${b.currency} ${formatMoney(b.amount)}`).join(" / ") || "—"}</span>
+                <span className="num">{a.currency ?? "GBP"} {formatMoney(a.currentBalance)}</span>
               </div>
             )),
         )}
