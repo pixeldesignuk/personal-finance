@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { env } from "../env.ts";
 import { parsePicks, mapPicks } from "./helpers.ts";
+import type { AuditFn } from "./audit.ts";
 
 export interface ClassifyItem {
   id: string;
@@ -39,6 +40,7 @@ Respond with ONLY a JSON array — one object per transaction — and nothing el
 export async function classifyBatch(
   items: ClassifyItem[],
   categories: CategoryOption[],
+  audit?: AuditFn,
 ): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   if (!env.GEMINI_API_KEY || items.length === 0 || categories.length === 0) return out;
@@ -46,7 +48,9 @@ export async function classifyBatch(
   const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
   const validKeys = new Set(categories.map((c) => c.key));
 
+  let batch = 0;
   for (let i = 0; i < items.length; i += BATCH) {
+    batch++;
     const chunk = items.slice(i, i + BATCH);
     // Use short opaque refs in the prompt so long ids can't be mangled and to
     // keep token use down; map back to the real id afterwards.
@@ -56,20 +60,27 @@ export async function classifyBatch(
       refToId.set(ref, it.id);
       return { ref, text: it.text };
     });
+    audit?.({ kind: "batch-request", batch, items: refItems.map((r) => ({ ref: r.ref, id: refToId.get(r.ref)!, text: r.text })) });
 
     try {
       const resp = await ai.models.generateContent({
         model: env.GEMINI_MODEL,
         contents: buildPrompt(refItems, categories),
-        config: { responseMimeType: "application/json" },
+        config: { responseMimeType: "application/json", maxOutputTokens: 8192 },
       });
-      const byRef = mapPicks(parsePicks(resp.text ?? ""), validKeys);
-      for (const [ref, key] of byRef) {
+      const raw = resp.text ?? "";
+      audit?.({ kind: "batch-raw", batch, text: raw });
+      const picks = parsePicks(raw);
+      const valid = mapPicks(picks, validKeys);
+      audit?.({ kind: "batch-parsed", batch, returned: picks.length, valid: valid.size, dropped: picks.filter((p) => !validKeys.has(p.categoryKey)) });
+      for (const [ref, key] of valid) {
         const id = refToId.get(ref);
         if (id) out.set(id, key);
       }
     } catch (err) {
-      console.error("Gemini classify batch failed:", err instanceof Error ? err.message : err);
+      const error = err instanceof Error ? err.message : String(err);
+      console.error("Gemini classify batch failed:", error);
+      audit?.({ kind: "batch-error", batch, error });
     }
   }
   return out;

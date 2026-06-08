@@ -75,6 +75,16 @@ transactionsRouter.patch("/transactions/:id", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// Assign one category to many transactions at once (manual reconcile).
+transactionsRouter.post("/transactions/bulk-category", async (req, res, next) => {
+  try {
+    const b = z.object({ ids: z.array(z.string().min(1)).min(1), category: z.string().min(1) }).parse(req.body);
+    if (!(await categoryExists(b.category))) { res.status(400).json({ error: "Unknown category" }); return; }
+    const r = await db.transaction.updateMany({ where: { id: { in: b.ids } }, data: { categoryOverride: b.category } });
+    res.json({ updated: r.count });
+  } catch (err) { next(err); }
+});
+
 transactionsRouter.delete("/transactions/:id", async (req, res, next) => {
   try {
     const tx = await db.transaction.findUnique({ where: { id: req.params.id }, include: { account: true } });

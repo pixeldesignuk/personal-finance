@@ -189,6 +189,26 @@ export interface ReconcileResult {
   rulesLearned: number; // merchant rules auto-created from LLM picks
   llmSkipped: boolean; // true when no GEMINI_API_KEY is configured
 }
+
+// A single categoriser decision the LLM returned (id -> category key).
+export interface AuditPick {
+  id: string;
+  categoryKey: string;
+}
+
+// Trace events streamed from the reconcile pipeline to the audit bottom sheet.
+export type AuditEvent =
+  | { kind: "scope"; total: number; uncategorised: number; categories: string[] }
+  | { kind: "rules"; categorised: number; remaining: number }
+  | { kind: "batch-request"; batch: number; items: { ref: string; id: string; text: string }[] }
+  | { kind: "batch-raw"; batch: number; text: string }
+  | { kind: "batch-parsed"; batch: number; returned: number; valid: number; dropped: AuditPick[] }
+  | { kind: "batch-error"; batch: number; error: string }
+  | { kind: "assign"; id: string; name: string; to: string; via: "rule" | "llm" }
+  | { kind: "skip-uncategorised"; id: string; name: string }
+  | { kind: "learn"; matchText: string; categoryKey: string }
+  | { kind: "summary"; result: ReconcileResult }
+  | { kind: "fatal"; error: string };
 export interface CategoryNameDTO {
   key: string;
   name: string;

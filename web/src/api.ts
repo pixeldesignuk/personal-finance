@@ -4,7 +4,7 @@ import type {
   BankDTO, RemoveBankResult, NicknameResult,
   SummaryDTO, ManualAccountInput, ManualTxnInput,
   CategoryDTO, BudgetRowDTO, ReportDTO,
-  PersonDTO, RuleDTO, CategoryNameDTO, ReconcileResult,
+  PersonDTO, RuleDTO, CategoryNameDTO, ReconcileResult, AuditEvent,
 } from "../../shared/types.ts";
 
 async function get<T>(url: string): Promise<T> {
@@ -38,6 +38,7 @@ export const api = {
   createTxn: (input: ManualTxnInput) => send<{ id: string }>("POST", "/api/transactions", input),
   setTxnCategory: (id: string, category: string) => send<{ id: string }>("PATCH", `/api/transactions/${id}`, { category }),
   setTxnPerson: (id: string, personKey: string | null) => send<{ id: string }>("PATCH", `/api/transactions/${id}`, { personKey }),
+  bulkCategory: (ids: string[], category: string) => send<{ updated: number }>("POST", "/api/transactions/bulk-category", { ids, category }),
   deleteTxn: (id: string) => send<{ deleted: boolean }>("DELETE", `/api/transactions/${id}`),
   categories: () => get<CategoryDTO[]>("/api/categories"),
   budget: (month?: string, person?: string) => {
@@ -56,6 +57,30 @@ export const api = {
   deleteRule: (id: number) => send<{ deleted: boolean }>("DELETE", `/api/rules/${id}`),
   applyRules: () => send<{ categorised: number; personed: number }>("POST", "/api/rules/apply"),
   reconcile: () => send<ReconcileResult>("POST", "/api/reconcile"),
+  // Streams audit events as the pipeline runs; calls onEvent for each.
+  reconcileStream: async (onEvent: (e: AuditEvent) => void, accountId?: string): Promise<void> => {
+    const res = await fetch("/api/reconcile/stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accountId }),
+    });
+    if (!res.ok || !res.body) throw new Error((await res.json().catch(() => ({}))).error ?? res.statusText);
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    const flush = (chunk: string) => {
+      buf += chunk;
+      const lines = buf.split("\n");
+      buf = lines.pop() ?? "";
+      for (const line of lines) if (line.trim()) onEvent(JSON.parse(line) as AuditEvent);
+    };
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      flush(decoder.decode(value, { stream: true }));
+    }
+    if (buf.trim()) onEvent(JSON.parse(buf) as AuditEvent);
+  },
   createCategory: (input: { name: string; monthlyAmount?: number }) =>
     send<{ id: number }>("POST", "/api/categories", input),
   patchCategory: (id: number, patch: { name?: string; monthlyAmount?: number; sortOrder?: number; archived?: boolean }) =>

@@ -5,6 +5,7 @@ import type { TransactionDTO, BankDTO } from "../../../shared/types.ts";
 import { formatMoney } from "../format.ts";
 import { AccountSelector } from "../components/AccountSelector.tsx";
 import { AddTransaction } from "../components/AddTransaction.tsx";
+import { ReconcileSheet } from "../components/ReconcileSheet.tsx";
 
 export default function Transactions() {
   const [params] = useSearchParams();
@@ -19,6 +20,7 @@ export default function Transactions() {
   const [catNames, setCatNames] = useState<{ key: string; name: string }[]>([]);
   const [people, setPeople] = useState<{ key: string; name: string }[]>([]);
   const [personFilter, setPersonFilter] = useState("");
+  const [catFilter, setCatFilter] = useState("");
   useEffect(() => { api.categoryNames().then(setCatNames).catch(() => setCatNames([])); api.people().then(setPeople).catch(() => setPeople([])); }, []);
 
   const load = () => api.transactions(q, accountId, personFilter || undefined).then(setRows).catch(() => setRows([]));
@@ -43,25 +45,23 @@ export default function Transactions() {
     try { await api.deleteTxn(id); await load(); } catch { /* ignore */ }
   };
 
-  const [reconciling, setReconciling] = useState(false);
-  const [reconcileMsg, setReconcileMsg] = useState<string | null>(null);
-  const reconcile = async () => {
-    setReconciling(true);
-    setReconcileMsg(null);
-    try {
-      const r = await api.reconcile();
-      const parts = [`${r.byRules} by rules`, `${r.byLlm} by AI`];
-      if (r.rulesLearned) parts.push(`${r.rulesLearned} rules learned`);
-      let msg = r.total === 0 ? "Nothing to categorise — all done." : `Categorised ${r.byRules + r.byLlm}/${r.total} (${parts.join(", ")}).`;
-      if (r.llmSkipped) msg += " AI step skipped (no GEMINI_API_KEY set).";
-      setReconcileMsg(msg);
-      await load();
-    } catch (e) {
-      setReconcileMsg((e as Error).message);
-    } finally {
-      setReconciling(false);
-    }
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  // Manual reconcile: filter (incl. "uncategorised only") + bulk-assign.
+  const visible = useMemo(
+    () => rows.filter((r) => !catFilter || r.category === catFilter),
+    [rows, catFilter],
+  );
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkCat, setBulkCat] = useState("");
+  const toggle = (id: string) => setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const allVisibleSelected = visible.length > 0 && visible.every((r) => selected.has(r.id));
+  const toggleAll = () => setSelected(allVisibleSelected ? new Set() : new Set(visible.map((r) => r.id)));
+  const applyBulk = async () => {
+    if (!bulkCat || selected.size === 0) return;
+    try { await api.bulkCategory([...selected], bulkCat); setSelected(new Set()); setBulkCat(""); await load(); } catch { /* ignore */ }
   };
+  useEffect(() => { setSelected(new Set()); }, [q, accountId, personFilter, catFilter]);
 
   return (
     <div>
@@ -72,21 +72,43 @@ export default function Transactions() {
           {people.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
         </select></h1>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button className="btn-primary" onClick={reconcile} disabled={reconciling}>
-            {reconciling ? "Reconciling…" : "Reconcile"}
-          </button>
+          <button className="btn-primary" onClick={() => setSheetOpen(true)} disabled={sheetOpen}>Reconcile</button>
           <AccountSelector />
         </div>
       </div>
-      {reconcileMsg && <p className="muted" style={{ marginTop: 0 }}>{reconcileMsg}</p>}
+      <ReconcileSheet open={sheetOpen} accountId={accountId && accountId !== "all" ? accountId : undefined} onClose={() => setSheetOpen(false)} onDone={load} />
       <AddTransaction onAdded={load} />
-      <input placeholder="Search transactions…" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 320 }} />
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <input placeholder="Search transactions…" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 320 }} />
+        <select value={catFilter} onChange={(e) => setCatFilter(e.target.value)} style={{ fontSize: 13 }}>
+          <option value="">All categories</option>
+          <option value="uncategorised">Uncategorised only</option>
+          {catNames.filter((c) => c.key !== "uncategorised").map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
+        </select>
+        <span className="muted" style={{ fontSize: 12 }}>{visible.length} shown</span>
+      </div>
+      {selected.size > 0 && (
+        <div className="card" style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <strong>{selected.size} selected</strong>
+          <span className="muted">→</span>
+          <select value={bulkCat} onChange={(e) => setBulkCat(e.target.value)}>
+            <option value="">— category —</option>
+            {catNames.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
+          </select>
+          <button className="btn-primary btn-sm" onClick={applyBulk} disabled={!bulkCat}>Assign</button>
+          <button className="btn-sm" onClick={() => setSelected(new Set())}>Clear</button>
+        </div>
+      )}
       <div className="card" style={{ marginTop: 16 }}>
         <table>
-          <thead><tr><th>Date</th><th>Account</th><th>Name</th><th>Category</th><th>Person</th><th>Amount</th><th></th></tr></thead>
+          <thead><tr>
+            <th style={{ width: 24 }}><input type="checkbox" checked={allVisibleSelected} onChange={toggleAll} title="Select all shown" /></th>
+            <th>Date</th><th>Account</th><th>Name</th><th>Category</th><th>Person</th><th>Amount</th><th></th>
+          </tr></thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.id}>
+            {visible.map((r) => (
+              <tr key={r.id} className={selected.has(r.id) ? "row-selected" : undefined}>
+                <td><input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} /></td>
                 <td>{r.bookingDate ?? ""}</td>
                 <td>
                   {nameById.get(r.accountId) ?? r.accountId.slice(-4)}

@@ -84,7 +84,7 @@ export async function syncAccount(accountId: string): Promise<SyncResult> {
   // Auto-categorise anything the inline rules didn't catch (Gemini Flash).
   // Never let categorisation failure fail the sync itself.
   try {
-    await reconcile(accountId);
+    await reconcile({ accountId });
   } catch (err) {
     console.error("reconcile after sync failed:", err instanceof Error ? err.message : err);
   }
