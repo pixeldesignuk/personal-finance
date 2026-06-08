@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../api.ts";
 import type { DashboardDTO, BankDTO, AuditEvent } from "../../../shared/types.ts";
-import type { SummaryDTO } from "../../../shared/types.ts";
 import { formatGBP, formatMoney } from "../format.ts";
 import { AccountSelector } from "../components/AccountSelector.tsx";
 import { AuditSheet } from "../components/AuditSheet.tsx";
@@ -15,13 +15,14 @@ export default function Dashboard() {
   const accountId = params.get("account") ?? undefined;
   const [data, setData] = useState<DashboardDTO | null>(null);
   const [banks, setBanks] = useState<BankDTO[]>([]);
-  const [summary, setSummary] = useState<SummaryDTO | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const qc = useQueryClient();
+  const { data: summary } = useQuery({ queryKey: ["summary"], queryFn: () => api.summary() });
 
   const load = () => {
     api.dashboard(accountId).then(setData).catch((e) => setMsg(e.message));
     api.accounts().then(setBanks).catch(() => setBanks([]));
-    api.summary().then(setSummary).catch(() => setSummary(null));
+    qc.invalidateQueries({ queryKey: ["summary"] });
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [accountId]);
 
@@ -47,8 +48,8 @@ export default function Dashboard() {
             <span className="value">{formatGBP(summary.netWorth)}</span>
             <span className="delta muted">
               {formatGBP(summary.available)} available
-              {summary.assets > 0 && ` · ${formatGBP(summary.assets)} assets`}
-              {summary.debts > 0 && ` · ${formatGBP(summary.debts)} debt`}
+              {summary.included.assets && summary.assets > 0 && ` · ${formatGBP(summary.assets)} assets`}
+              {summary.included.debts && summary.debts > 0 && ` · ${formatGBP(summary.debts)} debt`}
             </span>
           </div>
           <div className="card stat"><span className="label">Income · {summary.month}</span><span className="value pos">{formatGBP(summary.income)}</span></div>

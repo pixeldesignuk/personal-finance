@@ -48,6 +48,11 @@ summaryRouter.get("/summary", async (_req, res, next) => {
       assets: round2(assets),
       debts: round2(debts),
       available: round2(liquid), // immediately available (banks + cash)
+      included: {
+        investments: s["networth.includeInvestments"],
+        assets: s["networth.includeAssets"],
+        debts: s["networth.includeDebts"],
+      },
       ...cf,
     };
     res.json(dto);

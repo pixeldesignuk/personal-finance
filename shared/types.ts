@@ -147,6 +147,7 @@ export interface SummaryDTO {
   assets: number;       // total across ASSET accounts (house, car)
   debts: number;        // total owed across LIABILITY accounts (positive)
   available: number;    // immediately available (banks + cash)
+  included: { investments: boolean; assets: boolean; debts: boolean }; // what net worth counts
   income: number;
   expenses: number;
   net: number;
