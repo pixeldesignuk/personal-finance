@@ -9,9 +9,10 @@ import { syncRouter } from "./routes/sync.ts";
 import { dashboardRouter } from "./routes/dashboard.ts";
 import { accountsRouter } from "./routes/accounts.ts";
 import { transactionsRouter } from "./routes/transactions.ts";
-import { budgetsRouter } from "./routes/budgets.ts";
 import { summaryRouter } from "./routes/summary.ts";
 import { telegramRouter } from "./routes/telegram.ts";
+import { categoriesRouter } from "./routes/categories.ts";
+import { envelopesRouter } from "./routes/envelopes.ts";
 
 const app = express();
 app.use(express.json());
@@ -22,9 +23,10 @@ app.use("/api", syncRouter);
 app.use("/api", dashboardRouter);
 app.use("/api", accountsRouter);
 app.use("/api", transactionsRouter);
-app.use("/api", budgetsRouter);
 app.use("/api", summaryRouter);
 app.use("/api", telegramRouter);
+app.use("/api", categoriesRouter);
+app.use("/api", envelopesRouter);
 
 // Serve built frontend in production.
 const __dirname = dirname(fileURLToPath(import.meta.url));
