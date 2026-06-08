@@ -13,9 +13,14 @@ function base(): string {
   return (env.TRADING212_BASE_URL ?? "https://live.trading212.com").replace(/\/$/, "");
 }
 
+function authHeader(): string {
+  const creds = Buffer.from(`${env.TRADING_212_KEY_ID}:${env.TRADING_212_SECRET}`).toString("base64");
+  return `Basic ${creds}`;
+}
+
 async function t212<T>(path: string): Promise<T> {
   const res = await fetch(`${base()}/api/v0${path}`, {
-    headers: { Authorization: env.TRADING212_API_KEY ?? "" },
+    headers: { Authorization: authHeader() },
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
@@ -31,7 +36,7 @@ function friendlyName(ticker: string): string {
 export const trading212: InvestmentProvider = {
   key: "trading212",
   name: "Trading 212",
-  configured: () => Boolean(env.TRADING212_API_KEY),
+  configured: () => Boolean(env.TRADING_212_KEY_ID && env.TRADING_212_SECRET),
 
   async fetchSnapshot(): Promise<InvestmentSnapshot> {
     const summary = await t212<Record<string, any>>("/equity/account/summary").catch(() => null)
