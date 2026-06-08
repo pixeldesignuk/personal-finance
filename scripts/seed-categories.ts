@@ -51,6 +51,16 @@ const TARGET: Target[] = [
   // Savings
   { group: "Savings", key: "savings-investments", name: "Savings & Investments", amount: 0 },
   { group: "Savings", key: "emergency-fund", name: "Emergency Fund", amount: 0 },
+  // Money
+  { group: "Money", key: "bank-fees", name: "Bank Fees & Interest", amount: 0 },
+  { group: "Money", key: "cash-atm", name: "Cash / ATM", amount: 0 },
+];
+
+// Specific recurring patterns that the merchant-name learner can't catch
+// (they live in the remittance text, so no clean merchant token) -> seed a rule.
+const RULE_SEEDS: { matchText: string; categoryKey: string }[] = [
+  { matchText: "interest - see summary", categoryKey: "bank-fees" },
+  { matchText: "interest see summary", categoryKey: "bank-fees" },
 ];
 
 // old key -> new key (transactions are moved off the old key before it's deleted)
@@ -96,10 +106,13 @@ async function main() {
     update: {},
   });
 
-  // 4. Delete stale categories (now empty after the remap).
-  const keep = new Set([...TARGET.map((t) => t.key), "uncategorised"]);
-  const stale = await db.category.findMany({ where: { key: { notIn: [...keep] } } });
-  for (const s of stale) { await db.category.delete({ where: { id: s.id } }); console.log(`deleted stale category ${s.key}`); }
+  // 4. Delete only the known merged-away keys (now empty after the remap).
+  //    Deliberately NOT "everything not in TARGET" — that would nuke any
+  //    categories added by hand in the UI later.
+  for (const oldK of Object.keys(REMAP)) {
+    const ex = await db.category.findFirst({ where: { key: oldK } });
+    if (ex) { await db.category.delete({ where: { id: ex.id } }); console.log(`deleted merged category ${oldK}`); }
+  }
 
   // 5. Seed transfer-detection rules and apply to existing transactions.
   for (const p of TRANSFER_PATTERNS) {
@@ -119,6 +132,24 @@ async function main() {
       data: { category: "transfer" },
     });
     if (r.count) console.log(`transfer "${p}": ${r.count} transactions`);
+  }
+
+  // 6. Seed specific fee/interest rules and apply to existing uncategorised rows.
+  for (const s of RULE_SEEDS) {
+    if (!(await db.rule.findFirst({ where: { matchText: s.matchText } }))) {
+      await db.rule.create({ data: { matchText: s.matchText, categoryKey: s.categoryKey, priority: 90 } });
+    }
+    const r = await db.transaction.updateMany({
+      where: {
+        category: "uncategorised", categoryOverride: null,
+        OR: [
+          { merchantName: { contains: s.matchText, mode: "insensitive" } },
+          { remittanceInfo: { contains: s.matchText, mode: "insensitive" } },
+        ],
+      },
+      data: { category: s.categoryKey },
+    });
+    if (r.count) console.log(`rule "${s.matchText}" -> ${s.categoryKey}: ${r.count} transactions`);
   }
 
   const cats = await db.category.count({ where: { key: { not: "uncategorised" } } });
