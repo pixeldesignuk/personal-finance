@@ -11,6 +11,12 @@ const gc = new GoCardlessClient();
 const SYNC_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 
 export async function syncAccount(accountId: string): Promise<SyncResult> {
+  // Manual/cash accounts aren't backed by GoCardless — nothing to fetch.
+  const account = await db.account.findUnique({ where: { id: accountId } });
+  if (!account || account.source !== "BANK") {
+    return { accountId, added: 0, skipped: true, message: "Manual account — nothing to sync." };
+  }
+
   const last = await db.syncLog.findFirst({
     where: { accountId, status: "ok" },
     orderBy: { ranAt: "desc" },
@@ -93,7 +99,7 @@ export async function syncAccount(accountId: string): Promise<SyncResult> {
 
 syncRouter.post("/sync", async (_req, res, next) => {
   try {
-    const accounts = await db.account.findMany();
+    const accounts = await db.account.findMany({ where: { source: "BANK" } });
     const results: SyncResult[] = [];
     for (const a of accounts) {
       try {
