@@ -73,6 +73,7 @@ model Transaction {
   merchantName   String?
   category         String
   categoryOverride String?
+  personKey        String?
   status         String
   raw            Json
 
@@ -98,6 +99,7 @@ model CategoryGroup {
 model Category {
   id            Int           @id @default(autoincrement())
   name          String        @unique
+  key           String        @unique
   group         CategoryGroup @relation(fields: [groupId], references: [id])
   groupId       Int
   monthlyAmount Decimal       @default(0)
@@ -118,8 +120,8 @@ model Allocation {
 
 model CategoryTransfer {
   id        Int      @id @default(autoincrement())
-  fromName  String
-  toName    String
+  fromKey   String
+  toKey     String
   month     String
   amount    Decimal
   note      String?
@@ -129,4 +131,21 @@ model CategoryTransfer {
 model Setting {
   key   String @id
   value String
+}
+
+model Person {
+  id        Int     @id @default(autoincrement())
+  key       String  @unique
+  name      String
+  sortOrder Int     @default(0)
+  archived  Boolean @default(false)
+}
+
+model Rule {
+  id          Int      @id @default(autoincrement())
+  matchText   String
+  categoryKey String?
+  personKey   String?
+  priority    Int      @default(0)
+  createdAt   DateTime @default(now())
 }
