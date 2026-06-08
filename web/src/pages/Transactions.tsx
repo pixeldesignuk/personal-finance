@@ -306,7 +306,7 @@ export default function Transactions() {
           <button className="btn-sm" onClick={() => setSelected(new Set())}>Clear</button>
         </div>
       )}
-      <div className="card" style={{ marginTop: 16 }}>
+      <div className="card txn-fullbleed" style={{ marginTop: 16 }}>
         <table className="txn-table">
           <colgroup>
             <col style={{ width: 36 }} />
