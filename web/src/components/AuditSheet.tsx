@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { api } from "../api.ts";
 import type { AuditEvent } from "../../../shared/types.ts";
 
 type Tone = "dim" | "green" | "yellow" | "red" | "cyan" | "bold";
@@ -60,14 +59,19 @@ function linesFor(e: AuditEvent): Line[] {
       if (r.llmSkipped) out.push({ text: "  ⚠ AI skipped — no GEMINI_API_KEY set", tone: "red" });
       return out;
     }
+    case "log":
+      return [{ text: e.text, tone: e.tone }];
     case "fatal":
       return [{ text: `✗ ${e.error}`, tone: "red" }];
   }
 }
 
-export function ReconcileSheet({ open, accountId, onClose, onDone }: {
+// A streaming CLI-style bottom sheet. `run` is given a per-event callback and
+// streams audit events (reconcile, sync, …) until its promise resolves.
+export function AuditSheet({ open, title, run, onClose, onDone }: {
   open: boolean;
-  accountId?: string;
+  title: string;
+  run: (onEvent: (e: AuditEvent) => void) => Promise<void>;
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -80,12 +84,12 @@ export function ReconcileSheet({ open, accountId, onClose, onDone }: {
     if (!open) { startedRef.current = false; return; }
     if (startedRef.current) return;
     startedRef.current = true;
-    setLines([{ text: "$ reconcile — analysing transactions…", tone: "bold" }]);
+    setLines([{ text: `$ ${title.toLowerCase()}…`, tone: "bold" }]);
     setRunning(true);
-    api.reconcileStream((e) => setLines((prev) => [...prev, ...linesFor(e)]), accountId)
+    run((e) => setLines((prev) => [...prev, ...linesFor(e)]))
       .catch((err: Error) => setLines((prev) => [...prev, { text: `✗ ${err.message}`, tone: "red" }]))
       .finally(() => { setRunning(false); onDone(); });
-  }, [open, accountId, onDone]);
+  }, [open, run, onDone, title]);
 
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
@@ -96,7 +100,7 @@ export function ReconcileSheet({ open, accountId, onClose, onDone }: {
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(ev) => ev.stopPropagation()}>
         <div className="sheet-head">
-          <span className="sheet-title">{running ? "Reconciling…" : "Reconcile audit"}</span>
+          <span className="sheet-title">{running ? `${title}…` : `${title} audit`}</span>
           <button className="btn-sm" onClick={onClose}>{running ? "Hide" : "Close"}</button>
         </div>
         <div className="terminal" ref={bodyRef}>

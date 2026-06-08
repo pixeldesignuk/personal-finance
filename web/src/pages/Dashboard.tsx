@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../api.ts";
-import type { DashboardDTO, BankDTO } from "../../../shared/types.ts";
+import type { DashboardDTO, BankDTO, AuditEvent } from "../../../shared/types.ts";
 import type { SummaryDTO } from "../../../shared/types.ts";
 import { formatGBP, formatMoney } from "../format.ts";
 import { AccountSelector } from "../components/AccountSelector.tsx";
+import { AuditSheet } from "../components/AuditSheet.tsx";
 import { CategoryPie } from "../components/charts/CategoryPie.tsx";
 import { MonthlyBar } from "../components/charts/MonthlyBar.tsx";
 import { TopMerchants } from "../components/charts/TopMerchants.tsx";
@@ -24,14 +25,8 @@ export default function Dashboard() {
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [accountId]);
 
-  const sync = async () => {
-    setMsg("Syncing...");
-    try {
-      const r = await api.sync();
-      setMsg(r.map((x) => `${x.accountId.slice(0, 6)}: ${x.skipped ? x.message : `${x.added} txns`}`).join(" · "));
-      load();
-    } catch (e) { setMsg((e as Error).message); }
-  };
+  const [syncOpen, setSyncOpen] = useState(false);
+  const syncRun = useCallback((onEvent: (e: AuditEvent) => void) => api.syncStream(onEvent), []);
 
   if (!data) return <p>{msg ?? "Loading..."}</p>;
   return (
@@ -40,9 +35,10 @@ export default function Dashboard() {
         <h1>Dashboard</h1>
         <div className="toolbar">
           <AccountSelector />
-          <button className="btn-primary" onClick={sync}>Sync now</button>
+          <button className="btn-primary" onClick={() => setSyncOpen(true)} disabled={syncOpen}>Sync now</button>
         </div>
       </div>
+      <AuditSheet open={syncOpen} title="Sync" run={syncRun} onClose={() => setSyncOpen(false)} onDone={load} />
       {msg && <p className="muted">{msg}</p>}
       {summary && (
         <div className="grid">

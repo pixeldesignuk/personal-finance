@@ -3,6 +3,8 @@ import { db } from "../lib/db.ts";
 import { GoCardlessClient, GoCardlessError } from "../gocardless/client.ts";
 import { applyRules, type Rule } from "../lib/rules.ts";
 import { reconcile } from "../categorise/reconcile.ts";
+import { displayName } from "../../shared/displayName.ts";
+import type { AuditFn } from "../categorise/audit.ts";
 import type { SyncResult } from "../../shared/types.ts";
 
 export const syncRouter = Router();
@@ -10,18 +12,20 @@ const gc = new GoCardlessClient();
 
 const SYNC_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 
-export async function syncAccount(accountId: string): Promise<SyncResult> {
+export async function syncAccount(accountId: string, audit?: AuditFn): Promise<SyncResult> {
   // Manual/cash accounts aren't backed by GoCardless — nothing to fetch.
   const account = await db.account.findUnique({ where: { id: accountId } });
   if (!account || account.source !== "BANK") {
     return { accountId, added: 0, skipped: true, message: "Manual account — nothing to sync." };
   }
+  audit?.({ kind: "log", text: `● ${displayName(account)}`, tone: "bold" });
 
   const last = await db.syncLog.findFirst({
     where: { accountId, status: "ok" },
     orderBy: { ranAt: "desc" },
   });
   if (last && Date.now() - last.ranAt.getTime() < SYNC_COOLDOWN_MS) {
+    audit?.({ kind: "log", text: "  skipped — synced within the last 6h (rate limit)", tone: "yellow" });
     return { accountId, added: 0, skipped: true, message: "Synced recently; try later (rate limit)." };
   }
 
@@ -44,6 +48,8 @@ export async function syncAccount(accountId: string): Promise<SyncResult> {
       },
     });
   }
+
+  audit?.({ kind: "log", text: "  balances updated", tone: "dim" });
 
   const txns = await gc.getTransactions(accountId);
   const booked = txns.transactions.booked ?? [];
@@ -87,10 +93,11 @@ export async function syncAccount(accountId: string): Promise<SyncResult> {
   }
 
   await db.syncLog.create({ data: { accountId, added, status: "ok" } });
+  audit?.({ kind: "log", text: `  ${booked.length} booked · ${pending.length} pending transactions`, tone: "dim" });
   // Auto-categorise anything the inline rules didn't catch (Gemini Flash).
   // Never let categorisation failure fail the sync itself.
   try {
-    await reconcile({ accountId });
+    await reconcile({ accountId, audit });
   } catch (err) {
     console.error("reconcile after sync failed:", err instanceof Error ? err.message : err);
   }
@@ -120,5 +127,35 @@ syncRouter.post("/sync", async (_req, res, next) => {
     res.json(results);
   } catch (err) {
     next(err);
+  }
+});
+
+// Streaming sync: emits a live NDJSON audit (per account: balances, transactions,
+// then the reconcile pass) for the bottom-sheet CLI.
+syncRouter.post("/sync/stream", async (_req, res) => {
+  res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders?.();
+  const audit: AuditFn = (e) => res.write(`${JSON.stringify(e)}\n`);
+  try {
+    const accounts = await db.account.findMany({ where: { source: "BANK" } });
+    if (!accounts.length) audit({ kind: "log", text: "No bank accounts to sync.", tone: "dim" });
+    for (const a of accounts) {
+      try {
+        await syncAccount(a.id, audit);
+      } catch (err) {
+        if (err instanceof GoCardlessError && err.status === 429) {
+          audit({ kind: "log", text: `  rate limited (retry after ${err.retryAfter ?? "unknown"})`, tone: "red" });
+          continue;
+        }
+        audit({ kind: "log", text: `  ✗ ${err instanceof Error ? err.message : String(err)}`, tone: "red" });
+      }
+    }
+    audit({ kind: "log", text: "Sync complete.", tone: "green" });
+  } catch (err) {
+    audit({ kind: "fatal", error: err instanceof Error ? err.message : String(err) });
+  } finally {
+    res.end();
   }
 });

@@ -24,6 +24,27 @@ async function send<T>(method: string, url: string, body?: unknown): Promise<T> 
 const acctQuery = (accountId?: string) =>
   accountId && accountId !== "all" ? `accountId=${encodeURIComponent(accountId)}` : "";
 
+// POST that reads a newline-delimited JSON stream, calling onEvent per line.
+async function streamNdjson(url: string, body: unknown, onEvent: (e: AuditEvent) => void): Promise<void> {
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!res.ok || !res.body) throw new Error((await res.json().catch(() => ({}))).error ?? res.statusText);
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  const flush = (chunk: string) => {
+    buf += chunk;
+    const lines = buf.split("\n");
+    buf = lines.pop() ?? "";
+    for (const line of lines) if (line.trim()) onEvent(JSON.parse(line) as AuditEvent);
+  };
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    flush(decoder.decode(value, { stream: true }));
+  }
+  if (buf.trim()) onEvent(JSON.parse(buf) as AuditEvent);
+}
+
 export const api = {
   institutions: () => get<InstitutionDTO[]>("/api/institutions"),
   connect: (institutionId: string) => send<ConnectResponse>("POST", "/api/connect", { institutionId }),
@@ -61,30 +82,10 @@ export const api = {
   deleteRule: (id: number) => send<{ deleted: boolean }>("DELETE", `/api/rules/${id}`),
   applyRules: () => send<{ categorised: number; personed: number }>("POST", "/api/rules/apply"),
   reconcile: () => send<ReconcileResult>("POST", "/api/reconcile"),
-  // Streams audit events as the pipeline runs; calls onEvent for each.
-  reconcileStream: async (onEvent: (e: AuditEvent) => void, accountId?: string): Promise<void> => {
-    const res = await fetch("/api/reconcile/stream", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accountId }),
-    });
-    if (!res.ok || !res.body) throw new Error((await res.json().catch(() => ({}))).error ?? res.statusText);
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = "";
-    const flush = (chunk: string) => {
-      buf += chunk;
-      const lines = buf.split("\n");
-      buf = lines.pop() ?? "";
-      for (const line of lines) if (line.trim()) onEvent(JSON.parse(line) as AuditEvent);
-    };
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      flush(decoder.decode(value, { stream: true }));
-    }
-    if (buf.trim()) onEvent(JSON.parse(buf) as AuditEvent);
-  },
+  // Streams audit events (NDJSON) as the pipeline runs; calls onEvent for each.
+  reconcileStream: (onEvent: (e: AuditEvent) => void, accountId?: string) =>
+    streamNdjson("/api/reconcile/stream", { accountId }, onEvent),
+  syncStream: (onEvent: (e: AuditEvent) => void) => streamNdjson("/api/sync/stream", {}, onEvent),
   createCategory: (input: { name: string; group?: string | null; monthlyAmount?: number }) =>
     send<{ id: number }>("POST", "/api/categories", input),
   patchCategory: (id: number, patch: { name?: string; group?: string | null; monthlyAmount?: number; sortOrder?: number; archived?: boolean }) =>

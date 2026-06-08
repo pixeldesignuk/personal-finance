@@ -2,12 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api.ts";
-import type { TransactionDTO, CategoryNameDTO, PersonDTO } from "../../../shared/types.ts";
+import type { TransactionDTO, CategoryNameDTO, PersonDTO, AuditEvent } from "../../../shared/types.ts";
 import { formatMoney } from "../format.ts";
 import { useToast } from "../components/Toasts.tsx";
 import { AccountSelector } from "../components/AccountSelector.tsx";
 import { AddTransaction } from "../components/AddTransaction.tsx";
-import { ReconcileSheet } from "../components/ReconcileSheet.tsx";
+import { AuditSheet } from "../components/AuditSheet.tsx";
 
 type PropField = "category" | "person";
 type Flag = "red" | "orange" | "yellow" | null;
@@ -236,6 +236,8 @@ export default function Transactions() {
   const saveNote = (id: string) => { noteMutation.mutate({ id, note: noteDraft.trim() || null }); setNoteEditId(null); };
 
   const [sheetOpen, setSheetOpen] = useState(false);
+  const scopedAccount = accountId && accountId !== "all" ? accountId : undefined;
+  const reconcileRun = useCallback((onEvent: (e: AuditEvent) => void) => api.reconcileStream(onEvent, scopedAccount), [scopedAccount]);
 
   // Manual reconcile: filter (incl. "uncategorised only") + bulk-assign.
   const [flaggedOnly, setFlaggedOnly] = useState(false);
@@ -279,7 +281,7 @@ export default function Transactions() {
           <AccountSelector />
         </div>
       </div>
-      <ReconcileSheet open={sheetOpen} accountId={accountId && accountId !== "all" ? accountId : undefined} onClose={() => setSheetOpen(false)} onDone={invalidateTxns} />
+      <AuditSheet open={sheetOpen} title="Reconcile" run={reconcileRun} onClose={() => setSheetOpen(false)} onDone={invalidateTxns} />
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <input placeholder="Search transactions…" value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: "1 1 220px", maxWidth: 320 }} />
         <select value={catFilter} onChange={(e) => setCatFilter(e.target.value)} style={{ fontSize: 13 }}>

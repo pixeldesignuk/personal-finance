@@ -227,6 +227,7 @@ export type AuditEvent =
   | { kind: "skip-uncategorised"; id: string; name: string }
   | { kind: "learn"; matchText: string; categoryKey: string }
   | { kind: "summary"; result: ReconcileResult }
+  | { kind: "log"; text: string; tone?: "dim" | "green" | "yellow" | "red" | "cyan" | "bold" }
   | { kind: "fatal"; error: string };
 export interface CategoryNameDTO {
   key: string;
