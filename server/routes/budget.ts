@@ -5,7 +5,12 @@ import { effectiveCategory } from "../lib/effectiveCategory.ts";
 import { currentMonth, monthOf, round2, personalSpendByCategory, type BudgetTx } from "../lib/budget.ts";
 import { currentBalance } from "../lib/balance.ts";
 import { buildBudgetRows, type BudgetCategory } from "../lib/budgetView.ts";
-import type { BudgetResponseDTO } from "../../shared/types.ts";
+import type { BudgetResponseDTO, CategoryInfoDTO } from "../../shared/types.ts";
+
+function prevMonth(m: string): string {
+  const [y, mo] = m.split("-").map(Number);
+  return mo === 1 ? `${y - 1}-12` : `${y}-${String(mo - 1).padStart(2, "0")}`;
+}
 
 export const budgetRouter = Router();
 
@@ -59,5 +64,38 @@ budgetRouter.get("/budget", async (req, res, next) => {
       },
     };
     res.json(response);
+  } catch (err) { next(err); }
+});
+
+// Per-category detail for the Budget edit panel.
+budgetRouter.get("/budget/category/:key", async (req, res, next) => {
+  try {
+    const q = z.object({ month: z.string().regex(/^\d{4}-\d{2}$/).optional(), person: z.string().optional() }).parse(req.query);
+    const month = q.month ?? currentMonth();
+    const last = prevMonth(month);
+
+    const cat = await db.category.findUnique({ where: { key: req.params.key } });
+    if (!cat) { res.status(404).json({ error: "Category not found" }); return; }
+    const monthlyAmount = Number(cat.monthlyAmount.toString());
+
+    const personal = await db.account.findMany({ where: { type: "PERSONAL" }, select: { id: true } });
+    const ids = personal.map((a) => a.id);
+    const txns = await db.transaction.findMany({ where: { accountId: { in: ids } } });
+    const filtered = q.person ? txns.filter((t) => (q.person === "none" ? t.personKey == null : t.personKey === q.person)) : txns;
+    const lastMonthSpend = personalSpendByCategory(
+      filtered.map<BudgetTx>((t) => ({ amount: Number(t.amount), category: effectiveCategory(t), bookingDate: t.bookingDate })),
+      last,
+    );
+    const spentLastMonth = round2(lastMonthSpend[req.params.key] ?? 0);
+
+    const dto: CategoryInfoDTO = {
+      key: req.params.key,
+      monthlyAmount,
+      budgetedLastMonth: monthlyAmount, // budgets aren't versioned by month
+      spentLastMonth,
+      carriedForward: round2(monthlyAmount - spentLastMonth),
+      goalAmount: null,
+    };
+    res.json(dto);
   } catch (err) { next(err); }
 });

@@ -169,6 +169,15 @@ export interface BudgetResponseDTO {
   summary: BudgetSummaryDTO;
 }
 
+export interface CategoryInfoDTO {
+  key: string;
+  monthlyAmount: number;
+  budgetedLastMonth: number;
+  spentLastMonth: number;
+  carriedForward: number;   // budgetedLastMonth − spentLastMonth
+  goalAmount: number | null; // not tracked in the flat model → null (N/A)
+}
+
 export interface ReportRowDTO {
   categoryKey: string;
   name: string;

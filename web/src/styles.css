@@ -413,6 +413,15 @@ select {
   font-family: var(--font-mono); font-variant-numeric: tabular-nums;
 }
 
+/* category information panel (Budget edit dialog) */
+.catinfo { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 4px 12px; background: var(--bg-2); }
+.catinfo-head {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--ink-3); font-weight: 600; padding: 9px 0 6px;
+}
+.catinfo-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.catinfo-row > span:first-child { color: var(--ink-2); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }

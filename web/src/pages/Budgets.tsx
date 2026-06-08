@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api.ts";
-import type { BudgetRowDTO, BudgetSummaryDTO } from "../../../shared/types.ts";
+import type { BudgetRowDTO, BudgetSummaryDTO, CategoryInfoDTO } from "../../../shared/types.ts";
 import { formatMoney } from "../format.ts";
 
 function nowMonth(): string {
@@ -43,8 +43,14 @@ export default function Budgets() {
   };
 
   const wrap = async (fn: () => Promise<unknown>) => { try { await fn(); await load(); dialog.current?.close(); } catch (e) { setMsg((e as Error).message); } };
-  const openNew = () => { setEditId(null); setForm({ name: "", group: "", monthlyAmount: "0" }); dialog.current?.showModal(); };
-  const openEdit = (r: BudgetRowDTO) => { setEditId(r.id); setForm({ name: r.name, group: r.group ?? "", monthlyAmount: String(r.budgeted) }); dialog.current?.showModal(); };
+  const [info, setInfo] = useState<CategoryInfoDTO | null>(null);
+  const openNew = () => { setEditId(null); setInfo(null); setForm({ name: "", group: "", monthlyAmount: "0" }); dialog.current?.showModal(); };
+  const openEdit = (r: BudgetRowDTO) => {
+    setEditId(r.id); setForm({ name: r.name, group: r.group ?? "", monthlyAmount: String(r.budgeted) });
+    setInfo(null);
+    api.categoryInfo(r.key, month, person || undefined).then(setInfo).catch(() => setInfo(null));
+    dialog.current?.showModal();
+  };
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) { setMsg("Enter a name"); return; }
@@ -142,6 +148,16 @@ export default function Budgets() {
             <datalist id="budget-groups">{groups.filter((g) => g !== "Other").map((g) => <option key={g} value={g} />)}</datalist>
           </label>
           <label className="field"><span>Monthly budget (£)</span><input inputMode="decimal" value={form.monthlyAmount} onChange={(e) => setForm({ ...form, monthlyAmount: e.target.value })} /></label>
+          {editId != null && info && (
+            <div className="catinfo">
+              <div className="catinfo-head">Category information</div>
+              <div className="catinfo-row"><span>Carried forward</span><span className={`num ${info.carriedForward < 0 ? "neg" : ""}`}>£{formatMoney(info.carriedForward)}</span></div>
+              <div className="catinfo-row"><span>Spent last month</span><span className="num">£{formatMoney(info.spentLastMonth)}</span></div>
+              <div className="catinfo-row"><span>Budgeted last month</span><span className="num">£{formatMoney(info.budgetedLastMonth)}</span></div>
+              <div className="catinfo-row"><span>Monthly amount</span><span className="num" style={{ color: "var(--jade)" }}>£{formatMoney(info.monthlyAmount)}</span></div>
+              <div className="catinfo-row"><span>Goal amount</span><span className="num muted">{info.goalAmount == null ? "N/A" : `£${formatMoney(info.goalAmount)}`}</span></div>
+            </div>
+          )}
           <div className="modal-actions"><button type="button" onClick={() => dialog.current?.close()}>Cancel</button><button className="btn-primary" type="submit">Save</button></div>
         </form>
       </dialog>
