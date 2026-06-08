@@ -261,7 +261,7 @@ export default function Transactions() {
   const isUpdating = txnQuery.isFetching && !txnQuery.isLoading;
 
   return (
-    <div>
+    <div className="txn-page">
       <div className="row-between">
         <h1>Transactions <select value={personFilter} onChange={(e) => setPersonFilter(e.target.value)} style={{ fontSize: 13, marginLeft: 8 }}>
           <option value="">Everyone</option>
@@ -306,7 +306,7 @@ export default function Transactions() {
           <button className="btn-sm" onClick={() => setSelected(new Set())}>Clear</button>
         </div>
       )}
-      <div className="card txn-fullbleed" style={{ marginTop: 16 }}>
+      <div className="card" style={{ marginTop: 16 }}>
         <table className="txn-table">
           <colgroup>
             <col style={{ width: 36 }} />

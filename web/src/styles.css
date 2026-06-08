@@ -355,13 +355,10 @@ select {
   color: var(--ink-3); font-weight: 700; padding-top: 18px;
 }
 
-/* break the table card out of the centred container to full viewport width */
-.txn-fullbleed {
+/* break the whole transactions page out of the centred container to full width */
+.txn-page {
   margin-left: calc(50% - 50vw);
   margin-right: calc(50% - 50vw);
-  border-radius: 0;
-  border-left: none;
-  border-right: none;
   padding-left: clamp(18px, 5vw, 40px);
   padding-right: clamp(18px, 5vw, 40px);
 }
