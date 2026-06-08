@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { api, CATEGORY_OPTIONS } from "../api.ts";
+import { api } from "../api.ts";
 import type { TransactionDTO, BankDTO } from "../../../shared/types.ts";
 import { formatMoney } from "../format.ts";
 import { AccountSelector } from "../components/AccountSelector.tsx";
@@ -15,6 +15,9 @@ export default function Transactions() {
 
   const loadBanks = () => api.accounts().then(setBanks).catch(() => setBanks([]));
   useEffect(() => { loadBanks(); }, []);
+
+  const [catNames, setCatNames] = useState<string[]>([]);
+  useEffect(() => { api.categoryNames().then(setCatNames).catch(() => setCatNames([])); }, []);
 
   const load = () => api.transactions(q, accountId).then(setRows).catch(() => setRows([]));
   useEffect(() => {
@@ -59,7 +62,7 @@ export default function Transactions() {
                 <td>{r.name ?? r.remittanceInfo ?? ""}</td>
                 <td>
                   <select value={r.category} onChange={(e) => setCategory(r.id, e.target.value)}>
-                    {CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                    {catNames.map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </td>
                 <td className={`num ${Number(r.amount) < 0 ? "neg" : "pos"}`}>{r.currency} {formatMoney(r.amount)}</td>

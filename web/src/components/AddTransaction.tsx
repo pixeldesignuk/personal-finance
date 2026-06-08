@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api, CATEGORY_OPTIONS } from "../api.ts";
+import { api } from "../api.ts";
 import type { BankDTO, AccountDTO } from "../../../shared/types.ts";
 
 export function AddTransaction({ onAdded }: { onAdded: () => void }) {
@@ -9,9 +9,10 @@ export function AddTransaction({ onAdded }: { onAdded: () => void }) {
   const [date, setDate] = useState(new Date().toLocaleDateString("en-CA"));
   const [sign, setSign] = useState<"-" | "+">("-");
   const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("other");
+  const [category, setCategory] = useState("Uncategorised");
   const [note, setNote] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const [catNames, setCatNames] = useState<string[]>([]);
 
   useEffect(() => {
     api.accounts().then((banks: BankDTO[]) => {
@@ -20,6 +21,9 @@ export function AddTransaction({ onAdded }: { onAdded: () => void }) {
       setAccountId((prev) => prev || (m[0]?.id ?? ""));
     }).catch(() => setManual([]));
   }, []);
+
+  useEffect(() => { api.categoryNames().then(setCatNames).catch(() => setCatNames([])); }, []);
+  useEffect(() => { if (catNames[0]) setCategory((p) => p === "Uncategorised" ? catNames[0] : p); }, [catNames]);
 
   const noAccounts = manual.length === 0;
   const open = () => { setMsg(null); dialogRef.current?.showModal(); };
@@ -81,7 +85,7 @@ export function AddTransaction({ onAdded }: { onAdded: () => void }) {
             <label className="field" style={{ flex: 1 }}>
               <span>Category</span>
               <select value={category} onChange={(e) => setCategory(e.target.value)}>
-                {CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                {catNames.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </label>
           </div>
