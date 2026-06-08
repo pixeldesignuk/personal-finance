@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, CATEGORY_OPTIONS } from "../api.ts";
 import type { TransactionDTO, BankDTO } from "../../../shared/types.ts";
+import { formatMoney } from "../format.ts";
 import { AccountSelector } from "../components/AccountSelector.tsx";
 
 export default function Transactions() {
@@ -56,7 +57,7 @@ export default function Transactions() {
                     {CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </td>
-                <td style={{ color: Number(r.amount) < 0 ? "#dc2626" : "#16a34a" }}>{r.currency} {r.amount}</td>
+                <td style={{ color: Number(r.amount) < 0 ? "#dc2626" : "#16a34a" }}>{r.currency} {formatMoney(r.amount)}</td>
                 <td>{r.source === "MANUAL" && <button style={{ background: "#dc2626" }} onClick={() => del(r.id)}>✕</button>}</td>
               </tr>
             ))}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.ts";
 import type { BudgetDTO } from "../../../shared/types.ts";
+import { formatMoney } from "../format.ts";
 
 function barColor(percent: number): string {
   if (percent > 100) return "#dc2626";
@@ -32,7 +33,7 @@ export default function Budgets() {
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <strong>{r.category}</strong>
             <span>
-              £{r.spent.toFixed(2)} / £{r.monthlyLimit.toFixed(2)}{" "}
+              £{formatMoney(r.spent)} / £{formatMoney(r.monthlyLimit)}{" "}
               <button onClick={() => edit(r.category, r.monthlyLimit)}>Set</button>
             </span>
           </div>
@@ -40,7 +41,7 @@ export default function Budgets() {
             <div style={{ width: `${Math.min(r.percent, 100)}%`, height: "100%", background: barColor(r.percent) }} />
           </div>
           <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
-            {r.monthlyLimit > 0 ? `${r.percent}% used · £${r.remaining.toFixed(2)} remaining` : "no limit set"}
+            {r.monthlyLimit > 0 ? `${r.percent}% used · £${formatMoney(r.remaining)} remaining` : "no limit set"}
           </div>
         </div>
       ))}

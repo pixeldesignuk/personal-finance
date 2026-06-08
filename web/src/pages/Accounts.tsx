@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, CATEGORY_OPTIONS } from "../api.ts";
 import type { BankDTO } from "../../../shared/types.ts";
+import { formatMoney } from "../format.ts";
 
 export default function Accounts() {
   const [banks, setBanks] = useState<BankDTO[]>([]);
@@ -93,7 +94,7 @@ export default function Accounts() {
                   <td>
                     <button onClick={() => toggleType(a.id, a.type)}>{a.type}</button>
                   </td>
-                  <td>{a.currency ?? "GBP"} {a.currentBalance.toFixed(2)}</td>
+                  <td>{a.currency ?? "GBP"} {formatMoney(a.currentBalance)}</td>
                   <td style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     <button onClick={() => rename(a.id, a.nickname ?? "")}>Rename</button>
                     {a.source === "MANUAL" && <button onClick={() => editBalance(a.id, a.currentBalance)}>Set balance</button>}
