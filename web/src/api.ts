@@ -4,6 +4,7 @@ import type {
   BankDTO, RemoveBankResult, NicknameResult,
   SummaryDTO, ManualAccountInput, ManualTxnInput,
   CategoryGroupDTO, EnvelopeGroupDTO,
+  PersonDTO, RuleDTO, CategoryNameDTO,
 } from "../../shared/types.ts";
 
 async function get<T>(url: string): Promise<T> {
@@ -35,10 +36,20 @@ export const api = {
   deleteManualAccount: (id: string) => send<{ deleted: boolean }>("DELETE", `/api/accounts/${id}`),
   removeBank: (requisitionId: string) => send<RemoveBankResult>("DELETE", `/api/banks/${requisitionId}`),
   createTxn: (input: ManualTxnInput) => send<{ id: string }>("POST", "/api/transactions", input),
-  setTxnCategory: (id: string, category: string) => send<{ id: string; category: string }>("PATCH", `/api/transactions/${id}`, { category }),
+  setTxnCategory: (id: string, category: string) => send<{ id: string }>("PATCH", `/api/transactions/${id}`, { category }),
+  setTxnPerson: (id: string, personKey: string | null) => send<{ id: string }>("PATCH", `/api/transactions/${id}`, { personKey }),
   deleteTxn: (id: string) => send<{ deleted: boolean }>("DELETE", `/api/transactions/${id}`),
   categories: () => get<CategoryGroupDTO[]>("/api/categories"),
-  categoryNames: () => get<string[]>("/api/category-names"),
+  categoryNames: () => get<CategoryNameDTO[]>("/api/category-names"),
+  people: () => get<PersonDTO[]>("/api/people"),
+  createPerson: (name: string) => send<{ id: number; key: string }>("POST", "/api/people", { name }),
+  patchPerson: (id: number, patch: { name?: string; sortOrder?: number; archived?: boolean }) => send<{ id: number }>("PATCH", `/api/people/${id}`, patch),
+  deletePerson: (id: number) => send<{ deleted: boolean }>("DELETE", `/api/people/${id}`),
+  rules: () => get<RuleDTO[]>("/api/rules"),
+  createRule: (input: { matchText: string; categoryKey?: string | null; personKey?: string | null; priority?: number }) => send<{ id: number }>("POST", "/api/rules", input),
+  patchRule: (id: number, input: { matchText: string; categoryKey?: string | null; personKey?: string | null; priority: number }) => send<{ id: number }>("PATCH", `/api/rules/${id}`, input),
+  deleteRule: (id: number) => send<{ deleted: boolean }>("DELETE", `/api/rules/${id}`),
+  applyRules: () => send<{ categorised: number; personed: number }>("POST", "/api/rules/apply"),
   createCategory: (input: { name: string; groupId: number; monthlyAmount?: number; goal?: number | null }) =>
     send<{ id: number }>("POST", "/api/categories", input),
   patchCategory: (id: number, patch: { name?: string; groupId?: number; monthlyAmount?: number; goal?: number | null; sortOrder?: number; archived?: boolean }) =>
@@ -47,14 +58,17 @@ export const api = {
   createGroup: (name: string) => send<{ id: number }>("POST", "/api/category-groups", { name }),
   patchGroup: (id: number, patch: { name?: string; sortOrder?: number }) => send<{ id: number }>("PATCH", `/api/category-groups/${id}`, patch),
   deleteGroup: (id: number) => send<{ deleted: boolean }>("DELETE", `/api/category-groups/${id}`),
-  envelopes: (month?: string) => get<EnvelopeGroupDTO[]>(`/api/envelopes${month ? `?month=${month}` : ""}`),
+  envelopes: (month?: string, person?: string) => {
+    const parts = [month ? `month=${month}` : "", person ? `person=${encodeURIComponent(person)}` : ""].filter(Boolean);
+    return get<EnvelopeGroupDTO[]>(`/api/envelopes${parts.length ? `?${parts.join("&")}` : ""}`);
+  },
   setAllocation: (categoryId: number, month: string, amount: number) => send<unknown>("PUT", `/api/allocations/${categoryId}/${month}`, { amount }),
-  categoryTransfer: (input: { fromName: string; toName: string; month: string; amount: number; note?: string }) =>
+  categoryTransfer: (input: { fromKey: string; toKey: string; month: string; amount: number; note?: string }) =>
     send<unknown>("POST", "/api/category-transfers", input),
   summary: () => get<SummaryDTO>("/api/summary"),
   dashboard: (accountId?: string) => { const q = acctQuery(accountId); return get<DashboardDTO>(`/api/dashboard${q ? `?${q}` : ""}`); },
-  transactions: (search = "", accountId?: string) => {
-    const parts = [`search=${encodeURIComponent(search)}`, acctQuery(accountId)].filter(Boolean);
+  transactions: (search = "", accountId?: string, person?: string) => {
+    const parts = [`search=${encodeURIComponent(search)}`, acctQuery(accountId), person ? `person=${encodeURIComponent(person)}` : ""].filter(Boolean);
     return get<TransactionDTO[]>(`/api/transactions?${parts.join("&")}`);
   },
 };
