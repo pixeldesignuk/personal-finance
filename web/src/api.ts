@@ -3,7 +3,7 @@ import type {
   SyncResult, DashboardDTO, TransactionDTO,
   BankDTO, RemoveBankResult, NicknameResult,
   SummaryDTO, ManualAccountInput, ManualTxnInput,
-  CategoryDTO, BudgetRowDTO, ReportDTO,
+  CategoryDTO, BudgetResponseDTO, ReportDTO,
   PersonDTO, RuleDTO, CategoryNameDTO, ReconcileResult, AuditEvent,
 } from "../../shared/types.ts";
 
@@ -47,7 +47,7 @@ export const api = {
   categories: () => get<CategoryDTO[]>("/api/categories"),
   budget: (month?: string, person?: string) => {
     const parts = [month ? `month=${month}` : "", person ? `person=${encodeURIComponent(person)}` : ""].filter(Boolean);
-    return get<BudgetRowDTO[]>(`/api/budget${parts.length ? `?${parts.join("&")}` : ""}`);
+    return get<BudgetResponseDTO>(`/api/budget${parts.length ? `?${parts.join("&")}` : ""}`);
   },
   report: (month?: string) => get<ReportDTO>(`/api/reports${month ? `?month=${month}` : ""}`),
   categoryNames: () => get<CategoryNameDTO[]>("/api/category-names"),

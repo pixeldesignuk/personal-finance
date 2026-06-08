@@ -156,6 +156,19 @@ export interface BudgetRowDTO {
   percent: number;
 }
 
+export interface BudgetSummaryDTO {
+  available: number;    // income this month − budgeted
+  spent: number;        // total personal spend this month
+  budgeted: number;     // total of category monthly budgets
+  income: number;       // income this month
+  pendingCount: number; // pending transactions
+}
+
+export interface BudgetResponseDTO {
+  rows: BudgetRowDTO[];
+  summary: BudgetSummaryDTO;
+}
+
 export interface ReportRowDTO {
   categoryKey: string;
   name: string;

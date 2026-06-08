@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api.ts";
-import type { BudgetRowDTO } from "../../../shared/types.ts";
+import type { BudgetRowDTO, BudgetSummaryDTO } from "../../../shared/types.ts";
 import { formatMoney } from "../format.ts";
 
 function nowMonth(): string {
@@ -15,6 +15,7 @@ export default function Budgets() {
   const [people, setPeople] = useState<{ key: string; name: string }[]>([]);
   const [person, setPerson] = useState("");
   const [rows, setRows] = useState<BudgetRowDTO[]>([]);
+  const [summary, setSummary] = useState<BudgetSummaryDTO | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
 
@@ -23,7 +24,7 @@ export default function Budgets() {
   const [form, setForm] = useState({ name: "", group: "", monthlyAmount: "0" });
 
   useEffect(() => { api.people().then(setPeople).catch(() => setPeople([])); }, []);
-  const load = () => api.budget(month, person || undefined).then((r) => { setRows(r); setDraft({}); }).catch((e) => setMsg(e.message));
+  const load = () => api.budget(month, person || undefined).then((r) => { setRows(r.rows); setSummary(r.summary); setDraft({}); }).catch((e) => setMsg(e.message));
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [month, person]);
 
   const groups = useMemo(() => {
@@ -31,9 +32,6 @@ export default function Budgets() {
     for (const r of rows) { const g = r.group ?? "Other"; if (!seen.includes(g)) seen.push(g); }
     return seen;
   }, [rows]);
-
-  const totalBudget = rows.reduce((s, r) => s + r.budgeted, 0);
-  const totalSpent = rows.reduce((s, r) => s + r.spent, 0);
 
   // Inline-edit a category's monthly budget.
   const commitAmount = async (r: BudgetRowDTO) => {
@@ -72,9 +70,17 @@ export default function Budgets() {
         </div>
       </div>
       {msg && <p className="muted">{msg}</p>}
-      <div className="card">
-        <div className="row-between"><strong>Total this month</strong><span className="num">£{formatMoney(totalSpent)} <span className="muted">/ £{formatMoney(totalBudget)} budgeted</span></span></div>
-      </div>
+      {summary && (
+        <div className="grid">
+          <div className="card stat">
+            <span className="label">Available to budget</span>
+            <span className={`value ${summary.available < 0 ? "neg" : "pos"}`}>{summary.available < 0 ? "-" : ""}£{formatMoney(Math.abs(summary.available))}</span>
+          </div>
+          <div className="card stat"><span className="label">Spent this month</span><span className="value">£{formatMoney(summary.spent)}</span></div>
+          <div className="card stat"><span className="label">Budgeted this month</span><span className="value">£{formatMoney(summary.budgeted)}</span></div>
+          <div className="card stat"><span className="label">Pending transactions</span><span className="value">{summary.pendingCount}</span></div>
+        </div>
+      )}
       <div className="card">
         {rows.length === 0 && <p className="muted">No categories yet — add one above.</p>}
         <table className="budget-table">
