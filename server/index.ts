@@ -12,7 +12,8 @@ import { transactionsRouter } from "./routes/transactions.ts";
 import { summaryRouter } from "./routes/summary.ts";
 import { telegramRouter } from "./routes/telegram.ts";
 import { categoriesRouter } from "./routes/categories.ts";
-import { envelopesRouter } from "./routes/envelopes.ts";
+import { budgetRouter } from "./routes/budget.ts";
+import { reportsRouter } from "./routes/reports.ts";
 import { peopleRouter } from "./routes/people.ts";
 import { rulesRouter } from "./routes/rules.ts";
 
@@ -28,7 +29,8 @@ app.use("/api", transactionsRouter);
 app.use("/api", summaryRouter);
 app.use("/api", telegramRouter);
 app.use("/api", categoriesRouter);
-app.use("/api", envelopesRouter);
+app.use("/api", budgetRouter);
+app.use("/api", reportsRouter);
 app.use("/api", peopleRouter);
 app.use("/api", rulesRouter);
 

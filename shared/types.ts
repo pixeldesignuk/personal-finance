@@ -136,33 +136,34 @@ export interface CategoryDTO {
   id: number;
   key: string;
   name: string;
-  groupId: number;
   monthlyAmount: number;
-  goal: number | null;
   sortOrder: number;
   archived: boolean;
 }
 
-export interface CategoryGroupDTO {
-  id: number;
-  name: string;
-  sortOrder: number;
-  categories: CategoryDTO[];
-}
-
-export interface EnvelopeRowDTO {
+export interface BudgetRowDTO {
   key: string;
   name: string;
-  allocated: number;
+  budgeted: number;
   spent: number;
-  available: number;
-  goal: number | null;
+  left: number;
+  percent: number;
 }
 
-export interface EnvelopeGroupDTO {
-  id: number;
+export interface ReportRowDTO {
+  categoryKey: string;
   name: string;
-  rows: EnvelopeRowDTO[];
+  total: number;
+  byPerson: Record<string, number>;
+}
+
+export interface ReportDTO {
+  month: string;
+  summary: { income: number; expenses: number; net: number; savingsRate: number };
+  rows: ReportRowDTO[];
+  personTotals: Record<string, number>;
+  grandTotal: number;
+  people: { key: string; name: string }[];
 }
 
 export interface PersonDTO {
