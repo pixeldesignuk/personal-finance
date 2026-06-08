@@ -9,41 +9,41 @@ test("monthsBetween is inclusive and ordered; empty when start > end", () => {
 });
 
 const cats: EnvCategory[] = [
-  { name: "Groceries", monthlyAmount: 250, goal: null },
-  { name: "Rent", monthlyAmount: 500, goal: null },
-  { name: "Emergency Fund", monthlyAmount: 0, goal: 2000 },
+  { key: "groceries", monthlyAmount: 250, goal: null },
+  { key: "rent", monthlyAmount: 500, goal: null },
+  { key: "emergency-fund", monthlyAmount: 0, goal: 2000 },
 ];
 
 test("available rolls over: allocation accumulates minus spend", () => {
   const txns: EnvTx[] = [
-    { amount: -100, category: "Groceries", bookingDate: "2026-05-10" },
-    { amount: -180, category: "Groceries", bookingDate: "2026-06-04" },
+    { amount: -100, category: "groceries", bookingDate: "2026-05-10" },
+    { amount: -180, category: "groceries", bookingDate: "2026-06-04" },
   ];
   const rows = computeEnvelopes(cats, {}, [], txns, "2026-05", "2026-06");
-  const g = rows.find((r) => r.name === "Groceries")!;
+  const g = rows.find((r) => r.key === "groceries")!;
   assert.equal(g.allocated, 250);          // this (asOf) month allocation
   assert.equal(g.spent, 180);              // this month spend
   assert.equal(g.available, 250 + 250 - 100 - 180); // 220
 });
 
 test("allocation override replaces monthlyAmount for that month", () => {
-  const rows = computeEnvelopes(cats, { "Rent|2026-06": 450 }, [], [], "2026-06", "2026-06");
-  const r = rows.find((x) => x.name === "Rent")!;
+  const rows = computeEnvelopes(cats, { "rent|2026-06": 450 }, [], [], "2026-06", "2026-06");
+  const r = rows.find((x) => x.key === "rent")!;
   assert.equal(r.allocated, 450);
   assert.equal(r.available, 450);
 });
 
 test("transfers move available between envelopes", () => {
-  const rows = computeEnvelopes(cats, {}, [{ fromName: "Rent", toName: "Emergency Fund", amount: 100 }], [], "2026-06", "2026-06");
-  assert.equal(rows.find((r) => r.name === "Rent")!.available, 500 - 100);
-  assert.equal(rows.find((r) => r.name === "Emergency Fund")!.available, 0 + 100);
+  const rows = computeEnvelopes(cats, {}, [{ fromKey: "rent", toKey: "emergency-fund", amount: 100 }], [], "2026-06", "2026-06");
+  assert.equal(rows.find((r) => r.key === "rent")!.available, 500 - 100);
+  assert.equal(rows.find((r) => r.key === "emergency-fund")!.available, 0 + 100);
 });
 
 test("credits/other categories don't count as spend", () => {
   const txns: EnvTx[] = [
-    { amount: 50, category: "Groceries", bookingDate: "2026-06-01" }, // credit, ignored
-    { amount: -30, category: "Uncategorised", bookingDate: "2026-06-01" }, // diff category
+    { amount: 50, category: "groceries", bookingDate: "2026-06-01" }, // credit, ignored
+    { amount: -30, category: "uncategorised", bookingDate: "2026-06-01" }, // diff category
   ];
   const rows = computeEnvelopes(cats, {}, [], txns, "2026-06", "2026-06");
-  assert.equal(rows.find((r) => r.name === "Groceries")!.spent, 0);
+  assert.equal(rows.find((r) => r.key === "groceries")!.spent, 0);
 });

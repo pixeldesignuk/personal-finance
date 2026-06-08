@@ -1,5 +1,5 @@
 export interface EnvCategory {
-  name: string;
+  key: string;
   monthlyAmount: number;
   goal: number | null;
 }
@@ -9,12 +9,12 @@ export interface EnvTx {
   bookingDate: string | null;
 }
 export interface EnvTransfer {
-  fromName: string;
-  toName: string;
+  fromKey: string;
+  toKey: string;
   amount: number; // month already filtered (<= asOf) by caller
 }
 export interface EnvelopeRow {
-  name: string;
+  key: string;
   allocated: number;
   spent: number;
   available: number;
@@ -42,7 +42,7 @@ function monthOf(date: string | null): string | null {
 
 export function computeEnvelopes(
   categories: EnvCategory[],
-  allocationOverrides: Record<string, number>, // key `${name}|${YYYY-MM}`
+  allocationOverrides: Record<string, number>, // key `${key}|${YYYY-MM}`
   transfers: EnvTransfer[],
   txns: EnvTx[],
   startMonth: string,
@@ -54,11 +54,11 @@ export function computeEnvelopes(
     let allocatedThis = 0;
     let spentThis = 0;
     for (const m of months) {
-      const allocated = allocationOverrides[`${cat.name}|${m}`] ?? cat.monthlyAmount;
+      const allocated = allocationOverrides[`${cat.key}|${m}`] ?? cat.monthlyAmount;
       let spent = 0;
       for (const t of txns) {
         if (t.amount >= 0) continue;
-        if (t.category !== cat.name) continue;
+        if (t.category !== cat.key) continue;
         if (monthOf(t.bookingDate) !== m) continue;
         spent += -t.amount;
       }
@@ -66,11 +66,11 @@ export function computeEnvelopes(
       if (m === asOfMonth) { allocatedThis = allocated; spentThis = spent; }
     }
     for (const tr of transfers) {
-      if (tr.toName === cat.name) available += tr.amount;
-      if (tr.fromName === cat.name) available -= tr.amount;
+      if (tr.toKey === cat.key) available += tr.amount;
+      if (tr.fromKey === cat.key) available -= tr.amount;
     }
     return {
-      name: cat.name,
+      key: cat.key,
       allocated: round2(allocatedThis),
       spent: round2(spentThis),
       available: round2(available),
