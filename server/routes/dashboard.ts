@@ -45,12 +45,13 @@ dashboardRouter.get("/dashboard", async (req, res, next) => {
 dashboardRouter.get("/transactions", async (req, res, next) => {
   try {
     const q = z
-      .object({ search: z.string().optional(), accountId: z.string().optional(), person: z.string().optional(), limit: z.coerce.number().max(500).default(200) })
+      .object({ search: z.string().optional(), accountId: z.string().optional(), person: z.string().optional(), month: z.string().regex(/^\d{4}-\d{2}$/).optional(), limit: z.coerce.number().max(500).default(200) })
       .parse(req.query);
     const txns = await db.transaction.findMany({
       where: {
         ...accountScope(q.accountId),
         ...(q.person ? { personKey: q.person === "none" ? null : q.person } : {}),
+        ...(q.month ? { bookingDate: { startsWith: q.month } } : {}),
         ...(q.search
           ? {
               OR: [

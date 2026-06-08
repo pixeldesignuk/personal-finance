@@ -92,8 +92,8 @@ export const api = {
   deleteCategory: (id: number) => send<{ deleted: boolean }>("DELETE", `/api/categories/${id}`),
   summary: () => get<SummaryDTO>("/api/summary"),
   dashboard: (accountId?: string) => { const q = acctQuery(accountId); return get<DashboardDTO>(`/api/dashboard${q ? `?${q}` : ""}`); },
-  transactions: (search = "", accountId?: string, person?: string) => {
-    const parts = [`search=${encodeURIComponent(search)}`, acctQuery(accountId), person ? `person=${encodeURIComponent(person)}` : ""].filter(Boolean);
+  transactions: (search = "", accountId?: string, person?: string, month?: string) => {
+    const parts = [`search=${encodeURIComponent(search)}`, acctQuery(accountId), person ? `person=${encodeURIComponent(person)}` : "", month ? `month=${month}` : ""].filter(Boolean);
     return get<TransactionDTO[]>(`/api/transactions?${parts.join("&")}`);
   },
 };

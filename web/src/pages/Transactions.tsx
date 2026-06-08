@@ -29,16 +29,17 @@ export default function Transactions() {
 
   const [personFilter, setPersonFilter] = useState("");
   const [catFilter, setCatFilter] = useState("");
+  const [month, setMonth] = useState("");
 
   // ── Queries ────────────────────────────────────────────────────────────
   const txnKey = useMemo(
-    () => ["transactions", debouncedQ, accountId, personFilter] as const,
-    [debouncedQ, accountId, personFilter],
+    () => ["transactions", debouncedQ, accountId, personFilter, month] as const,
+    [debouncedQ, accountId, personFilter, month],
   );
 
   const txnQuery = useQuery({
     queryKey: txnKey,
-    queryFn: () => api.transactions(debouncedQ, accountId, personFilter || undefined),
+    queryFn: () => api.transactions(debouncedQ, accountId, personFilter || undefined, month || undefined),
     placeholderData: keepPreviousData,
   });
   const rows = useMemo(() => txnQuery.data ?? [], [txnQuery.data]);
@@ -254,7 +255,7 @@ export default function Transactions() {
     if (!bulkCat || selected.size === 0) return;
     bulkMutation.mutate({ ids: [...selected], category: bulkCat });
   };
-  useEffect(() => { setSelected(new Set()); }, [debouncedQ, accountId, personFilter, catFilter, flaggedOnly]);
+  useEffect(() => { setSelected(new Set()); }, [debouncedQ, accountId, personFilter, catFilter, flaggedOnly, month]);
 
   const isInitialLoad = txnQuery.isLoading;
   const isUpdating = txnQuery.isFetching && !txnQuery.isLoading;
@@ -286,6 +287,8 @@ export default function Transactions() {
           <option value="uncategorised">Uncategorised only</option>
           {catNames.filter((c) => c.key !== "uncategorised").map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
         </select>
+        <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: "auto", fontSize: 13 }} title="Filter by month" />
+        {month && <button className="btn-sm" onClick={() => setMonth("")}>All months</button>}
         <span className="muted" style={{ fontSize: 12 }}>{visible.length} shown</span>
         {isInitialLoad && <span className="muted" style={{ fontSize: 12 }}>Loading…</span>}
         {isUpdating && <span className="muted" style={{ fontSize: 12 }}>Updating…</span>}
