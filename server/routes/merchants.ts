@@ -18,6 +18,7 @@ merchantsRouter.get("/merchants", async (_req, res, next) => {
       select: { merchantName: true, creditorName: true, debtorName: true, remittanceInfo: true, amount: true, bookingDate: true, category: true, categoryOverride: true },
     });
     const overrides = new Map((await db.merchant.findMany()).map((m) => [m.token, m]));
+    const ruleByMerchant = new Map((await db.rule.findMany({ where: { NOT: { merchantId: null } } })).map((r) => [r.merchantId as string, r]));
 
     interface Agg { name: Map<string, number>; amounts: number[]; months: Set<string>; last: string | null; cats: Map<string, number>; }
     const groups = new Map<string, Agg>();
@@ -49,11 +50,14 @@ merchantsRouter.get("/merchants", async (_req, res, next) => {
       const effective: MerchantDTO["effective"] = override === "auto" ? detected : override;
       const monthlyTypical = effective === "fixed" ? median(g.amounts) : totalSpent / monthsActive;
       const statement = top(g.name) ?? token;
+      const rule = ruleByMerchant.get(token);
       merchants.push({
         token,
         name: ov?.name ?? null,
         statement,
-        categoryKey: ov?.categoryKey ?? top(g.cats),
+        categoryKey: rule?.categoryKey ?? top(g.cats),
+        personKey: rule?.personKey ?? null,
+        priority: rule?.priority ?? 0,
         totalSpent: Number(totalSpent.toFixed(2)),
         txnCount: g.amounts.length,
         monthsActive: g.months.size,
@@ -79,26 +83,37 @@ merchantsRouter.get("/merchants", async (_req, res, next) => {
 merchantsRouter.patch("/merchants/:token", async (req, res, next) => {
   try {
     const b = z.object({
-      name: z.string().optional(),
+      name: z.string().nullable().optional(),
       recurring: z.enum(["auto", "fixed", "variable", "ignore"]).optional(),
       categoryKey: z.string().nullable().optional(),
+      personKey: z.string().nullable().optional(),
+      priority: z.number().int().optional(),
     }).parse(req.body);
     const token = req.params.token;
+
+    // Merchant holds the human name + recurring classification.
     await db.merchant.upsert({
       where: { token },
-      create: { token, name: b.name ?? null, categoryKey: b.categoryKey ?? null, recurring: b.recurring ?? "auto" },
+      create: { token, name: b.name ?? null, recurring: b.recurring ?? "auto" },
       update: {
         ...(b.name !== undefined ? { name: b.name } : {}),
         ...(b.recurring !== undefined ? { recurring: b.recurring } : {}),
-        ...(b.categoryKey !== undefined ? { categoryKey: b.categoryKey } : {}),
       },
     });
-    // Setting a category links the merchant to the rules engine: upsert a
-    // matchText→category rule so it auto-categorises everywhere.
-    if (b.categoryKey) {
-      const existing = await db.rule.findFirst({ where: { matchText: token } });
-      if (existing) await db.rule.update({ where: { id: existing.id }, data: { categoryKey: b.categoryKey } });
-      else await db.rule.create({ data: { matchText: token, categoryKey: b.categoryKey, priority: 50 } });
+
+    // The linked rule is the source of truth for category/person/priority.
+    if (b.categoryKey !== undefined || b.personKey !== undefined || b.priority !== undefined) {
+      const existing = await db.rule.findFirst({ where: { merchantId: token } }) ?? await db.rule.findFirst({ where: { matchText: token } });
+      const categoryKey = b.categoryKey !== undefined ? b.categoryKey : (existing?.categoryKey ?? null);
+      const personKey = b.personKey !== undefined ? b.personKey : (existing?.personKey ?? null);
+      const priority = b.priority !== undefined ? b.priority : (existing?.priority ?? 50);
+      if (categoryKey || personKey) {
+        const data = { matchText: token, merchantId: token, categoryKey, personKey, priority };
+        if (existing) await db.rule.update({ where: { id: existing.id }, data });
+        else await db.rule.create({ data });
+      } else if (existing) {
+        await db.rule.delete({ where: { id: existing.id } }); // nothing left to match → remove
+      }
     }
     res.json({ ok: true });
   } catch (err) { next(err); }

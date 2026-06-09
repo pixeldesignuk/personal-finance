@@ -488,6 +488,30 @@ select {
 .tab:hover { color: var(--ink); transform: none; border-color: transparent; }
 .tab.active { color: var(--ink); border-bottom-color: var(--jade); }
 
+/* bespoke combobox (inline-text select with search) */
+.combo { display: inline-block; max-width: 100%; }
+.combo-trigger {
+  background: transparent; border: none; border-radius: 6px; padding: 3px 6px;
+  font-family: var(--font-text); font-size: 13px; color: var(--ink); cursor: pointer;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;
+}
+.combo-trigger.muted { color: var(--ink-3); font-style: italic; }
+.combo-trigger:hover { background: var(--surface-2); border-color: transparent; transform: none; }
+.combo-caret { color: var(--ink-3); font-size: 10px; margin-left: 5px; }
+.combo-pop {
+  position: fixed; z-index: 90; max-width: 320px;
+  background: linear-gradient(180deg, var(--surface), var(--bg-2));
+  border: 1px solid var(--line-strong); border-radius: var(--r-sm);
+  box-shadow: 0 24px 50px -22px rgba(0, 0, 0, 0.8); padding: 6px; overflow: hidden;
+  animation: pop 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.combo-search { width: 100%; padding: 6px 8px; font-size: 13px; margin-bottom: 4px; }
+.combo-list { max-height: 240px; overflow-y: auto; }
+.combo-opt { padding: 6px 8px; border-radius: 6px; font-size: 13px; color: var(--ink-2); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.combo-opt.active { background: var(--surface-2); color: var(--ink); }
+.combo-opt.selected { color: var(--jade); }
+.combo-empty { padding: 8px; color: var(--ink-3); font-size: 12px; }
+
 /* debt payoff order */
 .debt-order { list-style: none; padding: 0; margin: 0; }
 .debt-order li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; color: var(--ink-2); }

@@ -160,5 +160,6 @@ model Rule {
   personKey   String?
   priority    Int      @default(0)
   auto        Boolean  @default(false)
+  merchantId  String?  // links this rule to a Merchant (token); null = freeform keyword rule
   createdAt   DateTime @default(now())
 }

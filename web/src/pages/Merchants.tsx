@@ -1,50 +1,47 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api.ts";
 import type { MerchantDTO } from "../../../shared/types.ts";
-import { formatGBP, formatMoney, relativeDate } from "../format.ts";
+import { formatGBP, relativeDate } from "../format.ts";
+import { Combobox } from "../components/Combobox.tsx";
 
 const TABS: [string, string][] = [["all", "All"], ["fixed", "Recurring"], ["variable", "Variable"]];
-const TYPE_LABEL: Record<string, string> = { fixed: "Recurring", variable: "Variable", oneoff: "One-off", ignore: "Ignored" };
+const TYPE_LABEL: Record<string, string> = { fixed: "Recurring", variable: "Variable", oneoff: "One-off", ignore: "Ignored", auto: "Auto" };
 
 export default function Merchants() {
   const qc = useQueryClient();
   const { data } = useQuery({ queryKey: ["merchants"], queryFn: () => api.merchants() });
-  const catNamesQuery = useQuery({ queryKey: ["categoryNames"], queryFn: () => api.categoryNames(), staleTime: 5 * 60_000 });
-  const catNames = catNamesQuery.data ?? [];
+  const catNames = (useQuery({ queryKey: ["categoryNames"], queryFn: () => api.categoryNames(), staleTime: 5 * 60_000 }).data ?? []);
+  const people = (useQuery({ queryKey: ["people"], queryFn: () => api.people(), staleTime: 5 * 60_000 }).data ?? []);
   const [tab, setTab] = useState("all");
 
-  const [nameEdit, setNameEdit] = useState<{ token: string; value: string } | null>(null);
-  const setName = useMutation({
-    mutationFn: ({ token, name }: { token: string; name: string }) => api.patchMerchant(token, { name }),
-    onSettled: () => qc.invalidateQueries({ queryKey: ["merchants"] }),
-  });
-  const saveName = () => { if (nameEdit) { setName.mutate({ token: nameEdit.token, name: nameEdit.value.trim() }); setNameEdit(null); } };
+  const catOpts = useMemo(() => catNames.map((c) => ({ value: c.key, label: c.name })), [catNames]);
+  const personOpts = useMemo(() => people.map((p) => ({ value: p.key, label: p.name })), [people]);
 
-  const setCat = useMutation({
-    mutationFn: ({ token, categoryKey }: { token: string; categoryKey: string }) => api.patchMerchant(token, { categoryKey }),
-    onMutate: async ({ token, categoryKey }) => {
+  const patchM = useMutation({
+    mutationFn: ({ token, patch }: { token: string; patch: Parameters<typeof api.patchMerchant>[1] }) => api.patchMerchant(token, patch),
+    onMutate: async ({ token, patch }) => {
       await qc.cancelQueries({ queryKey: ["merchants"] });
       const prev = qc.getQueryData(["merchants"]);
-      qc.setQueryData(["merchants"], (old: typeof data) => old ? { ...old, merchants: old.merchants.map((m) => m.token === token ? { ...m, categoryKey } : m) } : old);
+      qc.setQueryData(["merchants"], (old: typeof data) => old ? { ...old, merchants: old.merchants.map((m) => m.token === token ? { ...m, ...patch, override: patch.recurring ?? m.override, effective: patch.recurring ? (patch.recurring === "auto" ? m.detected : patch.recurring) : m.effective } : m) } : old);
       return { prev };
     },
     onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(["merchants"], ctx.prev); },
-    onSettled: () => { qc.invalidateQueries({ queryKey: ["merchants"] }); },
+    onSettled: () => { qc.invalidateQueries({ queryKey: ["merchants"] }); qc.invalidateQueries({ queryKey: ["transactions"] }); },
   });
+  const set = (token: string, patch: Parameters<typeof api.patchMerchant>[1]) => patchM.mutate({ token, patch });
 
-  const setType = useMutation({
-    mutationFn: ({ token, recurring }: { token: string; recurring: MerchantDTO["override"] }) => api.patchMerchant(token, { recurring }),
-    onMutate: async ({ token, recurring }) => {
-      await qc.cancelQueries({ queryKey: ["merchants"] });
-      const prev = qc.getQueryData(["merchants"]);
-      qc.setQueryData(["merchants"], (old: typeof data) => old ? { ...old, merchants: old.merchants.map((m) => m.token === token ? { ...m, override: recurring, effective: recurring === "auto" ? m.detected : recurring } : m) } : old);
-      return { prev };
-    },
-    onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(["merchants"], ctx.prev); },
-    onSettled: () => qc.invalidateQueries({ queryKey: ["merchants"] }),
-  });
+  // Full-edit dialog (name + priority + everything).
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [edit, setEdit] = useState<MerchantDTO | null>(null);
+  const [form, setForm] = useState({ name: "", priority: "0" });
+  const openEdit = (m: MerchantDTO) => { setEdit(m); setForm({ name: m.name ?? "", priority: String(m.priority) }); dialog.current?.showModal(); };
+  const saveEdit = () => {
+    if (!edit) return;
+    set(edit.token, { name: form.name.trim() || null, priority: Number(form.priority) || 0 });
+    dialog.current?.close();
+  };
 
   const shown = useMemo(() => (data?.merchants ?? []).filter((m) => tab === "all" || m.effective === tab), [data, tab]);
 
@@ -59,57 +56,49 @@ export default function Merchants() {
         </div>
       )}
 
-      <div className="tabs">
-        {TABS.map(([k, l]) => <button key={k} className={`tab${tab === k ? " active" : ""}`} onClick={() => setTab(k)}>{l}</button>)}
-      </div>
+      <div className="tabs">{TABS.map(([k, l]) => <button key={k} className={`tab${tab === k ? " active" : ""}`} onClick={() => setTab(k)}>{l}</button>)}</div>
 
       <div className="card">
         <table className="txn-table">
-          <colgroup><col /><col style={{ width: 160 }} /><col style={{ width: 110 }} /><col style={{ width: 110 }} /><col style={{ width: 70 }} /><col style={{ width: 100 }} /><col style={{ width: 190 }} /></colgroup>
-          <thead><tr><th>Merchant</th><th>Category</th><th style={{ textAlign: "right" }}>Per month</th><th style={{ textAlign: "right" }}>Total</th><th style={{ textAlign: "right" }}>Txns</th><th>Last</th><th>Type</th></tr></thead>
+          <colgroup><col /><col style={{ width: 170 }} /><col style={{ width: 130 }} /><col style={{ width: 150 }} /><col style={{ width: 110 }} /><col style={{ width: 100 }} /><col style={{ width: 44 }} /></colgroup>
+          <thead><tr><th>Merchant</th><th>Category</th><th>Person</th><th>Type</th><th style={{ textAlign: "right" }}>Per month</th><th style={{ textAlign: "right" }}>Total</th><th></th></tr></thead>
           <tbody>
             {shown.map((m) => (
               <tr key={m.token}>
                 <td>
-                  {nameEdit?.token === m.token ? (
-                    <input className="note-input" autoFocus placeholder="Human-readable name" value={nameEdit.value}
-                      onChange={(e) => setNameEdit({ token: m.token, value: e.target.value })}
-                      onBlur={saveName}
-                      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setNameEdit(null); }} />
-                  ) : (
-                    <div className="td-clip">
-                      {m.name
-                        ? <Link className="amount-link" to={`/transactions?merchant=${encodeURIComponent(m.token)}`}>{m.name}</Link>
-                        : <Link className="amount-link muted" to={`/transactions?merchant=${encodeURIComponent(m.token)}`} style={{ fontStyle: "italic" }}>Unnamed</Link>}
-                      <button className="btn-sm" style={{ marginLeft: 6, padding: "1px 6px" }} title={m.name ? "Edit name" : "Add a name"} onClick={() => setNameEdit({ token: m.token, value: m.name ?? "" })}>{m.name ? "✎" : "+ name"}</button>
-                    </div>
-                  )}
+                  <div className="td-clip">
+                    {m.name
+                      ? <Link className="amount-link" to={`/transactions?merchant=${encodeURIComponent(m.token)}`}>{m.name}</Link>
+                      : <Link className="amount-link muted" style={{ fontStyle: "italic" }} to={`/transactions?merchant=${encodeURIComponent(m.token)}`}>Unnamed</Link>}
+                  </div>
                   <div className="note-line" title="Bank statement line — not editable">{m.statement}</div>
                 </td>
-                <td>
-                  <select value={m.categoryKey ?? ""} onChange={(e) => e.target.value && setCat.mutate({ token: m.token, categoryKey: e.target.value })}>
-                    <option value="">—</option>
-                    {catNames.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
-                  </select>
-                </td>
+                <td><Combobox value={m.categoryKey} options={catOpts} allowClear placeholder="—" onChange={(v) => set(m.token, { categoryKey: v })} /></td>
+                <td><Combobox value={m.personKey} options={personOpts} allowClear placeholder="—" onChange={(v) => set(m.token, { personKey: v })} /></td>
+                <td><Combobox value={m.override} placeholder="Auto" options={[{ value: "auto", label: `Auto · ${TYPE_LABEL[m.detected]}` }, { value: "fixed", label: "Recurring" }, { value: "variable", label: "Variable" }, { value: "ignore", label: "Ignore" }]} onChange={(v) => set(m.token, { recurring: (v ?? "auto") as MerchantDTO["override"] })} /></td>
                 <td className="num">{formatGBP(m.monthlyTypical)}</td>
                 <td className="num">{formatGBP(m.totalSpent)}</td>
-                <td className="num">{m.txnCount}</td>
-                <td className="td-date">{relativeDate(m.lastDate)}</td>
-                <td>
-                  <select value={m.override} onChange={(e) => setType.mutate({ token: m.token, recurring: e.target.value as MerchantDTO["override"] })} title={`Detected: ${TYPE_LABEL[m.detected]}`}>
-                    <option value="auto">Auto · {TYPE_LABEL[m.detected]}</option>
-                    <option value="fixed">Recurring</option>
-                    <option value="variable">Variable</option>
-                    <option value="ignore">Ignore</option>
-                  </select>
-                </td>
+                <td><button className="btn-sm" title="Edit merchant" onClick={() => openEdit(m)}>✎</button></td>
               </tr>
             ))}
           </tbody>
         </table>
         {shown.length === 0 && <p className="muted">No merchants{tab !== "all" ? " in this view" : " yet — sync some transactions"}.</p>}
       </div>
+
+      <dialog ref={dialog} className="modal" onClick={(e) => { if (e.target === dialog.current) dialog.current?.close(); }}>
+        {edit && (
+          <form className="modal-body" onSubmit={(e) => { e.preventDefault(); saveEdit(); }}>
+            <h3 style={{ marginTop: 0 }}>Edit merchant</h3>
+            <div className="note-line" style={{ marginTop: -6 }}>{edit.statement}</div>
+            <label className="field"><span>Human-readable name</span><input value={form.name} autoFocus placeholder="e.g. Tesco" onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+            <div className="field"><span>Category</span><div><Combobox value={edit.categoryKey} options={catOpts} allowClear placeholder="—" onChange={(v) => { set(edit.token, { categoryKey: v }); setEdit({ ...edit, categoryKey: v }); }} /></div></div>
+            <div className="field"><span>Person</span><div><Combobox value={edit.personKey} options={personOpts} allowClear placeholder="—" onChange={(v) => { set(edit.token, { personKey: v }); setEdit({ ...edit, personKey: v }); }} /></div></div>
+            <label className="field"><span>Priority (higher wins)</span><input inputMode="numeric" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} /></label>
+            <div className="modal-actions"><button type="button" onClick={() => dialog.current?.close()}>Cancel</button><button className="btn-primary" type="submit">Save</button></div>
+          </form>
+        )}
+      </dialog>
     </div>
   );
 }

@@ -100,7 +100,7 @@ export const api = {
   summary: () => get<SummaryDTO>("/api/summary"),
   debts: () => get<DebtsDTO>("/api/debts"),
   merchants: () => get<MerchantsDTO>("/api/merchants"),
-  patchMerchant: (token: string, patch: { name?: string; recurring?: "auto" | "fixed" | "variable" | "ignore"; categoryKey?: string | null }) =>
+  patchMerchant: (token: string, patch: { name?: string | null; recurring?: "auto" | "fixed" | "variable" | "ignore"; categoryKey?: string | null; personKey?: string | null; priority?: number }) =>
     send<{ ok: boolean }>("PATCH", `/api/merchants/${encodeURIComponent(token)}`, patch),
   settings: () => get<SettingsDTO>("/api/settings"),
   patchSettings: (patch: Record<string, boolean>) => send<Record<string, boolean>>("PATCH", "/api/settings", patch),

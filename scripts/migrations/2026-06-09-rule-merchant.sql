@@ -1,0 +1,1 @@
+ALTER TABLE "Rule" ADD COLUMN IF NOT EXISTS "merchantId" TEXT;
