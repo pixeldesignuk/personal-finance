@@ -33,6 +33,32 @@ export function geminiEnabled(): boolean {
   return Boolean(env.GEMINI_API_KEY);
 }
 
+// Turn raw bank-statement merchant strings into clean, human-friendly names.
+// Returns a Map of ref -> name. No-ops without a key.
+export async function nameMerchants(items: { ref: string; text: string }[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (!env.GEMINI_API_KEY || !items.length) return out;
+  const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+  for (let i = 0; i < items.length; i += BATCH) {
+    const chunk = items.slice(i, i + BATCH);
+    const prompt = `These are raw bank-statement merchant strings. For each, give a short, clean, human-friendly merchant/brand name. Strip store/branch numbers, locations, card references and FX text. Examples: "TESCO STORES 2992 OLDHAM" -> "Tesco"; "INT'L 2097401784 MIDJOURNEY INC. SOUTH SAN FRA USD 12.00" -> "Midjourney"; "UBER *EATS HELP.UBER.COM" -> "Uber Eats".
+
+${chunk.map((c) => `- ${c.ref} | ${c.text}`).join("\n")}
+
+Respond with ONLY a JSON array, one object per line: [{"id":"<ref>","name":"<clean name>"}]`;
+    try {
+      const raw = await generateWithRetry(ai, prompt, i / BATCH + 1);
+      const arr = JSON.parse(raw || "[]");
+      for (const el of Array.isArray(arr) ? arr : []) {
+        if (el && typeof el.id === "string" && typeof el.name === "string" && el.name.trim()) out.set(el.id, el.name.trim());
+      }
+    } catch (err) {
+      console.error("nameMerchants batch failed:", err instanceof Error ? err.message : err);
+    }
+  }
+  return out;
+}
+
 function buildPrompt(items: { ref: string; text: string }[], categories: CategoryOption[]): string {
   const cats = categories.map((c) => `- ${c.key}: ${c.name}${c.group ? ` (${c.group})` : ""}`).join("\n");
   const txns = items.map((it) => `- ${it.ref} | ${it.text}`).join("\n");

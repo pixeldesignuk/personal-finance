@@ -6,6 +6,7 @@ import type { DashboardDTO, TransactionDTO } from "../../shared/types.ts";
 import { accountScope } from "../lib/accountScope.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
 import { displayName } from "../../shared/displayName.ts";
+import { merchantToken } from "../categorise/helpers.ts";
 
 export const dashboardRouter = Router();
 
@@ -68,6 +69,13 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
     });
     const people = await db.person.findMany();
     const personName = (k: string | null) => people.find((p) => p.key === k)?.name ?? null;
+    // Friendly merchant names (Merchant table) override the raw statement line.
+    const merchantNames = new Map((await db.merchant.findMany({ where: { NOT: { name: null } } })).map((m) => [m.token, m.name] as const));
+    const friendlyName = (t: { merchantName: string | null; creditorName: string | null; debtorName: string | null; remittanceInfo: string | null }) => {
+      const raw = t.merchantName ?? t.creditorName ?? t.debtorName ?? null;
+      const tok = merchantToken(t.merchantName ?? t.creditorName ?? t.debtorName ?? t.remittanceInfo ?? null);
+      return (tok && merchantNames.get(tok)) || raw;
+    };
     const dto: TransactionDTO[] = txns.map((t) => ({
       id: t.id,
       accountId: t.accountId,
@@ -75,7 +83,7 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
       bookingDate: t.bookingDate,
       amount: t.amount.toString(),
       currency: t.currency,
-      name: t.merchantName ?? t.creditorName ?? t.debtorName ?? null,
+      name: friendlyName(t),
       remittanceInfo: t.remittanceInfo,
       category: effectiveCategory(t),
       autoCategory: t.category,

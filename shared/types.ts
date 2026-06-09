@@ -104,13 +104,14 @@ export interface InvestmentAccountDTO {
 
 export interface MerchantDTO {
   token: string;
-  name: string;
+  name: string;        // friendly name (override) or the statement line if unset
+  statement: string;   // most-common raw statement line
+  categoryKey: string | null;
   totalSpent: number;
   txnCount: number;
   monthsActive: number;
   monthlyTypical: number;   // fixed → median payment; variable → avg monthly spend
   lastDate: string | null;
-  category: string | null;  // most-common category
   detected: "fixed" | "variable" | "oneoff";
   override: "auto" | "fixed" | "variable" | "ignore";
   effective: "fixed" | "variable" | "oneoff" | "ignore";

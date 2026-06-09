@@ -11,7 +11,21 @@ const TYPE_LABEL: Record<string, string> = { fixed: "Recurring", variable: "Vari
 export default function Merchants() {
   const qc = useQueryClient();
   const { data } = useQuery({ queryKey: ["merchants"], queryFn: () => api.merchants() });
+  const catNamesQuery = useQuery({ queryKey: ["categoryNames"], queryFn: () => api.categoryNames(), staleTime: 5 * 60_000 });
+  const catNames = catNamesQuery.data ?? [];
   const [tab, setTab] = useState("all");
+
+  const setCat = useMutation({
+    mutationFn: ({ token, categoryKey }: { token: string; categoryKey: string }) => api.patchMerchant(token, { categoryKey }),
+    onMutate: async ({ token, categoryKey }) => {
+      await qc.cancelQueries({ queryKey: ["merchants"] });
+      const prev = qc.getQueryData(["merchants"]);
+      qc.setQueryData(["merchants"], (old: typeof data) => old ? { ...old, merchants: old.merchants.map((m) => m.token === token ? { ...m, categoryKey } : m) } : old);
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(["merchants"], ctx.prev); },
+    onSettled: () => { qc.invalidateQueries({ queryKey: ["merchants"] }); },
+  });
 
   const setType = useMutation({
     mutationFn: ({ token, recurring }: { token: string; recurring: MerchantDTO["override"] }) => api.patchMerchant(token, { recurring }),
@@ -49,10 +63,16 @@ export default function Merchants() {
           <tbody>
             {shown.map((m) => (
               <tr key={m.token}>
-                <td className="td-clip" title={m.name}>
-                  <Link className="amount-link" to={`/transactions?q=${encodeURIComponent(m.token)}`}>{m.name}</Link>
+                <td>
+                  <div className="td-clip"><Link className="amount-link" to={`/transactions?q=${encodeURIComponent(m.token)}`}>{m.name}</Link></div>
+                  {m.statement !== m.name && <div className="note-line" title="Statement line">{m.statement}</div>}
                 </td>
-                <td className="td-clip">{m.category ?? "—"}</td>
+                <td>
+                  <select value={m.categoryKey ?? ""} onChange={(e) => e.target.value && setCat.mutate({ token: m.token, categoryKey: e.target.value })}>
+                    <option value="">—</option>
+                    {catNames.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
+                  </select>
+                </td>
                 <td className="num">{formatGBP(m.monthlyTypical)}</td>
                 <td className="num">{formatGBP(m.totalSpent)}</td>
                 <td className="num">{m.txnCount}</td>

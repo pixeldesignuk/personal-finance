@@ -141,9 +141,10 @@ model Person {
 // display name + recurring classification override; spend is aggregated from
 // transactions that match the token.
 model Merchant {
-  token     String  @id
-  name      String?
-  recurring String  @default("auto") // auto | fixed | variable | ignore
+  token       String  @id
+  name        String?
+  categoryKey String?
+  recurring   String  @default("auto") // auto | fixed | variable | ignore
 }
 
 // App config / feature flags (key/value).

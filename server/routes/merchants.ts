@@ -48,15 +48,17 @@ merchantsRouter.get("/merchants", async (_req, res, next) => {
       const override = (ov?.recurring as MerchantDTO["override"]) ?? "auto";
       const effective: MerchantDTO["effective"] = override === "auto" ? detected : override;
       const monthlyTypical = effective === "fixed" ? median(g.amounts) : totalSpent / monthsActive;
+      const statement = top(g.name) ?? token;
       merchants.push({
         token,
-        name: ov?.name ?? top(g.name) ?? token,
+        name: ov?.name ?? statement,
+        statement,
+        categoryKey: ov?.categoryKey ?? top(g.cats),
         totalSpent: Number(totalSpent.toFixed(2)),
         txnCount: g.amounts.length,
         monthsActive: g.months.size,
         monthlyTypical: Number(monthlyTypical.toFixed(2)),
         lastDate: g.last,
-        category: top(g.cats),
         detected,
         override,
         effective,
@@ -76,13 +78,28 @@ merchantsRouter.get("/merchants", async (_req, res, next) => {
 
 merchantsRouter.patch("/merchants/:token", async (req, res, next) => {
   try {
-    const b = z.object({ name: z.string().optional(), recurring: z.enum(["auto", "fixed", "variable", "ignore"]).optional() }).parse(req.body);
+    const b = z.object({
+      name: z.string().optional(),
+      recurring: z.enum(["auto", "fixed", "variable", "ignore"]).optional(),
+      categoryKey: z.string().nullable().optional(),
+    }).parse(req.body);
     const token = req.params.token;
     await db.merchant.upsert({
       where: { token },
-      create: { token, name: b.name ?? null, recurring: b.recurring ?? "auto" },
-      update: { ...(b.name !== undefined ? { name: b.name } : {}), ...(b.recurring !== undefined ? { recurring: b.recurring } : {}) },
+      create: { token, name: b.name ?? null, categoryKey: b.categoryKey ?? null, recurring: b.recurring ?? "auto" },
+      update: {
+        ...(b.name !== undefined ? { name: b.name } : {}),
+        ...(b.recurring !== undefined ? { recurring: b.recurring } : {}),
+        ...(b.categoryKey !== undefined ? { categoryKey: b.categoryKey } : {}),
+      },
     });
+    // Setting a category links the merchant to the rules engine: upsert a
+    // matchText→category rule so it auto-categorises everywhere.
+    if (b.categoryKey) {
+      const existing = await db.rule.findFirst({ where: { matchText: token } });
+      if (existing) await db.rule.update({ where: { id: existing.id }, data: { categoryKey: b.categoryKey } });
+      else await db.rule.create({ data: { matchText: token, categoryKey: b.categoryKey, priority: 50 } });
+    }
     res.json({ ok: true });
   } catch (err) { next(err); }
 });
