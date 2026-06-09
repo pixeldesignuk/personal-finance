@@ -29,6 +29,9 @@ export default function Dashboard() {
   const [syncOpen, setSyncOpen] = useState(false);
   const syncRun = useCallback((onEvent: (e: AuditEvent) => void) => api.syncStream(onEvent), []);
 
+  const [hideSmall, setHideSmall] = useState(() => localStorage.getItem("dash.hideSmall") === "1");
+  const toggleHideSmall = () => setHideSmall((v) => { localStorage.setItem("dash.hideSmall", v ? "0" : "1"); return !v; });
+
   if (!data) return <p>{msg ?? "Loading..."}</p>;
   return (
     <div>
@@ -62,11 +65,17 @@ export default function Dashboard() {
         </div>
       )}
       <div className="card">
-        <h3>Balances by account</h3>
+        <div className="row-between" style={{ marginBottom: 6 }}>
+          <h3 style={{ margin: 0 }}>Balances by account</h3>
+          <label className="setting-row" style={{ padding: 0, cursor: "pointer" }}>
+            <span className="muted" style={{ fontSize: 12 }}>Hide small (&lt;£100)</span>
+            <span className="switch"><input type="checkbox" checked={hideSmall} onChange={toggleHideSmall} /><span className="slider" /></span>
+          </label>
+        </div>
         {banks.length === 0 && <div className="muted">No accounts yet.</div>}
         {banks.map((bank) =>
           bank.accounts
-            .filter((a) => !accountId || a.id === accountId)
+            .filter((a) => (!accountId || a.id === accountId) && (!hideSmall || Math.abs(a.currentBalance) >= 100))
             .map((a) => (
               <div key={a.id} className="lrow">
                 <span>{bank.institutionName} <span className="muted">— {a.displayName}</span></span>
