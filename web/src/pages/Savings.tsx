@@ -37,14 +37,25 @@ export default function Savings() {
     dialog.current?.close();
   };
 
-  const deposit = (p: PotDTO, sign: 1 | -1) => {
-    const raw = window.prompt(`${sign > 0 ? "Add to" : "Take from"} ${p.name} (£):`, "");
-    if (raw == null) return;
-    const amt = num(raw);
+  // Move (add / take) dialog.
+  const moveDialog = useRef<HTMLDialogElement>(null);
+  const [moveState, setMoveState] = useState<{ pot: PotDTO; sign: 1 | -1 } | null>(null);
+  const [moveAmt, setMoveAmt] = useState("");
+  const openMove = (pot: PotDTO, sign: 1 | -1) => { setMoveState({ pot, sign }); setMoveAmt(""); moveDialog.current?.showModal(); };
+  const submitMove = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!moveState) return;
+    const amt = num(moveAmt);
     if (!Number.isFinite(amt) || amt <= 0) return;
-    move.mutate({ id: p.id, amount: sign * amt });
+    move.mutate({ id: moveState.pot.id, amount: moveState.sign * amt });
+    moveDialog.current?.close();
   };
-  const del = (p: PotDTO) => { if (window.confirm(`Delete pot "${p.name}"? The earmarked £${p.balance} returns to unallocated.`)) remove.mutate(p.id); };
+
+  // Delete confirmation dialog.
+  const delDialog = useRef<HTMLDialogElement>(null);
+  const [delTarget, setDelTarget] = useState<PotDTO | null>(null);
+  const openDel = (pot: PotDTO) => { setDelTarget(pot); delDialog.current?.showModal(); };
+  const confirmDel = () => { if (delTarget) remove.mutate(delTarget.id); delDialog.current?.close(); };
 
   if (!data) return <p>Loading…</p>;
   const over = data.unallocated < 0;
@@ -91,9 +102,9 @@ export default function Savings() {
                 </>
               )}
               <div className="pot-actions">
-                <button className="btn-sm" onClick={() => deposit(p, 1)}>＋ Add</button>
-                <button className="btn-sm" onClick={() => deposit(p, -1)}>－ Take</button>
-                <button className="btn-danger btn-sm" onClick={() => del(p)}>Delete</button>
+                <button className="btn-sm" onClick={() => openMove(p, 1)}>＋ Add</button>
+                <button className="btn-sm" disabled={p.balance <= 0} onClick={() => openMove(p, -1)}>－ Take</button>
+                <button className="btn-danger btn-sm" onClick={() => openDel(p)}>Delete</button>
               </div>
             </div>
           );
@@ -111,6 +122,28 @@ export default function Savings() {
           {!editing && <label className="field"><span>Starting amount (£, optional)</span><input inputMode="decimal" value={form.balance} placeholder="0" onChange={(e) => setForm({ ...form, balance: e.target.value })} /></label>}
           <div className="modal-actions"><button type="button" onClick={() => dialog.current?.close()}>Cancel</button><button className="btn-primary" type="submit">{editing ? "Save" : "Create"}</button></div>
         </form>
+      </dialog>
+
+      <dialog ref={moveDialog} className="modal" onClick={(e) => { if (e.target === moveDialog.current) moveDialog.current?.close(); }}>
+        {moveState && (
+          <form className="modal-body" onSubmit={submitMove}>
+            <h3 style={{ marginTop: 0 }}>{moveState.sign > 0 ? "Add to" : "Take from"} {moveState.pot.name}</h3>
+            <p className="muted" style={{ marginTop: -4 }}>Currently {formatGBP(moveState.pot.balance)} set aside.</p>
+            <label className="field"><span>Amount (£)</span><input inputMode="decimal" autoFocus value={moveAmt} placeholder="0" onChange={(e) => setMoveAmt(e.target.value)} /></label>
+            {moveState.sign < 0 && num(moveAmt) > moveState.pot.balance && <p className="neg" style={{ marginTop: -4 }}>More than the pot holds — it'll be emptied to £0.</p>}
+            <div className="modal-actions"><button type="button" onClick={() => moveDialog.current?.close()}>Cancel</button><button className="btn-primary" type="submit">{moveState.sign > 0 ? "Add" : "Take"}</button></div>
+          </form>
+        )}
+      </dialog>
+
+      <dialog ref={delDialog} className="modal" onClick={(e) => { if (e.target === delDialog.current) delDialog.current?.close(); }}>
+        {delTarget && (
+          <div className="modal-body">
+            <h3 style={{ marginTop: 0 }}>Delete “{delTarget.name}”?</h3>
+            <p className="muted">The {formatGBP(delTarget.balance)} earmarked here returns to unallocated. This can't be undone.</p>
+            <div className="modal-actions"><button type="button" onClick={() => delDialog.current?.close()}>Cancel</button><button className="btn-danger" onClick={confirmDel}>Delete pot</button></div>
+          </div>
+        )}
       </dialog>
     </div>
   );
