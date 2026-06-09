@@ -20,6 +20,21 @@ enum AccountSource {
   LIABILITY
 }
 
+// A savings "pot": earmarks part of your existing liquid cash toward a goal
+// (emergency fund, school fees…). Does not add to net worth — it partitions
+// money you already hold.
+model Pot {
+  id        Int      @id @default(autoincrement())
+  name      String
+  target    Decimal?
+  balance   Decimal  @default(0)
+  emoji     String?
+  note      String?
+  sortOrder Int      @default(0)
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
 model Requisition {
   id              String    @id
   institutionId   String

@@ -8,6 +8,7 @@ import Budgets from "./pages/Budgets.tsx";
 import Reports from "./pages/Reports.tsx";
 import Investments from "./pages/Investments.tsx";
 import Debts from "./pages/Debts.tsx";
+import Savings from "./pages/Savings.tsx";
 import Merchants from "./pages/Merchants.tsx";
 import People from "./pages/People.tsx";
 import { NavMenu } from "./components/NavMenu.tsx";
@@ -27,6 +28,7 @@ export default function App() {
         ]} />
         <NavMenu label="Wealth" items={[
           { to: "/investments", label: "Investments" },
+          { to: "/savings", label: "Savings" },
           { to: "/debts", label: "Debts" },
         ]} />
         <SettingsDrawer />
@@ -40,6 +42,7 @@ export default function App() {
           <Route path="/reports" element={<Reports />} />
           <Route path="/investments" element={<Investments />} />
           <Route path="/debts" element={<Debts />} />
+          <Route path="/savings" element={<Savings />} />
           <Route path="/merchants" element={<Merchants />} />
           {/* Rules are managed per-merchant on the Merchants page */}
           <Route path="/people" element={<People />} />

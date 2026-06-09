@@ -127,6 +127,23 @@ export interface MerchantsDTO {
   variableMonthly: number;  // avg monthly variable spend
 }
 
+// A savings pot — earmarks part of existing liquid cash toward a goal.
+export interface PotDTO {
+  id: number;
+  name: string;
+  target: number | null;
+  balance: number;
+  emoji: string | null;
+  note: string | null;
+  sortOrder: number;
+}
+export interface PotsDTO {
+  pots: PotDTO[];
+  liquid: number;       // total cash across bank + manual accounts
+  allocated: number;    // sum of all pot balances
+  unallocated: number;  // liquid − allocated (negative = over-allocated)
+}
+
 // Per-account recurring outgoings → the balance to keep in that account monthly.
 export interface AccountRecurringDTO {
   accountId: string;
