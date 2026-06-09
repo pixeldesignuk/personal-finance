@@ -57,6 +57,7 @@ accountsRouter.get("/accounts", async (_req, res, next) => {
         requisitionId: r.id,
         institutionId: r.institutionId,
         institutionName: r.institutionName,
+        institutionLogo: r.institutionLogo ?? null,
         status: r.status,
         accounts: r.accounts.map((a) => toAccountDTO(a as unknown as AccountWithBalances)),
       }));
@@ -70,6 +71,7 @@ accountsRouter.get("/accounts", async (_req, res, next) => {
         requisitionId: "manual",
         institutionId: "manual",
         institutionName: "Manual / Cash",
+        institutionLogo: null,
         status: "MANUAL",
         accounts: manual.map((a) => toAccountDTO(a as unknown as AccountWithBalances)),
       });
@@ -81,6 +83,7 @@ accountsRouter.get("/accounts", async (_req, res, next) => {
           requisitionId: source.toLowerCase(),
           institutionId: source.toLowerCase(),
           institutionName: label,
+          institutionLogo: null,
           status: source,
           accounts: group.map((a) => toAccountDTO(a as unknown as AccountWithBalances)),
         });

@@ -4,6 +4,7 @@ import { useQueryState } from "nuqs";
 import { api } from "../api.ts";
 import type { BankDTO, AccountRecurringDTO } from "../../../shared/types.ts";
 import { formatMoney } from "../format.ts";
+import { BrandLogo } from "../components/BrandLogo.tsx";
 
 // GoCardless requisition status codes → plain English.
 const STATUS_LABEL: Record<string, string> = {
@@ -95,7 +96,10 @@ export default function Accounts() {
         {cards.map(({ bank, a }) => (
           <div className="card acct-card" key={a.id}>
             <div className="acct-card-meta">
-              <span className="acct-inst">{bank.institutionName}</span>
+              <span className="acct-inst-wrap">
+                <BrandLogo name={bank.institutionName} src={bank.institutionLogo} size={22} />
+                <span className="acct-inst">{bank.institutionName}</span>
+              </span>
               <span className={`badge ${statusClass(bank.status)}`}>{STATUS_LABEL[bank.status] ?? bank.status}</span>
             </div>
             <div className="acct-card-head">

@@ -2,6 +2,7 @@ export interface InstitutionDTO {
   id: string;
   name: string;
   bic?: string;
+  logo?: string;
 }
 
 export interface ConnectResponse {
@@ -185,6 +186,7 @@ export interface BankDTO {
   requisitionId: string;
   institutionId: string;
   institutionName: string;
+  institutionLogo: string | null;
   status: string;
   accounts: AccountDTO[];
 }

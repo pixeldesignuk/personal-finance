@@ -9,6 +9,7 @@ export interface GcInstitution {
   id: string;
   name: string;
   bic?: string;
+  logo?: string; // PNG URL provided by GoCardless
 }
 
 export interface GcRequisition {

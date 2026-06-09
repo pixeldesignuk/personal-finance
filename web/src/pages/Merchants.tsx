@@ -6,6 +6,7 @@ import { api } from "../api.ts";
 import type { MerchantDTO } from "../../../shared/types.ts";
 import { formatGBP, relativeDate } from "../format.ts";
 import { Combobox } from "../components/Combobox.tsx";
+import { BrandLogo } from "../components/BrandLogo.tsx";
 
 const TABS: [string, string][] = [["all", "All"], ["fixed", "Recurring"], ["variable", "Variable"]];
 const TYPE_LABEL: Record<string, string> = { fixed: "Recurring", variable: "Variable", oneoff: "One-off", ignore: "Ignored", auto: "Auto" };
@@ -76,12 +77,17 @@ export default function Merchants() {
             {shown.map((m) => (
               <tr key={m.token}>
                 <td>
-                  <div className="td-clip">
-                    {m.name
-                      ? <Link className="amount-link" to={`/transactions?merchant=${encodeURIComponent(m.token)}`}>{m.name}</Link>
-                      : <Link className="amount-link muted" style={{ fontStyle: "italic" }} to={`/transactions?merchant=${encodeURIComponent(m.token)}`}>Unnamed</Link>}
+                  <div className="merchant-cell">
+                    <BrandLogo name={m.name ?? m.statement} size={32} />
+                    <div className="td-clip">
+                      <div className="td-clip">
+                        {m.name
+                          ? <Link className="amount-link" to={`/transactions?merchant=${encodeURIComponent(m.token)}`}>{m.name}</Link>
+                          : <Link className="amount-link muted" style={{ fontStyle: "italic" }} to={`/transactions?merchant=${encodeURIComponent(m.token)}`}>Unnamed</Link>}
+                      </div>
+                      <div className="note-line" title="Bank statement line — not editable">{m.statement}</div>
+                    </div>
                   </div>
-                  <div className="note-line" title="Bank statement line — not editable">{m.statement}</div>
                 </td>
                 <td><Combobox value={m.categoryKey} options={catOpts} allowClear placeholder="—" onChange={(v) => set(m.token, { categoryKey: v })} /></td>
                 <td><Combobox value={m.personKey} options={personOpts} allowClear placeholder="—" onChange={(v) => set(m.token, { personKey: v })} /></td>

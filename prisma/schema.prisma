@@ -24,6 +24,7 @@ model Requisition {
   id              String    @id
   institutionId   String
   institutionName String
+  institutionLogo String?
   reference       String
   status          String
   createdAt       DateTime  @default(now())

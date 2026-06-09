@@ -24,6 +24,7 @@ connectRouter.post("/connect", async (req, res, next) => {
         id: requisition.id,
         institutionId,
         institutionName: inst?.name ?? institutionId,
+        institutionLogo: inst?.logo ?? null,
         reference,
         status: requisition.status,
       },
