@@ -141,6 +141,8 @@ export interface PotsDTO {
   pots: PotDTO[];
   liquid: number;       // total cash across bank + manual accounts
   allocated: number;    // sum of all pot balances
+  budgeted: number;     // this month's total budget (cash already earmarked for spending)
+  available: number;    // liquid − budgeted − allocated (free to assign to pots)
   unallocated: number;  // liquid − allocated (negative = over-allocated)
 }
 

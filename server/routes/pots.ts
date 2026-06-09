@@ -43,7 +43,14 @@ potsRouter.get("/pots", async (_req, res, next) => {
     const pots = rows.map(toDTO);
     const liquid = Number((await liquidCash()).toFixed(2));
     const allocated = Number(pots.reduce((s, p) => s + p.balance, 0).toFixed(2));
-    const dto: PotsDTO = { pots, liquid, allocated, unallocated: Number((liquid - allocated).toFixed(2)) };
+    // Cash already earmarked for monthly spending — pots can only claim what's left.
+    const cats = await db.category.findMany({ where: { archived: false, key: { not: "uncategorised" } }, select: { monthlyAmount: true } });
+    const budgeted = Number(cats.reduce((s, c) => s + Number(c.monthlyAmount.toString()), 0).toFixed(2));
+    const dto: PotsDTO = {
+      pots, liquid, allocated, budgeted,
+      available: Number((liquid - budgeted - allocated).toFixed(2)),
+      unallocated: Number((liquid - allocated).toFixed(2)),
+    };
     res.json(dto);
   } catch (err) { next(err); }
 });

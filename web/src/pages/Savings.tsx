@@ -58,7 +58,7 @@ export default function Savings() {
   const confirmDel = () => { if (delTarget) remove.mutate(delTarget.id); delDialog.current?.close(); };
 
   if (!data) return <p>Loading…</p>;
-  const over = data.unallocated < 0;
+  const over = data.available < 0;
 
   return (
     <div>
@@ -69,9 +69,9 @@ export default function Savings() {
       <p className="muted" style={{ marginTop: -6 }}>Pots earmark cash you already hold — they don't change your net worth.</p>
 
       <div className="grid">
-        <div className="card stat"><span className="label">Liquid cash</span><span className="value">{formatGBP(data.liquid)}</span><span className="delta muted">across current + cash accounts</span></div>
-        <div className="card stat"><span className="label">Allocated</span><span className="value">{formatGBP(data.allocated)}</span><span className="delta muted">{data.pots.length} pot{data.pots.length === 1 ? "" : "s"}</span></div>
-        <div className="card stat"><span className="label">Unallocated</span><span className={`value ${over ? "neg" : "pos"}`}>{formatGBP(data.unallocated)}</span><span className="delta muted">{over ? "over-allocated" : "free to assign"}</span></div>
+        <div className="card stat"><span className="label">Liquid cash</span><span className="value">{formatGBP(data.liquid)}</span><span className="delta muted">{formatGBP(data.budgeted)} budgeted · {formatGBP(data.allocated)} in pots</span></div>
+        <div className="card stat"><span className="label">In pots</span><span className="value">{formatGBP(data.allocated)}</span><span className="delta muted">{data.pots.length} pot{data.pots.length === 1 ? "" : "s"}</span></div>
+        <div className="card stat"><span className="label">Available to assign</span><span className={`value ${over ? "neg" : "pos"}`}>{formatGBP(data.available)}</span><span className="delta muted">{over ? "over-allocated" : "after budgets & pots"}</span></div>
       </div>
 
       {data.pots.length === 0 && <div className="card"><p className="muted">No pots yet. Create one to set money aside toward a goal.</p></div>}
@@ -129,7 +129,14 @@ export default function Savings() {
           <form className="modal-body" onSubmit={submitMove}>
             <h3 style={{ marginTop: 0 }}>{moveState.sign > 0 ? "Add to" : "Take from"} {moveState.pot.name}</h3>
             <p className="muted" style={{ marginTop: -4 }}>Currently {formatGBP(moveState.pot.balance)} set aside.</p>
+            {moveState.sign > 0 && (
+              <p className="muted" style={{ marginTop: -4 }}>
+                {formatGBP(Math.max(0, data.available))} available to assign — after budgets &amp; other pots.
+                {data.available > 0 && <button type="button" className="btn-sm" style={{ marginLeft: 8 }} onClick={() => setMoveAmt(String(data.available))}>Max</button>}
+              </p>
+            )}
             <label className="field"><span>Amount (£)</span><input inputMode="decimal" autoFocus value={moveAmt} placeholder="0" onChange={(e) => setMoveAmt(e.target.value)} /></label>
+            {moveState.sign > 0 && num(moveAmt) > data.available && <p className="neg" style={{ marginTop: -4 }}>That's more than you have available — you'd be over-allocating cash.</p>}
             {moveState.sign < 0 && num(moveAmt) > moveState.pot.balance && <p className="neg" style={{ marginTop: -4 }}>More than the pot holds — it'll be emptied to £0.</p>}
             <div className="modal-actions"><button type="button" onClick={() => moveDialog.current?.close()}>Cancel</button><button className="btn-primary" type="submit">{moveState.sign > 0 ? "Add" : "Take"}</button></div>
           </form>
