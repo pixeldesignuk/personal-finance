@@ -18,7 +18,15 @@ merchantsRouter.get("/merchants", async (_req, res, next) => {
       select: { merchantName: true, creditorName: true, debtorName: true, remittanceInfo: true, amount: true, bookingDate: true, category: true, categoryOverride: true, personKey: true },
     });
     const overrides = new Map((await db.merchant.findMany()).map((m) => [m.token, m]));
-    const ruleByMerchant = new Map((await db.rule.findMany({ where: { NOT: { merchantId: null } } })).map((r) => [r.merchantId as string, r]));
+    // A merchant's rule may be linked by merchantId (new) or just match by token
+    // (older rules) — index both so existing priorities/categories show.
+    const allRules = await db.rule.findMany();
+    const ruleByMerchant = new Map<string, (typeof allRules)[number]>();
+    const ruleByMatch = new Map<string, (typeof allRules)[number]>();
+    for (const r of allRules) {
+      if (r.merchantId) ruleByMerchant.set(r.merchantId, r);
+      if (!ruleByMatch.has(r.matchText)) ruleByMatch.set(r.matchText, r);
+    }
 
     interface Agg { name: Map<string, number>; amounts: number[]; months: Set<string>; last: string | null; cats: Map<string, number>; persons: Map<string, number>; }
     const groups = new Map<string, Agg>();
@@ -51,7 +59,7 @@ merchantsRouter.get("/merchants", async (_req, res, next) => {
       const effective: MerchantDTO["effective"] = override === "auto" ? detected : override;
       const monthlyTypical = effective === "fixed" ? median(g.amounts) : totalSpent / monthsActive;
       const statement = top(g.name) ?? token;
-      const rule = ruleByMerchant.get(token);
+      const rule = ruleByMerchant.get(token) ?? ruleByMatch.get(token);
       merchants.push({
         token,
         name: ov?.name ?? null,
