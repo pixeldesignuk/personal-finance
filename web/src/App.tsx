@@ -22,7 +22,6 @@ export default function App() {
         <NavLink to="/budgets">Budget</NavLink>
         <NavLink to="/reports">Reports</NavLink>
         <NavLink to="/investments">Investments</NavLink>
-        <NavLink to="/debts">Debt</NavLink>
         <SettingsDrawer />
         <NavLink to="/connect" className="btn-primary nav-cta">Connect</NavLink>
       </nav>
