@@ -361,7 +361,7 @@ export default function Transactions() {
                 <td className="td-date" title={r.bookingDate ?? ""}>{relativeDate(r.bookingDate)}</td>
                 <td title={acct}>
                   <span className="txn-acct">
-                    <BrandLogo name={bankByAccount[r.accountId]?.name ?? acct} src={bankByAccount[r.accountId]?.logo} size={16} />
+                    <BrandLogo name={bankByAccount[r.accountId]?.name ?? acct} src={bankByAccount[r.accountId]?.logo} size={24} />
                     <span className="td-clip">{acct}</span>
                     {r.source === "MANUAL" && <span className="badge manual">manual</span>}
                   </span>
