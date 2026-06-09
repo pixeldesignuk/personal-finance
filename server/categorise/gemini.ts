@@ -102,6 +102,14 @@ async function generateWithRetry(
   }
 }
 
+// Generic JSON generation with the shared retry/backoff. Returns "" when no key
+// is configured. Callers parse the JSON themselves.
+export async function geminiGenerateJson(prompt: string, audit?: AuditFn, batch = 1): Promise<string> {
+  if (!env.GEMINI_API_KEY) return "";
+  const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+  return generateWithRetry(ai, prompt, batch, audit);
+}
+
 // Classify transactions with Gemini Flash. Returns a Map of real transaction
 // id -> categoryKey, validated against the allowed category keys. Returns an
 // empty map (a no-op) when no API key is configured. Batched; a failed batch

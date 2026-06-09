@@ -129,6 +129,20 @@ export interface MerchantsDTO {
   variableMonthly: number;  // avg monthly variable spend
 }
 
+export interface EmailOrderItem { name: string; qty: number | null; price: number | null }
+export interface EmailOrderDTO {
+  id: string;
+  emailDate: string | null;
+  merchantName: string | null;
+  total: number | null;
+  currency: string | null;
+  orderNumber: string | null;
+  items: EmailOrderItem[];
+  subject: string | null;
+  transactionId: string | null;
+  matched: boolean;
+}
+
 export interface PluginsDTO {
   gmail: {
     available: boolean;   // GOOGLE_CLIENT_ID/SECRET configured

@@ -1,14 +1,21 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { Mail } from "lucide-react";
 import { api } from "../api.ts";
+import type { AuditEvent } from "../../../shared/types.ts";
+import { formatMoney } from "../format.ts";
 import { useToast } from "../components/Toasts.tsx";
+import { AuditSheet } from "../components/AuditSheet.tsx";
+
+const money = (n: number | null, ccy: string | null) =>
+  n == null ? "" : `${ccy === "USD" ? "$" : ccy === "EUR" ? "€" : "£"}${formatMoney(n)}`;
 
 export default function Plugins() {
   const qc = useQueryClient();
   const { notify } = useToast();
   const { data } = useQuery({ queryKey: ["plugins"], queryFn: () => api.plugins() });
+  const ordersQuery = useQuery({ queryKey: ["gmailOrders"], queryFn: () => api.gmailOrders(), enabled: Boolean(data?.gmail.connected) });
   const [params, setParams] = useSearchParams();
 
   useEffect(() => {
@@ -26,7 +33,17 @@ export default function Plugins() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["plugins"] }); notify("Gmail disconnected"); },
   });
 
+  const [syncOpen, setSyncOpen] = useState(false);
+  const syncRun = useCallback((onEvent: (e: AuditEvent) => void) => api.gmailSyncStream(onEvent), []);
+  const onSyncDone = () => {
+    qc.invalidateQueries({ queryKey: ["plugins"] });
+    qc.invalidateQueries({ queryKey: ["gmailOrders"] });
+    qc.invalidateQueries({ queryKey: ["transactions"] });
+  };
+
   const g = data?.gmail;
+  const orders = ordersQuery.data ?? [];
+
   return (
     <div>
       <h1>Plugins</h1>
@@ -55,6 +72,7 @@ export default function Plugins() {
                 <div><span className="eyebrow">Last sync</span><span>{g.lastSyncAt ? new Date(g.lastSyncAt).toLocaleString("en-GB") : "never"}</span></div>
               </div>
               <div className="plugin-actions">
+                <button className="btn-primary" disabled={syncOpen} onClick={() => setSyncOpen(true)}>Sync now</button>
                 <button className="btn-danger btn-sm" disabled={disconnect.isPending} onClick={() => disconnect.mutate()}>Disconnect</button>
               </div>
             </>
@@ -65,6 +83,28 @@ export default function Plugins() {
           )}
         </div>
       </div>
+
+      {g?.connected && (
+        <div className="card">
+          <h3>Orders</h3>
+          {orders.length === 0 && <p className="muted">No orders parsed yet — hit “Sync now”.</p>}
+          {orders.map((o) => (
+            <div key={o.id} className="lrow order-row">
+              <div className="order-main">
+                <span className="order-merchant">{o.merchantName ?? o.subject ?? "Order"}</span>
+                {o.items.length > 0 && <span className="order-items muted">{o.items.slice(0, 3).map((i) => i.name).join(", ")}{o.items.length > 3 ? ` +${o.items.length - 3} more` : ""}</span>}
+              </div>
+              <div className="order-side">
+                <span className={`badge ${o.matched ? "pos" : ""}`}>{o.matched ? "matched" : "unmatched"}</span>
+                <span className="num">{money(o.total, o.currency)}</span>
+                <span className="muted order-date">{o.emailDate ? new Date(o.emailDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <AuditSheet open={syncOpen} title="Gmail sync" run={syncRun} onClose={() => setSyncOpen(false)} onDone={onSyncDone} />
     </div>
   );
 }

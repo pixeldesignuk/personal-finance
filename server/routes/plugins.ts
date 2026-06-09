@@ -2,7 +2,9 @@ import { Router } from "express";
 import { db } from "../lib/db.ts";
 import { env } from "../env.ts";
 import * as gmail from "../plugins/gmail.ts";
-import type { PluginsDTO } from "../../shared/types.ts";
+import { syncGmail } from "../plugins/gmailSync.ts";
+import type { AuditFn } from "../categorise/audit.ts";
+import type { PluginsDTO, EmailOrderDTO } from "../../shared/types.ts";
 
 export const pluginsRouter = Router();
 
@@ -45,6 +47,46 @@ pluginsRouter.get("/plugins/gmail/callback", async (req, res, next) => {
       update: { connected: true, email: profile.emailAddress, accessToken: tok.access_token, tokenExpiry: expiry, ...(tok.refresh_token ? { refreshToken: tok.refresh_token } : {}) },
     });
     res.redirect(`${env.APP_BASE_URL}/plugins?gmail=connected`);
+  } catch (err) { next(err); }
+});
+
+// Streaming sync: fetch order emails, Gemini-extract, match to transactions.
+pluginsRouter.post("/plugins/gmail/sync/stream", async (_req, res) => {
+  res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders?.();
+  const audit: AuditFn = (e) => res.write(`${JSON.stringify(e)}\n`);
+  try {
+    await syncGmail(audit);
+  } catch (err) {
+    audit({ kind: "fatal", error: err instanceof Error ? err.message : String(err) });
+  } finally {
+    res.end();
+  }
+});
+
+// Parsed orders (most recent first), for the Orders list.
+pluginsRouter.get("/plugins/gmail/orders", async (_req, res, next) => {
+  try {
+    const rows = await db.emailOrder.findMany({
+      where: { total: { not: null } },
+      orderBy: [{ emailDate: "desc" }, { createdAt: "desc" }],
+      take: 300,
+    });
+    const orders: EmailOrderDTO[] = rows.map((o) => ({
+      id: o.id,
+      emailDate: o.emailDate?.toISOString() ?? null,
+      merchantName: o.merchantName,
+      total: o.total != null ? Number(o.total.toString()) : null,
+      currency: o.currency,
+      orderNumber: o.orderNumber,
+      items: (o.items as unknown as EmailOrderDTO["items"]) ?? [],
+      subject: o.subject,
+      transactionId: o.transactionId,
+      matched: o.matched,
+    }));
+    res.json(orders);
   } catch (err) { next(err); }
 });
 

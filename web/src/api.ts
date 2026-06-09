@@ -4,7 +4,7 @@ import type {
   BankDTO, RemoveBankResult, NicknameResult,
   SummaryDTO, ManualAccountInput, ManualTxnInput,
   CategoryDTO, BudgetResponseDTO, CategoryInfoDTO, ReportDTO,
-  PersonDTO, RuleDTO, CategoryNameDTO, ReconcileResult, AuditEvent, InvestmentsDTO, SettingsDTO, DebtsDTO, MerchantsDTO, AccountRecurringDTO, PotsDTO, PluginsDTO,
+  PersonDTO, RuleDTO, CategoryNameDTO, ReconcileResult, AuditEvent, InvestmentsDTO, SettingsDTO, DebtsDTO, MerchantsDTO, AccountRecurringDTO, PotsDTO, PluginsDTO, EmailOrderDTO,
 } from "../../shared/types.ts";
 
 async function get<T>(url: string): Promise<T> {
@@ -112,6 +112,8 @@ export const api = {
   movePot: (id: number, amount: number) => send<{ id: number; balance: number }>("POST", `/api/pots/${id}/move`, { amount }),
   deletePot: (id: number) => send<{ deleted: boolean }>("DELETE", `/api/pots/${id}`),
   plugins: () => get<PluginsDTO>("/api/plugins"),
+  gmailOrders: () => get<EmailOrderDTO[]>("/api/plugins/gmail/orders"),
+  gmailSyncStream: (onEvent: (e: AuditEvent) => void) => streamNdjson("/api/plugins/gmail/sync/stream", {}, onEvent),
   disconnectGmail: () => send<{ ok: boolean }>("POST", "/api/plugins/gmail/disconnect"),
   investments: () => get<InvestmentsDTO>("/api/investments"),
   syncInvestment: (provider: string) => send<{ provider: string; total: number; holdings: number }>("POST", `/api/investments/${provider}/sync`),
