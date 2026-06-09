@@ -108,8 +108,8 @@ export const api = {
   syncInvestment: (provider: string) => send<{ provider: string; total: number; holdings: number }>("POST", `/api/investments/${provider}/sync`),
   syncInvestments: () => send<{ results: { provider: string; total: number; holdings: number }[] }>("POST", "/api/investments/sync"),
   dashboard: (accountId?: string) => { const q = acctQuery(accountId); return get<DashboardDTO>(`/api/dashboard${q ? `?${q}` : ""}`); },
-  transactions: (search = "", accountId?: string, person?: string, month?: string) => {
-    const parts = [`search=${encodeURIComponent(search)}`, acctQuery(accountId), person ? `person=${encodeURIComponent(person)}` : "", month ? `month=${month}` : ""].filter(Boolean);
+  transactions: (search = "", accountId?: string, person?: string, month?: string, merchant?: string) => {
+    const parts = [`search=${encodeURIComponent(search)}`, acctQuery(accountId), person ? `person=${encodeURIComponent(person)}` : "", month ? `month=${month}` : "", merchant ? `merchant=${encodeURIComponent(merchant)}` : ""].filter(Boolean);
     return get<TransactionDTO[]>(`/api/transactions?${parts.join("&")}`);
   },
 };

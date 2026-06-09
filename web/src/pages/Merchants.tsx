@@ -15,6 +15,13 @@ export default function Merchants() {
   const catNames = catNamesQuery.data ?? [];
   const [tab, setTab] = useState("all");
 
+  const [nameEdit, setNameEdit] = useState<{ token: string; value: string } | null>(null);
+  const setName = useMutation({
+    mutationFn: ({ token, name }: { token: string; name: string }) => api.patchMerchant(token, { name }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["merchants"] }),
+  });
+  const saveName = () => { if (nameEdit) { setName.mutate({ token: nameEdit.token, name: nameEdit.value.trim() }); setNameEdit(null); } };
+
   const setCat = useMutation({
     mutationFn: ({ token, categoryKey }: { token: string; categoryKey: string }) => api.patchMerchant(token, { categoryKey }),
     onMutate: async ({ token, categoryKey }) => {
@@ -58,13 +65,23 @@ export default function Merchants() {
 
       <div className="card">
         <table className="txn-table">
-          <colgroup><col /><col style={{ width: 150 }} /><col style={{ width: 120 }} /><col style={{ width: 120 }} /><col style={{ width: 90 }} /><col style={{ width: 110 }} /><col style={{ width: 130 }} /></colgroup>
+          <colgroup><col /><col style={{ width: 160 }} /><col style={{ width: 110 }} /><col style={{ width: 110 }} /><col style={{ width: 70 }} /><col style={{ width: 100 }} /><col style={{ width: 190 }} /></colgroup>
           <thead><tr><th>Merchant</th><th>Category</th><th style={{ textAlign: "right" }}>Per month</th><th style={{ textAlign: "right" }}>Total</th><th style={{ textAlign: "right" }}>Txns</th><th>Last</th><th>Type</th></tr></thead>
           <tbody>
             {shown.map((m) => (
               <tr key={m.token}>
                 <td>
-                  <div className="td-clip"><Link className="amount-link" to={`/transactions?q=${encodeURIComponent(m.token)}`}>{m.name}</Link></div>
+                  {nameEdit?.token === m.token ? (
+                    <input className="note-input" autoFocus value={nameEdit.value}
+                      onChange={(e) => setNameEdit({ token: m.token, value: e.target.value })}
+                      onBlur={saveName}
+                      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setNameEdit(null); }} />
+                  ) : (
+                    <div className="td-clip">
+                      <Link className="amount-link" to={`/transactions?merchant=${encodeURIComponent(m.token)}`}>{m.name}</Link>
+                      <button className="btn-sm" style={{ marginLeft: 6, padding: "1px 6px" }} title="Rename merchant" onClick={() => setNameEdit({ token: m.token, value: m.name })}>✎</button>
+                    </div>
+                  )}
                   {m.statement !== m.name && <div className="note-line" title="Statement line">{m.statement}</div>}
                 </td>
                 <td>

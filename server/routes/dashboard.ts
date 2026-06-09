@@ -46,9 +46,9 @@ dashboardRouter.get("/dashboard", async (req, res, next) => {
 dashboardRouter.get("/transactions", async (req, res, next) => {
   try {
     const q = z
-      .object({ search: z.string().optional(), accountId: z.string().optional(), person: z.string().optional(), month: z.string().regex(/^\d{4}-\d{2}$/).optional(), limit: z.coerce.number().max(500).default(200) })
+      .object({ search: z.string().optional(), accountId: z.string().optional(), person: z.string().optional(), month: z.string().regex(/^\d{4}-\d{2}$/).optional(), merchant: z.string().optional(), limit: z.coerce.number().max(2000).default(200) })
       .parse(req.query);
-    const txns = await db.transaction.findMany({
+    let txns = await db.transaction.findMany({
       where: {
         ...accountScope(q.accountId),
         ...(q.person ? { personKey: q.person === "none" ? null : q.person } : {}),
@@ -64,9 +64,11 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
           : {}),
       },
       orderBy: [{ bookingDate: "desc" }, { id: "asc" }],
-      take: q.limit,
+      take: q.merchant ? 2000 : q.limit, // merchant filter is by computed token → fetch wide, filter below
       include: { account: true },
     });
+    // Filter to a specific merchant by its token (the merchant's stable id).
+    if (q.merchant) txns = txns.filter((t) => merchantToken(t.merchantName ?? t.creditorName ?? t.debtorName ?? t.remittanceInfo ?? null) === q.merchant).slice(0, 500);
     const people = await db.person.findMany();
     const personName = (k: string | null) => people.find((p) => p.key === k)?.name ?? null;
     // Friendly merchant names (Merchant table) override the raw statement line.

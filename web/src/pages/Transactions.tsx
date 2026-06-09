@@ -32,16 +32,17 @@ export default function Transactions() {
   const [personFilter, setPersonFilter] = useQueryState("person", { defaultValue: "", history: "replace" });
   const [catFilter, setCatFilter] = useQueryState("category", { defaultValue: "", history: "replace" });
   const [month, setMonth] = useQueryState("month", { defaultValue: "", history: "replace" });
+  const [merchant, setMerchant] = useQueryState("merchant", { defaultValue: "", history: "replace" });
 
   // ── Queries ────────────────────────────────────────────────────────────
   const txnKey = useMemo(
-    () => ["transactions", debouncedQ, accountId, personFilter, month] as const,
-    [debouncedQ, accountId, personFilter, month],
+    () => ["transactions", debouncedQ, accountId, personFilter, month, merchant] as const,
+    [debouncedQ, accountId, personFilter, month, merchant],
   );
 
   const txnQuery = useQuery({
     queryKey: txnKey,
-    queryFn: () => api.transactions(debouncedQ, accountId, personFilter || undefined, month || undefined),
+    queryFn: () => api.transactions(debouncedQ, accountId, personFilter || undefined, month || undefined, merchant || undefined),
     placeholderData: keepPreviousData,
   });
   const rows = useMemo(() => txnQuery.data ?? [], [txnQuery.data]);
@@ -276,7 +277,7 @@ export default function Transactions() {
     if (!bulkCat || selected.size === 0) return;
     bulkMutation.mutate({ ids: [...selected], category: bulkCat });
   };
-  useEffect(() => { setSelected(new Set()); }, [debouncedQ, accountId, personFilter, catFilter, flaggedOnly, month]);
+  useEffect(() => { setSelected(new Set()); }, [debouncedQ, accountId, personFilter, catFilter, flaggedOnly, month, merchant]);
 
   const isInitialLoad = txnQuery.isLoading;
   const isUpdating = txnQuery.isFetching && !txnQuery.isLoading;
@@ -310,6 +311,7 @@ export default function Transactions() {
         </select>
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: "auto", fontSize: 13 }} title="Filter by month" />
         {month && <button className="btn-sm" onClick={() => setMonth("")}>All months</button>}
+        {merchant && <button className="btn-sm" onClick={() => setMerchant("")} title="Clear merchant filter">Merchant: {merchant} ✕</button>}
         <span className="muted" style={{ fontSize: 12 }}>{visible.length} shown</span>
         {isInitialLoad && <span className="muted" style={{ fontSize: 12 }}>Loading…</span>}
         {isUpdating && <span className="muted" style={{ fontSize: 12 }}>Updating…</span>}
