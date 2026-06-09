@@ -139,9 +139,16 @@ export async function syncGmail(audit: AuditFn): Promise<GmailSyncResult> {
   const txns: TxnLite[] = txnRows.map((t) => ({ id: t.id, abs: Math.abs(Number(t.amount)), date: t.bookingDate, token: tokenOf(t) }));
   const taken = new Set((await db.emailOrder.findMany({ where: { transactionId: { not: null } }, select: { transactionId: true } })).map((e) => e.transactionId!).filter(Boolean));
 
+  // Dedupe repeat emails for one purchase (order confirmation + dispatch/receipt).
+  // Key on order number when present, else merchant+total+day.
+  const orderSig = (token: string | null, total: number, orderNo: string | null, date: Date | null) =>
+    orderNo ? `${token}|${total}|${orderNo.toLowerCase().replace(/\s+/g, "")}` : `${token}|${total}|${date ? date.toISOString().slice(0, 10) : ""}`;
+  const existingSigs = await db.emailOrder.findMany({ where: { total: { not: null } }, select: { merchantToken: true, total: true, orderNumber: true, emailDate: true } });
+  const seenSigs = new Set(existingSigs.map((o) => orderSig(o.merchantToken, Number(o.total!.toString()), o.orderNumber, o.emailDate)));
+
   audit({ kind: "log", text: "● Extracting order details (Gemini)", tone: "bold" });
-  let parsed = 0, matched = 0;
-  const SIZE = 6;
+  let parsed = 0, matched = 0, dupes = 0;
+  const SIZE = 20;
   for (let i = 0; i < emails.length; i += SIZE) {
     const chunk = emails.slice(i, i + SIZE);
     const extracted = await extractBatch(chunk, i / SIZE + 1, audit);
@@ -149,19 +156,29 @@ export async function syncGmail(audit: AuditFn): Promise<GmailSyncResult> {
     for (let j = 0; j < chunk.length; j++) {
       const email = chunk[j];
       const o = byRef.get(`t${j}`);
-      const isOrder = Boolean(o?.isOrder && o.total != null && o.merchant);
-      const oToken = isOrder ? merchantToken(o!.merchant) : null;
+      const emailDate = email.date ? new Date(email.date) : null;
+      const parsedOk = Boolean(o?.isOrder && o.total != null && o.merchant);
+      const oToken = parsedOk ? merchantToken(o!.merchant) : null;
+      // A repeat email for an order we already captured: record the message (so
+      // it isn't re-fetched) but null its total so it's hidden + not matched.
+      let dup = false;
+      if (parsedOk) {
+        const sig = orderSig(oToken, o!.total!, o!.orderNumber, emailDate);
+        if (seenSigs.has(sig)) dup = true; else seenSigs.add(sig);
+      }
+      const isOrder = parsedOk && !dup;
       let txn: TxnLite | null = null;
       if (isOrder) {
         parsed++;
         txn = matchTransaction({ total: o!.total!, date: email.date, token: oToken }, txns, taken);
         if (txn) { taken.add(txn.id); matched++; }
       }
+      if (dup) dupes++;
       await db.emailOrder.create({
         data: {
           messageId: email.id,
-          emailDate: email.date ? new Date(email.date) : null,
-          merchantName: o?.merchant ?? null,
+          emailDate,
+          merchantName: parsedOk ? o!.merchant : null,
           merchantToken: oToken,
           total: isOrder ? o!.total : null,
           currency: o?.currency ?? null,
@@ -176,13 +193,15 @@ export async function syncGmail(audit: AuditFn): Promise<GmailSyncResult> {
         const label = `${o!.merchant ?? "?"} · ${o!.currency ?? ""}${o!.total}`;
         if (txn) audit({ kind: "assign", id: email.id, name: label, to: `txn ${txn.date ?? ""}`, via: "llm" });
         else audit({ kind: "log", text: `  ai   ${label.length > 34 ? `${label.slice(0, 33)}…` : label.padEnd(34)} → no transaction match`, tone: "yellow" });
+      } else if (dup) {
+        audit({ kind: "log", text: `  ·    ${(o!.merchant ?? "").slice(0, 33).padEnd(34)} → duplicate, skipped`, tone: "dim" });
       }
     }
   }
 
   await db.plugin.update({ where: { id: "gmail" }, data: { lastSyncAt: new Date() } });
   audit({ kind: "log", text: "● Summary", tone: "bold" });
-  audit({ kind: "log", text: `  ${parsed} orders parsed · ${matched} matched · ${parsed - matched} unmatched`, tone: matched ? "green" : "dim" });
+  audit({ kind: "log", text: `  ${parsed} orders parsed · ${matched} matched · ${parsed - matched} unmatched${dupes ? ` · ${dupes} duplicates skipped` : ""}`, tone: matched ? "green" : "dim" });
   audit({ kind: "log", text: "Sync complete.", tone: "green" });
   return { scanned: ids.length, parsed, matched };
 }
