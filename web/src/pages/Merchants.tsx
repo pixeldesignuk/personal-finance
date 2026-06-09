@@ -91,7 +91,7 @@ export default function Merchants() {
         {edit && (
           <form className="modal-body" onSubmit={(e) => { e.preventDefault(); saveEdit(); }}>
             <h3 style={{ marginTop: 0 }}>Edit merchant</h3>
-            <div className="note-line" style={{ marginTop: -6 }}>{edit.statement}</div>
+            <label className="field"><span>Statement line (from your bank — read-only)</span><input value={edit.statement} readOnly className="readonly" /></label>
             <label className="field"><span>Human-readable name</span><input value={form.name} autoFocus placeholder="e.g. Tesco" onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
             <label className="field"><span>Category</span>
               <select value={edit.categoryKey ?? ""} onChange={(e) => { const v = e.target.value || null; set(edit.token, { categoryKey: v }); setEdit({ ...edit, categoryKey: v }); }}>

@@ -357,6 +357,8 @@ select {
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field > span { font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-3); font-weight: 600; }
 .field select, .field input { width: 100%; }
+input.readonly { color: var(--ink-3); background: var(--bg-2); cursor: default; font-family: var(--font-mono); font-size: 12.5px; }
+input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
 
 /* manual / cash transaction tag */
