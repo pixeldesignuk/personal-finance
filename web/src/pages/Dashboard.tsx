@@ -6,6 +6,7 @@ import type { DashboardDTO, BankDTO, AuditEvent } from "../../../shared/types.ts
 import { formatGBP, formatMoney } from "../format.ts";
 import { AccountSelector } from "../components/AccountSelector.tsx";
 import { AuditSheet } from "../components/AuditSheet.tsx";
+import { BrandLogo } from "../components/BrandLogo.tsx";
 import { CategoryPie } from "../components/charts/CategoryPie.tsx";
 import { MonthlyBar } from "../components/charts/MonthlyBar.tsx";
 import { TopMerchants } from "../components/charts/TopMerchants.tsx";
@@ -100,7 +101,10 @@ export default function Dashboard() {
               const delta = changes[a.id];
               return (
                 <div key={`${a.id}-${syncNonce}-${delta ?? "x"}`} className={`lrow${delta != null ? " flash-update" : ""}`}>
-                  <span>{bank.institutionName} <span className="muted">— {a.displayName}</span></span>
+                  <span className="lrow-acct">
+                    <BrandLogo name={bank.institutionName} src={bank.institutionLogo} size={20} />
+                    <span>{bank.institutionName} <span className="muted">— {a.displayName}</span></span>
+                  </span>
                   <span className="num">
                     {delta != null && <span className={`delta-badge ${delta > 0 ? "pos" : "neg"}`}>{delta > 0 ? "+" : "−"}{formatMoney(Math.abs(delta))}</span>}
                     {a.currency ?? "GBP"} {formatMoney(a.currentBalance)}

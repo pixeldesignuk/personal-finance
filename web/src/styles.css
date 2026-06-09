@@ -398,6 +398,10 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
 .brand-mono { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
 .merchant-cell { display: flex; align-items: center; gap: 11px; min-width: 0; }
 .merchant-cell .td-clip { min-width: 0; }
+.lrow-acct { display: inline-flex; align-items: center; gap: 9px; min-width: 0; }
+.txn-acct { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+.txn-acct .td-clip { min-width: 0; }
+.txn-acct .badge.manual { flex: none; }
 
 /* ---- savings pots -------------------------------------------------------- */
 .pot-cards { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); margin-bottom: 0; }
@@ -407,8 +411,29 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
 .pot-emoji {
   display: inline-flex; align-items: center; justify-content: center; flex: none;
   width: 34px; height: 34px; font-size: 18px; border-radius: 9px;
-  background: var(--surface-2); border: 1px solid var(--line-strong);
+  background: color-mix(in srgb, var(--jade) 9%, var(--surface-2));
+  border: 1px solid color-mix(in srgb, var(--jade) 22%, var(--line-strong));
+  color: var(--jade);
 }
+
+/* icon dropdown (savings pots) */
+.icon-picker { position: relative; }
+.icon-picker-trigger { display: inline-flex; align-items: center; gap: 7px; padding: 8px 11px; color: var(--ink); }
+.icon-picker-trigger[aria-expanded="true"] .nav-caret { transform: rotate(180deg); }
+.icon-picker-pop {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 50;
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 8px; width: 232px;
+  background: linear-gradient(180deg, var(--surface), var(--bg-2));
+  border: 1px solid var(--line-strong); border-radius: var(--r-sm);
+  box-shadow: 0 24px 50px -22px rgba(0, 0, 0, 0.8);
+  animation: pop 0.14s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.icon-opt {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; padding: 0; background: transparent; border: 1px solid transparent; color: var(--ink-2);
+}
+.icon-opt:hover { background: var(--surface-2); color: var(--ink); border-color: var(--line-strong); transform: none; }
+.icon-opt.active { color: var(--jade); border-color: color-mix(in srgb, var(--jade) 40%, transparent); background: color-mix(in srgb, var(--jade) 10%, transparent); }
 .pot-name { font-family: var(--font-display); font-weight: 600; font-size: 15px; color: var(--ink); letter-spacing: -0.01em; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pot-edit { flex: none; }
 .pot-figure { display: flex; align-items: baseline; gap: 8px; }

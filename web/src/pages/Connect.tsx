@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.ts";
 import type { InstitutionDTO } from "../../../shared/types.ts";
+import { BrandLogo } from "../components/BrandLogo.tsx";
 
 export default function Connect() {
   const [list, setList] = useState<InstitutionDTO[]>([]);
@@ -30,7 +31,10 @@ export default function Connect() {
       <div className="card" style={{ marginTop: 16 }}>
         {filtered.map((i) => (
           <div key={i.id} className="lrow">
-            <span>{i.name}</span>
+            <span className="lrow-acct">
+              <BrandLogo name={i.name} src={i.logo} size={24} />
+              <span>{i.name}</span>
+            </span>
             <button className="btn-primary btn-sm" onClick={() => choose(i.id)}>Connect</button>
           </div>
         ))}

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api.ts";
 import type { PotDTO } from "../../../shared/types.ts";
 import { formatGBP } from "../format.ts";
+import { IconPicker, PotIcon } from "../components/IconPicker.tsx";
 
 const num = (s: string) => { const n = Number(s.replace(/[, £]/g, "")); return Number.isFinite(n) ? n : NaN; };
 
@@ -72,7 +73,7 @@ export default function Savings() {
           return (
             <div className="card pot-card" key={p.id}>
               <div className="pot-head">
-                <span className="pot-emoji" aria-hidden>{p.emoji || "🫙"}</span>
+                <span className="pot-emoji" aria-hidden><PotIcon icon={p.emoji} size={18} /></span>
                 <span className="pot-name">{p.name}</span>
                 <button className="btn-sm pot-edit" title="Edit pot" onClick={() => openEdit(p)}>✎</button>
               </div>
@@ -102,8 +103,8 @@ export default function Savings() {
       <dialog ref={dialog} className="modal" onClick={(e) => { if (e.target === dialog.current) dialog.current?.close(); }}>
         <form className="modal-body" onSubmit={submit}>
           <h3 style={{ marginTop: 0 }}>{editing ? "Edit pot" : "New pot"}</h3>
-          <div style={{ display: "flex", gap: 10 }}>
-            <label className="field" style={{ width: 76 }}><span>Icon</span><input value={form.emoji} maxLength={4} placeholder="🫙" style={{ textAlign: "center", fontSize: 18 }} onChange={(e) => setForm({ ...form, emoji: e.target.value })} /></label>
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+            <label className="field" style={{ width: "auto" }}><span>Icon</span><IconPicker value={form.emoji || null} onChange={(k) => setForm({ ...form, emoji: k })} /></label>
             <label className="field" style={{ flex: 1 }}><span>Name</span><input value={form.name} autoFocus placeholder="e.g. Emergency fund" onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
           </div>
           <label className="field"><span>Target (£, optional)</span><input inputMode="decimal" value={form.target} placeholder="10000" onChange={(e) => setForm({ ...form, target: e.target.value })} /></label>

@@ -9,6 +9,7 @@ import { useToast } from "../components/Toasts.tsx";
 import { AccountSelector } from "../components/AccountSelector.tsx";
 import { AddTransaction } from "../components/AddTransaction.tsx";
 import { AuditSheet } from "../components/AuditSheet.tsx";
+import { BrandLogo } from "../components/BrandLogo.tsx";
 
 type PropField = "category" | "person";
 type Flag = "red" | "orange" | "yellow" | null;
@@ -64,6 +65,12 @@ export default function Transactions() {
   const accountsQuery = useQuery({ queryKey: ["accounts"], queryFn: () => api.accounts(), staleTime: 5 * 60_000 });
   const liabilities = useMemo(() => (accountsQuery.data ?? []).flatMap((b) => b.accounts).filter((a) => a.source === "LIABILITY"), [accountsQuery.data]);
   const debtName = (id: string | null) => liabilities.find((l) => l.id === id)?.displayName ?? "debt";
+  // accountId → owning bank, so each row's account can show its bank logo.
+  const bankByAccount = useMemo(() => {
+    const m: Record<string, { name: string; logo: string | null }> = {};
+    for (const b of accountsQuery.data ?? []) for (const a of b.accounts) m[a.id] = { name: b.institutionName, logo: b.institutionLogo };
+    return m;
+  }, [accountsQuery.data]);
 
   const invalidateTxns = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["transactions"] });
@@ -352,9 +359,12 @@ export default function Transactions() {
               <tr key={r.id} className={[selected.has(r.id) ? "row-selected" : "", r.flag ? `flag-row-${r.flag}` : ""].filter(Boolean).join(" ") || undefined}>
                 <td><input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} /></td>
                 <td className="td-date" title={r.bookingDate ?? ""}>{relativeDate(r.bookingDate)}</td>
-                <td className="td-clip" title={acct}>
-                  {acct}
-                  {r.source === "MANUAL" && <span className="badge manual" style={{ marginLeft: 8 }}>manual</span>}
+                <td title={acct}>
+                  <span className="txn-acct">
+                    <BrandLogo name={bankByAccount[r.accountId]?.name ?? acct} src={bankByAccount[r.accountId]?.logo} size={16} />
+                    <span className="td-clip">{acct}</span>
+                    {r.source === "MANUAL" && <span className="badge manual">manual</span>}
+                  </span>
                 </td>
                 <td>
                   <div className="td-clip" title={r.name ?? r.remittanceInfo ?? ""}>{r.name ?? r.remittanceInfo ?? ""}</div>
