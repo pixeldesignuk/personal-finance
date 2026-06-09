@@ -149,8 +149,7 @@ nav a.active:not(.nav-cta)::after {
 .cog-menu a:hover { background: var(--surface-2); color: var(--ink); }
 .cog-menu a.active { color: var(--jade); }
 
-/* top-nav dropdown groups (Budget, Wealth) */
-.nav-group { position: relative; display: flex; align-items: center; }
+/* top-nav dropdown groups (Budget, Wealth) — Radix-driven */
 .nav-group-trigger {
   background: transparent; border: none; padding: 4px 0; font-family: inherit;
   color: var(--ink-3); font-size: 14px; font-weight: 500; cursor: pointer;
@@ -159,8 +158,20 @@ nav a.active:not(.nav-cta)::after {
 .nav-group-trigger:hover { color: var(--ink); border-color: transparent; transform: none; }
 .nav-group-trigger.active { color: var(--ink); }
 .nav-caret { font-size: 9px; line-height: 1; color: var(--ink-3); transition: transform 0.18s ease; }
-.nav-group-trigger[aria-expanded="true"] .nav-caret { transform: rotate(180deg); }
-.nav-menu { left: 0; right: auto; }
+.nav-group-trigger[data-state="open"] .nav-caret { transform: rotate(180deg); }
+
+/* Radix popper positions this; we only style its appearance. */
+.nav-menu {
+  display: flex; flex-direction: column; min-width: 184px; z-index: 30;
+  background: linear-gradient(180deg, var(--surface), var(--bg-2));
+  border: 1px solid var(--line-strong); border-radius: var(--r-sm);
+  box-shadow: 0 24px 50px -22px rgba(0, 0, 0, 0.8); padding: 6px;
+  animation: pop 0.14s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.nav-menu a { padding: 8px 12px; border-radius: 7px; color: var(--ink-2); font-size: 14px; text-decoration: none; outline: none; cursor: pointer; }
+.nav-menu a::after { display: none !important; }
+.nav-menu a:hover, .nav-menu a[data-highlighted] { background: var(--surface-2); color: var(--ink); }
+.nav-menu a.active { color: var(--jade); }
 
 /* settings side-nav drawer */
 .drawer-backdrop { position: fixed; inset: 0; z-index: 60; background: rgba(6, 7, 8, 0.5); backdrop-filter: blur(2px); display: flex; justify-content: flex-end; }
