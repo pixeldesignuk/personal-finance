@@ -13,6 +13,9 @@ export const syncRouter = Router();
 const gc = new GoCardlessClient();
 
 const SYNC_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+// Re-fetch a few days of overlap before the last sync so late-posting and
+// pending→booked transactions aren't missed (banks backdate; pending settle late).
+const SYNC_OVERLAP_DAYS = 7;
 
 export async function syncAccount(accountId: string, audit?: AuditFn): Promise<SyncResult> {
   // Manual/cash accounts aren't backed by GoCardless — nothing to fetch.
@@ -71,7 +74,12 @@ export async function syncAccount(accountId: string, audit?: AuditFn): Promise<S
     currency: freshBalances[0]?.currency ?? account.currency ?? "GBP",
   });
 
-  const txns = await gc.getTransactions(accountId);
+  // Only pull transactions since (last sync − overlap). First sync pulls full history.
+  const dateFrom = last
+    ? new Date(last.ranAt.getTime() - SYNC_OVERLAP_DAYS * 86_400_000).toISOString().slice(0, 10)
+    : undefined;
+  audit?.({ kind: "log", text: dateFrom ? `  fetching transactions since ${dateFrom}` : "  fetching full history (first sync)", tone: "dim" });
+  const txns = await gc.getTransactions(accountId, dateFrom);
   const booked = txns.transactions.booked ?? [];
   const pending = txns.transactions.pending ?? [];
   const rows = [

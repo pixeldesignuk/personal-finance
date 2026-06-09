@@ -66,7 +66,10 @@ export class GoCardlessClient {
     return this.request(`/api/v2/accounts/${id}/balances/`);
   }
 
-  getTransactions(id: string): Promise<GcTransactions> {
-    return this.request(`/api/v2/accounts/${id}/transactions/`);
+  // `dateFrom` (YYYY-MM-DD) narrows the window so we don't re-pull full history
+  // on every sync. Omitting it returns the institution's full available range.
+  getTransactions(id: string, dateFrom?: string): Promise<GcTransactions> {
+    const qs = dateFrom ? `?date_from=${dateFrom}` : "";
+    return this.request(`/api/v2/accounts/${id}/transactions/${qs}`);
   }
 }
