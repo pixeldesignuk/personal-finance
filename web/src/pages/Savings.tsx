@@ -125,22 +125,32 @@ export default function Savings() {
       </dialog>
 
       <dialog ref={moveDialog} className="modal" onClick={(e) => { if (e.target === moveDialog.current) moveDialog.current?.close(); }}>
-        {moveState && (
+        {moveState && (() => {
+          const isAdd = moveState.sign > 0;
+          const max = isAdd ? Math.max(0, data.available) : moveState.pot.balance;
+          const over = isAdd ? num(moveAmt) > data.available : num(moveAmt) > moveState.pot.balance;
+          return (
           <form className="modal-body" onSubmit={submitMove}>
-            <h3 style={{ marginTop: 0 }}>{moveState.sign > 0 ? "Add to" : "Take from"} {moveState.pot.name}</h3>
-            <p className="muted" style={{ marginTop: -4 }}>Currently {formatGBP(moveState.pot.balance)} set aside.</p>
-            {moveState.sign > 0 && (
-              <p className="muted" style={{ marginTop: -4 }}>
-                {formatGBP(Math.max(0, data.available))} available to assign — after budgets &amp; other pots.
-                {data.available > 0 && <button type="button" className="btn-sm" style={{ marginLeft: 8 }} onClick={() => setMoveAmt(String(data.available))}>Max</button>}
-              </p>
-            )}
-            <label className="field"><span>Amount (£)</span><input inputMode="decimal" autoFocus value={moveAmt} placeholder="0" onChange={(e) => setMoveAmt(e.target.value)} /></label>
-            {moveState.sign > 0 && num(moveAmt) > data.available && <p className="neg" style={{ marginTop: -4 }}>That's more than you have available — you'd be over-allocating cash.</p>}
-            {moveState.sign < 0 && num(moveAmt) > moveState.pot.balance && <p className="neg" style={{ marginTop: -4 }}>More than the pot holds — it'll be emptied to £0.</p>}
-            <div className="modal-actions"><button type="button" onClick={() => moveDialog.current?.close()}>Cancel</button><button className="btn-primary" type="submit">{moveState.sign > 0 ? "Add" : "Take"}</button></div>
+            <h3 style={{ marginTop: 0 }}>{isAdd ? "Add to" : "Take from"} {moveState.pot.name}</h3>
+            <div className="pot-move-info">
+              <div><span className="eyebrow">In this pot</span><span className="pot-move-val">{formatGBP(moveState.pot.balance)}</span></div>
+              {isAdd && <div><span className="eyebrow">Available</span><span className={`pot-move-val ${data.available < 0 ? "neg" : ""}`}>{formatGBP(Math.max(0, data.available))}</span></div>}
+            </div>
+            <label className="field">
+              <span>Amount</span>
+              <div className="amount-input">
+                <span className="amount-prefix" aria-hidden>£</span>
+                <input inputMode="decimal" autoFocus value={moveAmt} placeholder="0.00" onChange={(e) => setMoveAmt(e.target.value)} />
+                {max > 0 && <button type="button" className="amount-max" onClick={() => setMoveAmt(String(max))}>Max</button>}
+              </div>
+            </label>
+            {over
+              ? <p className="field-hint neg">{isAdd ? "More than your available cash — you'd be over-allocating." : "More than the pot holds — it'll be emptied to £0."}</p>
+              : isAdd && <p className="field-hint muted">Available is what's left after budgets &amp; other pots.</p>}
+            <div className="modal-actions"><button type="button" onClick={() => moveDialog.current?.close()}>Cancel</button><button className="btn-primary" type="submit" disabled={!(num(moveAmt) > 0)}>{isAdd ? "Add" : "Take"}</button></div>
           </form>
-        )}
+          );
+        })()}
       </dialog>
 
       <dialog ref={delDialog} className="modal" onClick={(e) => { if (e.target === delDialog.current) delDialog.current?.close(); }}>
