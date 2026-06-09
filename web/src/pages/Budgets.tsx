@@ -19,6 +19,8 @@ export default function Budgets() {
   const [summary, setSummary] = useState<BudgetSummaryDTO | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [hideEmpty, setHideEmpty] = useState(() => localStorage.getItem("budget.hideEmpty") === "1");
+  const toggleHideEmpty = () => setHideEmpty((v) => { localStorage.setItem("budget.hideEmpty", v ? "0" : "1"); return !v; });
 
   const dialog = useRef<HTMLDialogElement>(null);
   const [editId, setEditId] = useState<number | null>(null);
@@ -73,6 +75,10 @@ export default function Budgets() {
             {people.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
           </select>
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: "auto" }} />
+          <label className="setting-row" style={{ padding: 0, gap: 6, cursor: "pointer" }} title="Hide categories with no budget and no spend">
+            <span className="muted" style={{ fontSize: 12 }}>Hide empty</span>
+            <span className="switch"><input type="checkbox" checked={hideEmpty} onChange={toggleHideEmpty} /><span className="slider" /></span>
+          </label>
           <button className="btn-primary" onClick={openNew}>Add category</button>
         </div>
       </div>
@@ -100,7 +106,8 @@ export default function Budgets() {
       )}
       {rows.length === 0 && <div className="card"><p className="muted">No categories yet — add one above.</p></div>}
       {groups.map((g) => {
-        const gr = rows.filter((r) => (r.group ?? "Other") === g);
+        const gr = rows.filter((r) => (r.group ?? "Other") === g && (!hideEmpty || r.budgeted > 0 || r.spent > 0));
+        if (gr.length === 0) return null;
         const gBudget = gr.reduce((s, r) => s + r.budgeted, 0);
         const gSpent = gr.reduce((s, r) => s + r.spent, 0);
         const gPct = gBudget > 0 ? Math.round((gSpent / gBudget) * 100) : (gSpent > 0 ? 100 : 0);
