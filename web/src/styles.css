@@ -263,16 +263,33 @@ input, select {
 }
 input::placeholder { color: var(--ink-3); }
 input:focus, select:focus { outline: none; border-color: var(--jade); box-shadow: var(--ring); }
+/* Inline selects read like normal text with a small caret (consistent with the
+   bespoke combobox). Form selects (.field) keep the bordered field look. */
 select {
   width: auto;
   appearance: none;
   -webkit-appearance: none;
-  padding-right: 30px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%237e7c74' stroke-width='1.6'%3E%3Cpath d='M2.5 4.5L6 8l3.5-3.5'/%3E%3C/svg%3E");
+  background-color: transparent;
+  border-color: transparent;
+  font-size: 13px;
+  padding: 4px 19px 4px 7px;
+  border-radius: 6px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9' fill='none' stroke='%237e7c74' stroke-width='1.8'%3E%3Cpath d='M1.5 3L4.5 6 7.5 3'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 11px center;
+  background-position: right 6px center;
   cursor: pointer;
 }
+select:hover { background-color: var(--surface-2); }
+select:focus { outline: none; box-shadow: none; border-color: transparent; background-color: var(--surface-2); }
+.field select {
+  background-color: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  width: 100%;
+  font-size: 14px;
+  padding: 9px 32px 9px 12px;
+  background-position: right 12px center;
+}
+.field select:focus { border-color: var(--jade); box-shadow: var(--ring); background-color: var(--surface-2); }
 
 /* ---- badges -------------------------------------------------------------- */
 .badge {

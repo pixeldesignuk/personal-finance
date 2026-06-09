@@ -43,10 +43,11 @@ budgetRouter.get("/budget", async (req, res, next) => {
     const spentLastMonth = Object.values(lastMonthSpend).reduce((s, v) => s + v, 0);
     const pendingCount = filtered.filter((t) => t.status === "pending").length;
 
-    // Balance-based "available to budget": the money you actually hold across
-    // personal accounts (cash + current − card debt) minus this month's budget.
+    // "Available to budget" = liquid money you actually hold (current + cash −
+    // card debt) minus this month's budget. Excludes investments/assets/debts.
     let balance = 0;
     for (const a of personal) {
+      if (a.source !== "BANK" && a.source !== "MANUAL") continue;
       balance += currentBalance(
         a.source,
         a.manualBalance != null ? Number(a.manualBalance.toString()) : null,
