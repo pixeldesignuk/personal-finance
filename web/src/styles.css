@@ -472,6 +472,15 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
 .order-items { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 52ch; }
 .order-side { display: flex; align-items: center; gap: 12px; flex: none; }
 .order-date { font-size: 12px; min-width: 52px; text-align: right; }
+/* receipt tag on a transaction with a matched email order */
+.td-name { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.order-tag {
+  display: inline-flex; align-items: center; gap: 3px; flex: none; cursor: help;
+  padding: 1px 6px 1px 5px; border-radius: 999px; color: var(--jade);
+  background: color-mix(in srgb, var(--jade) 11%, transparent);
+  border: 1px solid color-mix(in srgb, var(--jade) 26%, transparent);
+}
+.order-tag-count { font-size: 11px; font-weight: 640; font-variant-numeric: tabular-nums; }
 
 /* pot move (add / take) dialog */
 .pot-move-info { display: flex; gap: 10px; margin-top: 2px; }

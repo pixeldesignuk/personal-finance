@@ -69,6 +69,14 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
     });
     // Filter to a specific merchant by its token (the merchant's stable id).
     if (q.merchant) txns = txns.filter((t) => merchantToken(t.merchantName ?? t.creditorName ?? t.debtorName ?? t.remittanceInfo ?? null) === q.merchant).slice(0, 500);
+    // Email orders (Gmail plugin) linked to these transactions → show what was bought.
+    const txnIds = txns.map((t) => t.id);
+    const orderRows = txnIds.length ? await db.emailOrder.findMany({ where: { transactionId: { in: txnIds } } }) : [];
+    const orderByTxn = new Map(orderRows.map((o) => [o.transactionId as string, {
+      merchant: o.merchantName,
+      total: o.total != null ? Number(o.total.toString()) : null,
+      items: Array.isArray(o.items) ? (o.items as { name?: string }[]).map((i) => i?.name).filter((n): n is string => Boolean(n)) : [],
+    }]));
     const people = await db.person.findMany();
     const personName = (k: string | null) => people.find((p) => p.key === k)?.name ?? null;
     // Friendly merchant names (Merchant table) override the raw statement line.
@@ -96,6 +104,7 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
       debtAccountId: t.debtAccountId,
       source: t.account.source,
       status: t.status,
+      order: orderByTxn.get(t.id) ?? null,
     }));
     res.json(dto);
   } catch (err) {

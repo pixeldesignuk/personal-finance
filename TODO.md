@@ -4,10 +4,11 @@ Running todo of planned features. Newest ideas at the bottom; check off when shi
 
 ## Open
 
-- [ ] **Gmail integration for online-order tracking** (under a new **Plugins** area) — link Gmail to pull order/shipping emails (e.g. Amazon) and reconcile/annotate matching transactions with what was actually bought. Keep this under a "Plugins" section so future integrations live there too. *Needs Google Cloud OAuth client credentials (like the Gemini key flow).*
+_(nothing queued — add new ideas here)_
 
 ## Done
 
+- [x] **Gmail order-tracking** (Plugins area) — OAuth connect, sync pulls order/receipt emails, Gemini extracts merchant/total/items, fuzzy-matched to transactions. Orders list on the Plugins page + a receipt tag (with items) on matched transactions.
 - [x] **Savings / Pots** (Wealth menu) — YNAB-style envelopes that earmark existing liquid cash toward goals (emergency fund, school fees). Target + progress, add/take funds, "unallocated" figure; net worth unchanged (no double-counting).
 - [x] **Merchant & account logos** — real GoCardless bank logos on account cards; deterministic monogram avatars for merchants (no domain data to source real brand logos yet — could enrich later via a logo provider / per-merchant domain).
 - [x] Per-account recurring "maintain ~£/mo" figure on the Accounts page.

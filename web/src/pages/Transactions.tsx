@@ -10,6 +10,7 @@ import { AccountSelector } from "../components/AccountSelector.tsx";
 import { AddTransaction } from "../components/AddTransaction.tsx";
 import { AuditSheet } from "../components/AuditSheet.tsx";
 import { BrandLogo } from "../components/BrandLogo.tsx";
+import { Receipt } from "lucide-react";
 
 type PropField = "category" | "person";
 type Flag = "red" | "orange" | "yellow" | null;
@@ -367,7 +368,15 @@ export default function Transactions() {
                   </span>
                 </td>
                 <td>
-                  <div className="td-clip" title={r.name ?? r.remittanceInfo ?? ""}>{r.name ?? r.remittanceInfo ?? ""}</div>
+                  <div className="td-name">
+                    <span className="td-clip" title={r.name ?? r.remittanceInfo ?? ""}>{r.name ?? r.remittanceInfo ?? ""}</span>
+                    {r.order && (
+                      <span className="order-tag" title={`${r.order.merchant ?? "Order"}${r.order.items.length ? `\n• ${r.order.items.join("\n• ")}` : ""}`}>
+                        <Receipt size={13} strokeWidth={1.9} />
+                        {r.order.items.length > 0 && <span className="order-tag-count">{r.order.items.length}</span>}
+                      </span>
+                    )}
+                  </div>
                   {noteEditId === r.id ? (
                     <input
                       className="note-input"

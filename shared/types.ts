@@ -71,6 +71,7 @@ export interface TransactionDTO {
   debtAccountId: string | null;  // linked liability (repayment)
   source: AccountSource;
   status: string;
+  order: { merchant: string | null; total: number | null; items: string[] } | null; // matched email order (Gmail plugin)
 }
 
 export interface AccountBalanceDTO {
