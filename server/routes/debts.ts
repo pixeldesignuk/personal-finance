@@ -36,6 +36,9 @@ debtsRouter.get("/debts", async (_req, res, next) => {
         name: a.nickname ?? a.name ?? "Debt",
         balance,
         interestRate: rate,
+        priority: a.priority ?? 0,
+        targetPayment: a.targetPayment != null ? dec(a.targetPayment) : null,
+        excluded: a.debtExcluded,
         paidTotal: Number(paidTotal.toFixed(2)),
         original: Number((balance + paidTotal).toFixed(2)),
         avgMonthly: Number(avgMonthly.toFixed(2)),
@@ -45,11 +48,12 @@ debtsRouter.get("/debts", async (_req, res, next) => {
       };
     });
 
+    const focus = debts.filter((d) => !d.excluded); // totals exclude long-term/excluded debts
     const dto: DebtsDTO = {
       debts,
-      totalOwed: Number(debts.reduce((s, d) => s + d.balance, 0).toFixed(2)),
-      totalPaid: Number(debts.reduce((s, d) => s + d.paidTotal, 0).toFixed(2)),
-      monthlyTotal: Number(debts.reduce((s, d) => s + d.avgMonthly, 0).toFixed(2)),
+      totalOwed: Number(focus.reduce((s, d) => s + d.balance, 0).toFixed(2)),
+      totalPaid: Number(focus.reduce((s, d) => s + d.paidTotal, 0).toFixed(2)),
+      monthlyTotal: Number(focus.reduce((s, d) => s + d.avgMonthly, 0).toFixed(2)),
     };
     res.json(dto);
   } catch (err) { next(err); }

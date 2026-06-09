@@ -128,6 +128,9 @@ accountsRouter.patch("/accounts/:id", async (req, res, next) => {
         manualBalance: z.string().regex(/^-?\d+(\.\d+)?$/, "manualBalance must be a number").optional(),
         balanceType: z.string().nullable().optional(),
         interestRate: z.string().regex(/^\d+(\.\d+)?$/).nullable().optional(),
+        priority: z.number().int().nullable().optional(),
+        targetPayment: z.string().regex(/^\d+(\.\d+)?$/).nullable().optional(),
+        debtExcluded: z.boolean().optional(),
       })
       .parse(req.body);
     const account = await db.account.findUnique({ where: { id: req.params.id } });
@@ -147,6 +150,9 @@ accountsRouter.patch("/accounts/:id", async (req, res, next) => {
     if (body.manualBalance !== undefined) data.manualBalance = body.manualBalance;
     if (body.balanceType !== undefined) data.balanceType = body.balanceType || null;
     if (body.interestRate !== undefined) data.interestRate = body.interestRate;
+    if (body.priority !== undefined) data.priority = body.priority;
+    if (body.targetPayment !== undefined) data.targetPayment = body.targetPayment;
+    if (body.debtExcluded !== undefined) data.debtExcluded = body.debtExcluded;
     const updated = await db.account.update({ where: { id: req.params.id }, data });
     res.json({ id: updated.id, displayName: displayName(updated) });
   } catch (err) {

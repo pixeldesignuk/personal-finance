@@ -20,11 +20,11 @@ export default function Debts() {
   const accountsQuery = useQuery({ queryKey: ["accounts"], queryFn: () => api.accounts(), staleTime: 5 * 60_000 });
   const cashAccounts = useMemo(() => (accountsQuery.data ?? []).flatMap((b) => b.accounts).filter((a) => a.source === "MANUAL"), [accountsQuery.data]);
 
-  const [strategy, setStrategy] = useState<"snowball" | "avalanche">("snowball");
+  const [strategy, setStrategy] = useState<"custom" | "snowball" | "avalanche">("custom");
 
   const dialog = useRef<HTMLDialogElement>(null);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", owed: "0", rate: "" });
+  const [form, setForm] = useState({ name: "", owed: "0", rate: "", priority: "0", target: "", excluded: false });
   const payDialog = useRef<HTMLDialogElement>(null);
   const [payFor, setPayFor] = useState<DebtDTO | null>(null);
   const [pay, setPay] = useState({ amount: "", date: new Date().toLocaleDateString("en-CA"), accountId: "" });
@@ -34,8 +34,11 @@ export default function Debts() {
   const saveDebt = useMutation({
     mutationFn: async () => {
       const rate = form.rate.trim() ? form.rate.trim() : null;
-      if (editId) return api.patchAccount(editId, { name: form.name.trim(), manualBalance: form.owed.trim() || "0", interestRate: rate });
-      return api.createManualAccount({ name: form.name.trim(), type: "PERSONAL", source: "LIABILITY", manualBalance: form.owed.trim() || "0", interestRate: rate ?? undefined });
+      const priority = form.priority.trim() ? Number(form.priority) : null;
+      const target = form.target.trim() ? form.target.trim() : null;
+      if (editId) return api.patchAccount(editId, { name: form.name.trim(), manualBalance: form.owed.trim() || "0", interestRate: rate, priority, targetPayment: target, debtExcluded: form.excluded });
+      const { id } = await api.createManualAccount({ name: form.name.trim(), type: "PERSONAL", source: "LIABILITY", manualBalance: form.owed.trim() || "0", interestRate: rate ?? undefined });
+      await api.patchAccount(id, { priority, targetPayment: target, debtExcluded: form.excluded });
     },
     onSuccess: () => { refresh(); dialog.current?.close(); },
     onError: (e: Error) => notify(e.message, { tone: "error" }),
@@ -58,17 +61,21 @@ export default function Debts() {
     onError: (e: Error) => notify(e.message, { tone: "error" }),
   });
 
-  const openNew = () => { setEditId(null); setForm({ name: "", owed: "0", rate: "" }); dialog.current?.showModal(); };
-  const openEdit = (d: DebtDTO) => { setEditId(d.id); setForm({ name: d.name, owed: String(d.balance), rate: d.interestRate != null ? String(d.interestRate) : "" }); dialog.current?.showModal(); };
+  const openNew = () => { setEditId(null); setForm({ name: "", owed: "0", rate: "", priority: "0", target: "", excluded: false }); dialog.current?.showModal(); };
+  const openEdit = (d: DebtDTO) => { setEditId(d.id); setForm({ name: d.name, owed: String(d.balance), rate: d.interestRate != null ? String(d.interestRate) : "", priority: String(d.priority), target: d.targetPayment != null ? String(d.targetPayment) : "", excluded: d.excluded }); dialog.current?.showModal(); };
   const openPay = (d: DebtDTO) => { setPayFor(d); setPay({ amount: "", date: new Date().toLocaleDateString("en-CA"), accountId: cashAccounts[0]?.id ?? "" }); payDialog.current?.showModal(); };
 
-  const active = (data?.debts ?? []).filter((d) => d.balance > 0);
+  const mainDebts = (data?.debts ?? []).filter((d) => !d.excluded);
+  const excludedDebts = (data?.debts ?? []).filter((d) => d.excluded);
+  const active = mainDebts.filter((d) => d.balance > 0);
   const order = useMemo(() => {
     const a = [...active];
     if (strategy === "avalanche") a.sort((x, y) => (y.interestRate ?? -1) - (x.interestRate ?? -1));
-    else a.sort((x, y) => x.balance - y.balance);
+    else if (strategy === "snowball") a.sort((x, y) => x.balance - y.balance);
+    else a.sort((x, y) => x.priority - y.priority || x.balance - y.balance); // custom
     return a;
   }, [active, strategy]);
+  const totalPlanned = active.reduce((s, d) => s + (d.targetPayment ?? 0), 0);
   const debtFreeMonths = active.reduce((m, d) => Math.max(m, d.projectedMonths ?? 0), 0);
 
   return (
@@ -87,28 +94,39 @@ export default function Debts() {
       {active.length > 1 && (
         <div className="card">
           <div className="row-between" style={{ marginBottom: 8 }}>
-            <h3 style={{ margin: 0 }}>Suggested payoff order</h3>
+            <h3 style={{ margin: 0 }}>Payment plan</h3>
             <div className="tabs" style={{ margin: 0, border: "none" }}>
+              <button className={`tab${strategy === "custom" ? " active" : ""}`} onClick={() => setStrategy("custom")}>Custom</button>
               <button className={`tab${strategy === "snowball" ? " active" : ""}`} onClick={() => setStrategy("snowball")}>Snowball</button>
               <button className={`tab${strategy === "avalanche" ? " active" : ""}`} onClick={() => setStrategy("avalanche")}>Avalanche</button>
             </div>
           </div>
           <p className="muted" style={{ marginTop: 0 }}>
-            {strategy === "snowball"
-              ? "Clear the smallest balance first for a quick win, then roll that payment into the next."
+            {strategy === "custom" ? "Your order — set each debt's priority and the (possibly partial) amount to put toward it next (Edit a debt)."
+              : strategy === "snowball" ? "Clear the smallest balance first for a quick win, then roll that payment into the next."
               : "Pay the highest-interest debt first to minimise total interest."}
           </p>
           <ol className="debt-order">
             {order.map((d, i) => (
-              <li key={d.id}><span className={i === 0 ? "pos" : ""}>{i === 0 ? "▶ " : ""}{d.name}</span><span className="num">{formatGBP(d.balance)}{d.interestRate ? ` · ${d.interestRate}%` : ""}</span></li>
+              <li key={d.id}>
+                <span className={i === 0 ? "pos" : ""}>{i === 0 ? "▶ " : ""}{strategy === "custom" ? `${d.priority}. ` : ""}{d.name}</span>
+                <span className="num">
+                  {strategy === "custom" && d.targetPayment != null ? <>{formatGBP(d.targetPayment)} <span className="muted">of {formatGBP(d.balance)}</span></> : <>{formatGBP(d.balance)}{d.interestRate ? ` · ${d.interestRate}%` : ""}</>}
+                </span>
+              </li>
             ))}
           </ol>
+          {strategy === "custom" && totalPlanned > 0 && (
+            <div className="row-between" style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--line)" }}>
+              <strong>Total planned next</strong><span className="num">{formatGBP(totalPlanned)}</span>
+            </div>
+          )}
         </div>
       )}
 
       {data?.debts.length === 0 && <div className="card"><p className="muted">No debts yet. Add what you owe (e.g. family/friends, a loan) — interest-free is fine.</p></div>}
 
-      {data?.debts.map((d) => {
+      {mainDebts.map((d) => {
         const progress = d.original > 0 ? Math.round((d.paidTotal / d.original) * 100) : 0;
         return (
           <div className="card" key={d.id}>
@@ -142,12 +160,32 @@ export default function Debts() {
         );
       })}
 
+      {excludedDebts.length > 0 && (
+        <div className="card">
+          <h3 style={{ margin: "0 0 6px" }}>Excluded <span className="muted" style={{ fontSize: 13, fontWeight: 400 }}>· long-term, hidden from the plan above (still in net worth)</span></h3>
+          {excludedDebts.map((d) => (
+            <div className="lrow" key={d.id}>
+              <span>{d.name}</span>
+              <span><span className="num neg">{formatGBP(d.balance)}</span> <button className="btn-sm" style={{ marginLeft: 10 }} onClick={() => openEdit(d)}>Edit</button></span>
+            </div>
+          ))}
+        </div>
+      )}
+
       <dialog ref={dialog} className="modal" onClick={(e) => { if (e.target === dialog.current) dialog.current?.close(); }}>
         <form className="modal-body" onSubmit={(e) => { e.preventDefault(); if (form.name.trim()) saveDebt.mutate(); }}>
           <h3 style={{ marginTop: 0 }}>{editId ? "Edit debt" : "Add debt"}</h3>
           <label className="field"><span>Who / what</span><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoFocus placeholder="e.g. Loan from Dad, Mortgage" /></label>
           <label className="field"><span>Amount owed (£)</span><input inputMode="decimal" value={form.owed} onChange={(e) => setForm({ ...form, owed: e.target.value })} /></label>
+          <div style={{ display: "flex", gap: 12 }}>
+            <label className="field" style={{ flex: 1 }}><span>Priority (lower = first)</span><input inputMode="numeric" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} /></label>
+            <label className="field" style={{ flex: 1 }}><span>Planned payment (£)</span><input inputMode="decimal" value={form.target} onChange={(e) => setForm({ ...form, target: e.target.value })} placeholder="partial ok" /></label>
+          </div>
           <label className="field"><span>Interest rate (% APR, optional)</span><input inputMode="decimal" value={form.rate} onChange={(e) => setForm({ ...form, rate: e.target.value })} placeholder="blank for interest-free" /></label>
+          <label className="setting-row" style={{ padding: "4px 0", cursor: "pointer" }}>
+            <span>Exclude from this screen (e.g. long-term mortgage)</span>
+            <span className="switch"><input type="checkbox" checked={form.excluded} onChange={(e) => setForm({ ...form, excluded: e.target.checked })} /><span className="slider" /></span>
+          </label>
           <div className="modal-actions"><button type="button" onClick={() => dialog.current?.close()}>Cancel</button><button className="btn-primary" type="submit">Save</button></div>
         </form>
       </dialog>

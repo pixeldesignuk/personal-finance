@@ -113,6 +113,9 @@ export interface DebtDTO {
   name: string;
   balance: number;            // currently owed
   interestRate: number | null; // annual % (usually null for family/friends)
+  priority: number;           // manual payoff order (lower = pay first)
+  targetPayment: number | null; // planned next payment (may be partial)
+  excluded: boolean;          // hidden from the Debt screen focus (e.g. long-term mortgage)
   paidTotal: number;          // sum of linked repayments
   original: number;           // balance + paidTotal (rough starting amount)
   avgMonthly: number;         // average monthly repayment pace
