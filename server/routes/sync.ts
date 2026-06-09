@@ -4,6 +4,7 @@ import { GoCardlessClient, GoCardlessError } from "../gocardless/client.ts";
 import { applyRules, type Rule } from "../lib/rules.ts";
 import { reconcile } from "../categorise/reconcile.ts";
 import { syncAllInvestments } from "../investments/sync.ts";
+import { currentBalance, type BalanceLike } from "../lib/balance.ts";
 import { displayName } from "../../shared/displayName.ts";
 import type { AuditFn } from "../categorise/audit.ts";
 import type { SyncResult } from "../../shared/types.ts";
@@ -15,11 +16,20 @@ const SYNC_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 
 export async function syncAccount(accountId: string, audit?: AuditFn): Promise<SyncResult> {
   // Manual/cash accounts aren't backed by GoCardless — nothing to fetch.
-  const account = await db.account.findUnique({ where: { id: accountId } });
+  const account = await db.account.findUnique({ where: { id: accountId }, include: { balances: true } });
   if (!account || account.source !== "BANK") {
     return { accountId, added: 0, skipped: true, message: "Manual account — nothing to sync." };
   }
   audit?.({ kind: "log", text: `● ${displayName(account)}`, tone: "bold" });
+
+  const toBalanceLike = (bs: { type: string; amount: { toString(): string } }[]): BalanceLike[] =>
+    bs.map((b) => ({ type: b.type, amount: Number(b.amount.toString()) }));
+  // Snapshot the balance + the transaction IDs we already hold, so we can report
+  // exactly what this sync changed (new transactions, balance delta).
+  const beforeBalance = currentBalance("BANK", null, toBalanceLike(account.balances), account.balanceType);
+  const existingIds = new Set(
+    (await db.transaction.findMany({ where: { accountId }, select: { id: true } })).map((t) => t.id),
+  );
 
   const last = await db.syncLog.findFirst({
     where: { accountId, status: "ok" },
@@ -50,7 +60,16 @@ export async function syncAccount(accountId: string, audit?: AuditFn): Promise<S
     });
   }
 
-  audit?.({ kind: "log", text: "  balances updated", tone: "dim" });
+  const freshBalances = await db.balance.findMany({ where: { accountId } });
+  const afterBalance = currentBalance("BANK", null, toBalanceLike(freshBalances), account.balanceType);
+  audit?.({
+    kind: "balance-change",
+    accountId,
+    name: displayName(account),
+    before: beforeBalance,
+    after: afterBalance,
+    currency: freshBalances[0]?.currency ?? account.currency ?? "GBP",
+  });
 
   const txns = await gc.getTransactions(accountId);
   const booked = txns.transactions.booked ?? [];
@@ -63,6 +82,7 @@ export async function syncAccount(accountId: string, audit?: AuditFn): Promise<S
   const ruleRows = await db.rule.findMany();
   const rules: Rule[] = ruleRows.map((r) => ({ matchText: r.matchText, categoryKey: r.categoryKey, personKey: r.personKey, priority: r.priority }));
   let added = 0;
+  const newTxns: { name: string; amount: number; date: string | null }[] = [];
   for (const { t, status } of rows) {
     const id = t.transactionId ?? t.internalTransactionId;
     if (!id) continue;
@@ -70,6 +90,9 @@ export async function syncAccount(accountId: string, audit?: AuditFn): Promise<S
     const text = [t.merchantName, t.creditorName, t.debtorName, t.remittanceInformationUnstructured].filter(Boolean).join(" ");
     const ruled = applyRules(text, rules);
     const category = ruled.categoryKey ?? (amount > 0 ? "income" : "uncategorised");
+    if (!existingIds.has(id)) {
+      newTxns.push({ name: t.merchantName ?? t.creditorName ?? t.debtorName ?? t.remittanceInformationUnstructured ?? id, amount, date: t.bookingDate ?? null });
+    }
     await db.transaction.upsert({
       where: { id },
       create: {
@@ -95,6 +118,11 @@ export async function syncAccount(accountId: string, audit?: AuditFn): Promise<S
 
   await db.syncLog.create({ data: { accountId, added, status: "ok" } });
   audit?.({ kind: "log", text: `  ${booked.length} booked · ${pending.length} pending transactions`, tone: "dim" });
+  if (newTxns.length) {
+    // Most-recent first so the freshest activity sits at the top of the report.
+    newTxns.sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+    audit?.({ kind: "new-txns", account: displayName(account), items: newTxns });
+  }
   // Auto-categorise anything the inline rules didn't catch (Gemini Flash).
   // Never let categorisation failure fail the sync itself.
   try {
@@ -102,7 +130,7 @@ export async function syncAccount(accountId: string, audit?: AuditFn): Promise<S
   } catch (err) {
     console.error("reconcile after sync failed:", err instanceof Error ? err.message : err);
   }
-  return { accountId, added, skipped: false };
+  return { accountId, added, skipped: false, newCount: newTxns.length };
 }
 
 syncRouter.post("/sync", async (_req, res, next) => {
@@ -142,9 +170,11 @@ syncRouter.post("/sync/stream", async (_req, res) => {
   try {
     const accounts = await db.account.findMany({ where: { source: "BANK" } });
     if (!accounts.length) audit({ kind: "log", text: "No bank accounts to sync.", tone: "dim" });
+    let totalNew = 0;
     for (const a of accounts) {
       try {
-        await syncAccount(a.id, audit);
+        const r = await syncAccount(a.id, audit);
+        totalNew += r.newCount ?? 0;
       } catch (err) {
         if (err instanceof GoCardlessError && err.status === 429) {
           audit({ kind: "log", text: `  rate limited (retry after ${err.retryAfter ?? "unknown"})`, tone: "red" });
@@ -155,7 +185,7 @@ syncRouter.post("/sync/stream", async (_req, res) => {
     }
     const inv = await syncAllInvestments(audit);
     if (inv.length) audit({ kind: "log", text: `Investments synced (${inv.length}).`, tone: "dim" });
-    audit({ kind: "log", text: "Sync complete.", tone: "green" });
+    audit({ kind: "log", text: `Sync complete — ${totalNew} new transaction${totalNew === 1 ? "" : "s"}.`, tone: "green" });
   } catch (err) {
     audit({ kind: "fatal", error: err instanceof Error ? err.message : String(err) });
   } finally {

@@ -27,7 +27,20 @@ export default function Dashboard() {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [accountId]);
 
   const [syncOpen, setSyncOpen] = useState(false);
-  const syncRun = useCallback((onEvent: (e: AuditEvent) => void) => api.syncStream(onEvent), []);
+  // Per-account balance delta captured from the live sync stream, so we can flash
+  // the rows that actually moved once the dashboard reloads.
+  const [changes, setChanges] = useState<Record<string, number>>({});
+  const [syncNonce, setSyncNonce] = useState(0);
+  const syncRun = useCallback((onEvent: (e: AuditEvent) => void) => {
+    setChanges({});
+    setSyncNonce((n) => n + 1);
+    return api.syncStream((e) => {
+      if (e.kind === "balance-change" && Math.abs(e.after - e.before) >= 0.005) {
+        setChanges((c) => ({ ...c, [e.accountId]: e.after - e.before }));
+      }
+      onEvent(e);
+    });
+  }, []);
 
   const [hideSmall, setHideSmall] = useState(() => localStorage.getItem("dash.hideSmall") === "1");
   const toggleHideSmall = () => setHideSmall((v) => { localStorage.setItem("dash.hideSmall", v ? "0" : "1"); return !v; });
@@ -83,12 +96,18 @@ export default function Dashboard() {
               if (a.source === "LIABILITY" && summary && !summary.included.debts) return false;
               return true;
             })
-            .map((a) => (
-              <div key={a.id} className="lrow">
-                <span>{bank.institutionName} <span className="muted">— {a.displayName}</span></span>
-                <span className="num">{a.currency ?? "GBP"} {formatMoney(a.currentBalance)}</span>
-              </div>
-            )),
+            .map((a) => {
+              const delta = changes[a.id];
+              return (
+                <div key={`${a.id}-${syncNonce}-${delta ?? "x"}`} className={`lrow${delta != null ? " flash-update" : ""}`}>
+                  <span>{bank.institutionName} <span className="muted">— {a.displayName}</span></span>
+                  <span className="num">
+                    {delta != null && <span className={`delta-badge ${delta > 0 ? "pos" : "neg"}`}>{delta > 0 ? "+" : "−"}{formatMoney(Math.abs(delta))}</span>}
+                    {a.currency ?? "GBP"} {formatMoney(a.currentBalance)}
+                  </span>
+                </div>
+              );
+            }),
         )}
       </div>
       <div className="grid">

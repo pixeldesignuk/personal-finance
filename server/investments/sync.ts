@@ -14,11 +14,14 @@ export async function syncProvider(provider: InvestmentProvider, audit?: AuditFn
   audit?.({ kind: "log", text: `● ${provider.name}`, tone: "bold" });
   const snap = await provider.fetchSnapshot();
   const id = `inv-${provider.key}`;
+  const prior = await db.account.findUnique({ where: { id }, select: { manualBalance: true } });
+  const before = prior?.manualBalance != null ? Number(prior.manualBalance.toString()) : 0;
   await db.account.upsert({
     where: { id },
     create: { id, source: "INVESTMENT", type: "PERSONAL", provider: provider.key, name: provider.name, currency: snap.currency, manualBalance: snap.totalValue },
     update: { manualBalance: snap.totalValue, currency: snap.currency, provider: provider.key, name: provider.name },
   });
+  audit?.({ kind: "balance-change", accountId: id, name: provider.name, before, after: snap.totalValue, currency: snap.currency });
   await db.holding.deleteMany({ where: { accountId: id } });
   if (snap.holdings.length) {
     await db.holding.createMany({

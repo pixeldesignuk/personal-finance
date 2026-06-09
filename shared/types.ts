@@ -18,6 +18,7 @@ export interface SyncResult {
   added: number;
   skipped: boolean;
   message?: string;
+  newCount?: number; // transactions that didn't exist before this sync
 }
 
 export interface BalanceDTO {
@@ -324,6 +325,8 @@ export type AuditEvent =
   | { kind: "skip-uncategorised"; id: string; name: string }
   | { kind: "learn"; matchText: string; categoryKey: string }
   | { kind: "summary"; result: ReconcileResult }
+  | { kind: "balance-change"; accountId: string; name: string; before: number; after: number; currency: string }
+  | { kind: "new-txns"; account: string; items: { name: string; amount: number; date: string | null }[] }
   | { kind: "log"; text: string; tone?: "dim" | "green" | "yellow" | "red" | "cyan" | "bold" }
   | { kind: "fatal"; error: string };
 export interface CategoryNameDTO {

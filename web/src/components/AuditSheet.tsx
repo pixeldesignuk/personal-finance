@@ -7,6 +7,12 @@ interface Line { text: string; tone?: Tone; }
 
 const trunc = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
+// Compact currency for the terminal (− for negatives, symbol for common currencies).
+const money = (n: number, ccy = "GBP") => {
+  const sym = ccy === "GBP" ? "£" : ccy === "USD" ? "$" : ccy === "EUR" ? "€" : `${ccy} `;
+  return `${n < 0 ? "−" : ""}${sym}${Math.abs(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
 // Turn one audit event into one or more terminal lines.
 function linesFor(e: AuditEvent): Line[] {
   switch (e.kind) {
@@ -57,6 +63,20 @@ function linesFor(e: AuditEvent): Line[] {
         { text: `  ${r.rulesLearned} rules learned`, tone: "dim" },
       ];
       if (r.llmSkipped) out.push({ text: "  ⚠ AI skipped — no GEMINI_API_KEY set", tone: "red" });
+      return out;
+    }
+    case "balance-change": {
+      const delta = e.after - e.before;
+      if (Math.abs(delta) < 0.005) return [{ text: `  balance ${money(e.after, e.currency)} (unchanged)`, tone: "dim" }];
+      const d = `${delta > 0 ? "+" : "−"}${money(Math.abs(delta), e.currency)}`;
+      return [{ text: `  balance ${money(e.before, e.currency)} → ${money(e.after, e.currency)}  (${d})`, tone: delta > 0 ? "green" : "yellow" }];
+    }
+    case "new-txns": {
+      const out: Line[] = [{ text: `  ${e.items.length} new transaction${e.items.length === 1 ? "" : "s"}`, tone: "green" }];
+      for (const it of e.items.slice(0, 50)) {
+        out.push({ text: `    ${(it.date ?? "").padEnd(10)}  ${trunc(it.name || "(no name)", 28).padEnd(28)} ${money(it.amount).padStart(11)}`, tone: "dim" });
+      }
+      if (e.items.length > 50) out.push({ text: `    …and ${e.items.length - 50} more`, tone: "dim" });
       return out;
     }
     case "log":

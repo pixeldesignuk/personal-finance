@@ -311,6 +311,16 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
 .lrow { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--line); }
 .lrow:last-child { border-bottom: none; }
 
+/* Post-sync feedback: flash rows whose balance moved + show the delta. */
+@keyframes flashUpdate {
+  0%   { background: color-mix(in srgb, var(--jade) 26%, transparent); box-shadow: inset 2px 0 0 var(--jade); }
+  100% { background: transparent; box-shadow: inset 2px 0 0 transparent; }
+}
+.lrow.flash-update { animation: flashUpdate 2.4s ease-out; border-radius: 6px; }
+.delta-badge { display: inline-block; font-size: 11px; font-weight: 640; margin-right: 9px; padding: 1px 7px; border-radius: 999px; vertical-align: middle; }
+.delta-badge.pos { color: var(--jade); background: color-mix(in srgb, var(--jade) 14%, transparent); }
+.delta-badge.neg { color: var(--coral); background: color-mix(in srgb, var(--coral) 14%, transparent); }
+
 /* ---- page-load reveal ---------------------------------------------------- */
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .container > * { animation: rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
