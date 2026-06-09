@@ -8,6 +8,7 @@ import Budgets from "./pages/Budgets.tsx";
 import Reports from "./pages/Reports.tsx";
 import Investments from "./pages/Investments.tsx";
 import Debts from "./pages/Debts.tsx";
+import Merchants from "./pages/Merchants.tsx";
 import People from "./pages/People.tsx";
 import Rules from "./pages/Rules.tsx";
 import { SettingsDrawer } from "./components/SettingsDrawer.tsx";
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/reports" element={<Reports />} />
           <Route path="/investments" element={<Investments />} />
           <Route path="/debts" element={<Debts />} />
+          <Route path="/merchants" element={<Merchants />} />
           <Route path="/people" element={<People />} />
           <Route path="/rules" element={<Rules />} />
           <Route path="/accounts" element={<Accounts />} />

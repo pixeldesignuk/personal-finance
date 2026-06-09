@@ -137,6 +137,15 @@ model Person {
   archived  Boolean @default(false)
 }
 
+// Canonical merchant (source of truth) keyed by a normalised token. Holds the
+// display name + recurring classification override; spend is aggregated from
+// transactions that match the token.
+model Merchant {
+  token     String  @id
+  name      String?
+  recurring String  @default("auto") // auto | fixed | variable | ignore
+}
+
 // App config / feature flags (key/value).
 model Setting {
   key   String @id

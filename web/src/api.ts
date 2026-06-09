@@ -4,7 +4,7 @@ import type {
   BankDTO, RemoveBankResult, NicknameResult,
   SummaryDTO, ManualAccountInput, ManualTxnInput,
   CategoryDTO, BudgetResponseDTO, CategoryInfoDTO, ReportDTO,
-  PersonDTO, RuleDTO, CategoryNameDTO, ReconcileResult, AuditEvent, InvestmentsDTO, SettingsDTO, DebtsDTO,
+  PersonDTO, RuleDTO, CategoryNameDTO, ReconcileResult, AuditEvent, InvestmentsDTO, SettingsDTO, DebtsDTO, MerchantsDTO,
 } from "../../shared/types.ts";
 
 async function get<T>(url: string): Promise<T> {
@@ -99,6 +99,9 @@ export const api = {
   deleteCategory: (id: number) => send<{ deleted: boolean }>("DELETE", `/api/categories/${id}`),
   summary: () => get<SummaryDTO>("/api/summary"),
   debts: () => get<DebtsDTO>("/api/debts"),
+  merchants: () => get<MerchantsDTO>("/api/merchants"),
+  patchMerchant: (token: string, patch: { name?: string; recurring?: "auto" | "fixed" | "variable" | "ignore" }) =>
+    send<{ ok: boolean }>("PATCH", `/api/merchants/${encodeURIComponent(token)}`, patch),
   settings: () => get<SettingsDTO>("/api/settings"),
   patchSettings: (patch: Record<string, boolean>) => send<Record<string, boolean>>("PATCH", "/api/settings", patch),
   investments: () => get<InvestmentsDTO>("/api/investments"),

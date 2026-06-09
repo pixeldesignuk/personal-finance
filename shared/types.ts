@@ -102,6 +102,25 @@ export interface InvestmentAccountDTO {
   holdings: HoldingDTO[];
 }
 
+export interface MerchantDTO {
+  token: string;
+  name: string;
+  totalSpent: number;
+  txnCount: number;
+  monthsActive: number;
+  monthlyTypical: number;   // fixed → median payment; variable → avg monthly spend
+  lastDate: string | null;
+  category: string | null;  // most-common category
+  detected: "fixed" | "variable" | "oneoff";
+  override: "auto" | "fixed" | "variable" | "ignore";
+  effective: "fixed" | "variable" | "oneoff" | "ignore";
+}
+export interface MerchantsDTO {
+  merchants: MerchantDTO[];
+  monthlyOutgoings: number; // sum of fixed recurring (committed monthly)
+  variableMonthly: number;  // avg monthly variable spend
+}
+
 export interface DebtPaymentDTO {
   id: string;
   date: string | null;
