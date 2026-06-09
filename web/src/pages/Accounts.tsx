@@ -68,6 +68,8 @@ export default function Accounts() {
   const reconnect = (institutionId: string) => api.connect(institutionId).then(({ link }) => { window.location.href = link; }).catch((e) => setMsg(e.message));
 
   const shown = useMemo(() => banks.filter((b) => b.status !== "LIABILITY" && (tab === "all" || kindOf(b.status) === tab)), [banks, tab]);
+  // Flatten to self-contained account cards; the tabs do the grouping, not headers.
+  const cards = useMemo(() => shown.flatMap((bank) => bank.accounts.map((a) => ({ bank, a }))), [shown]);
   const isManualish = (s: string) => ["MANUAL", "ASSET", "LIABILITY"].includes(s);
 
   return (
@@ -88,55 +90,45 @@ export default function Accounts() {
         ))}
       </div>
 
-      {shown.length === 0 && <div className="card"><p className="muted">Nothing here yet.</p></div>}
-      {shown.map((bank) => (
-        <section className="acct-bank" key={bank.requisitionId}>
-          <div className="row-between acct-bank-head">
-            <h3 style={{ margin: 0 }}>
-              {bank.institutionName}{" "}
+      {cards.length === 0 && <div className="card"><p className="muted">Nothing here yet.</p></div>}
+      <div className="grid acct-cards">
+        {cards.map(({ bank, a }) => (
+          <div className="card acct-card" key={a.id}>
+            <div className="acct-card-meta">
+              <span className="acct-inst">{bank.institutionName}</span>
               <span className={`badge ${statusClass(bank.status)}`}>{STATUS_LABEL[bank.status] ?? bank.status}</span>
-            </h3>
-            {!isManualish(bank.status) && bank.status !== "INVESTMENT" && (
-              <div className="toolbar">
-                <button className="btn-sm" onClick={() => reconnect(bank.institutionId)}>Reconnect</button>
-                <button className="btn-danger btn-sm" onClick={() => removeBank(bank.requisitionId, bank.institutionName)}>Remove</button>
-              </div>
+            </div>
+            <div className="acct-card-head">
+              <span className="acct-name">{a.displayName}</span>
+              <button className="chip" title="Toggle personal / business" onClick={() => toggleType(a.id, a.type)}>{a.type}</button>
+            </div>
+            <div className="acct-card-figure">
+              <span className="eyebrow acct-card-label">{a.source === "LIABILITY" ? "Owed" : a.source === "ASSET" ? "Value" : "Balance"}</span>
+              <span className={`acct-card-bal ${a.source === "LIABILITY" ? "neg" : ""}`}>
+                <span className="ccy">{a.currency ?? "GBP"}</span> {formatMoney(a.currentBalance)}
+              </span>
+            </div>
+            {recurring[a.id] && (
+              <span className="acct-maintain" title={`Recurring out of this account:\n${recurring[a.id].items.map((i) => `· ${i.name} — £${formatMoney(i.monthly)}`).join("\n")}`}>
+                <span className="dot" aria-hidden /> maintain ~£{formatMoney(recurring[a.id].recurringMonthly)}/mo
+              </span>
             )}
+            {a.source === "BANK" && a.balances.length > 1 && (
+              <select className="select-xs" value={a.balanceType ?? ""} onChange={(e) => setBalanceType(a.id, e.target.value)} title="Which GoCardless balance figure to display">
+                <option value="">auto</option>
+                {a.balances.map((b) => <option key={b.type} value={b.type}>{b.type} · {b.amount}</option>)}
+              </select>
+            )}
+            <div className="acct-card-actions">
+              <button className="btn-sm" onClick={() => rename(a.id, a.nickname ?? "")}>Rename</button>
+              {isManualish(a.source) && <button className="btn-sm" onClick={() => editBalance(a.id, a.source === "LIABILITY" ? -a.currentBalance : a.currentBalance, a.source === "LIABILITY" ? "amount owed" : a.source === "ASSET" ? "value" : "balance")}>Set {a.source === "LIABILITY" ? "owed" : a.source === "ASSET" ? "value" : "balance"}</button>}
+              {isManualish(a.source) && <button className="btn-danger btn-sm" onClick={() => removeManual(a.id, a.displayName)}>Delete</button>}
+              {a.source === "BANK" && <button className="btn-sm" onClick={() => reconnect(bank.institutionId)}>Reconnect</button>}
+              {a.source === "BANK" && <button className="btn-danger btn-sm" onClick={() => removeBank(bank.requisitionId, bank.institutionName)}>Remove</button>}
+            </div>
           </div>
-          <div className="grid acct-cards">
-            {bank.accounts.map((a) => (
-              <div className="card acct-card" key={a.id}>
-                <div className="acct-card-head">
-                  <span className="acct-name">{a.displayName}</span>
-                  <button className="chip" title="Toggle personal / business" onClick={() => toggleType(a.id, a.type)}>{a.type}</button>
-                </div>
-                <div className="acct-card-figure">
-                  <span className="eyebrow acct-card-label">{a.source === "LIABILITY" ? "Owed" : a.source === "ASSET" ? "Value" : "Balance"}</span>
-                  <span className={`acct-card-bal ${a.source === "LIABILITY" ? "neg" : ""}`}>
-                    <span className="ccy">{a.currency ?? "GBP"}</span> {formatMoney(a.currentBalance)}
-                  </span>
-                </div>
-                {recurring[a.id] && (
-                  <span className="acct-maintain" title={`Recurring out of this account:\n${recurring[a.id].items.map((i) => `· ${i.name} — £${formatMoney(i.monthly)}`).join("\n")}`}>
-                    <span className="dot" aria-hidden /> maintain ~£{formatMoney(recurring[a.id].recurringMonthly)}/mo
-                  </span>
-                )}
-                {a.source === "BANK" && a.balances.length > 1 && (
-                  <select className="select-xs" value={a.balanceType ?? ""} onChange={(e) => setBalanceType(a.id, e.target.value)} title="Which GoCardless balance figure to display">
-                    <option value="">auto</option>
-                    {a.balances.map((b) => <option key={b.type} value={b.type}>{b.type} · {b.amount}</option>)}
-                  </select>
-                )}
-                <div className="acct-card-actions">
-                  <button className="btn-sm" onClick={() => rename(a.id, a.nickname ?? "")}>Rename</button>
-                  {isManualish(a.source) && <button className="btn-sm" onClick={() => editBalance(a.id, a.source === "LIABILITY" ? -a.currentBalance : a.currentBalance, a.source === "LIABILITY" ? "amount owed" : a.source === "ASSET" ? "value" : "balance")}>Set {a.source === "LIABILITY" ? "owed" : a.source === "ASSET" ? "value" : "balance"}</button>}
-                  {isManualish(a.source) && <button className="btn-danger btn-sm" onClick={() => removeManual(a.id, a.displayName)}>Delete</button>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      ))}
+        ))}
+      </div>
 
       <dialog ref={dialog} className="modal" onClick={(e) => { if (e.target === dialog.current) dialog.current?.close(); }}>
         <form className="modal-body" onSubmit={submitAdd}>

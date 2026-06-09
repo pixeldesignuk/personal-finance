@@ -361,8 +361,6 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
 .grid > *:nth-child(4) { animation-delay: 0.15s; }
 
 /* ---- account cards (Manage) ---------------------------------------------- */
-.acct-bank { margin-bottom: 26px; }
-.acct-bank-head { margin-bottom: 14px; }
 .acct-cards { grid-template-columns: repeat(auto-fill, minmax(264px, 1fr)); margin-bottom: 0; }
 
 .acct-card {
@@ -386,6 +384,8 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
 }
 .acct-card:hover::before { opacity: 1; }
 
+.acct-card-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.acct-inst { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .acct-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .acct-name { font-family: var(--font-display); font-weight: 600; font-size: 15px; color: var(--ink); letter-spacing: -0.01em; line-height: 1.3; }
 
