@@ -29,7 +29,7 @@ function linesFor(e: AuditEvent): Line[] {
       ];
     case "batch-request":
       return [
-        { text: `● AI batch #${e.batch} → Gemini (${e.items.length} txns)`, tone: "bold" },
+        { text: `● AI batch #${e.batch} → Gemini (${e.items.length} items)`, tone: "bold" },
         { text: "  ── fed to model ──", tone: "dim" },
         ...e.items.map((it): Line => ({ text: `  ${it.ref.padEnd(4)} ${trunc(it.text || "(no text)", 64)}`, tone: "dim" })),
       ];

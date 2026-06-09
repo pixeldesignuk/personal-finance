@@ -44,8 +44,11 @@ Emails:
 ${block}
 
 Respond with ONLY a JSON array, one object per email, nothing else.`;
+  // Mirror the reconcile audit: show what was fed to the model and its raw reply.
+  audit({ kind: "batch-request", batch, items: emails.map((e, i) => ({ ref: `t${i}`, id: e.id, text: `${e.subject || "(no subject)"} — ${e.from}` })) });
   try {
     const raw = await geminiGenerateJson(prompt, audit, batch);
+    audit({ kind: "batch-raw", batch, text: raw });
     const arr = JSON.parse(raw || "[]");
     if (!Array.isArray(arr)) return [];
     return arr.map((o: Record<string, unknown>) => ({
@@ -170,14 +173,16 @@ export async function syncGmail(audit: AuditFn): Promise<GmailSyncResult> {
         },
       });
       if (isOrder) {
-        const tone = txn ? "green" : "dim";
-        const tail = txn ? `→ matched ${txn.date ?? ""}` : "→ no transaction match";
-        audit({ kind: "log", text: `  ${(o!.merchant ?? "?").padEnd(20)} ${(o!.currency ?? "")} ${o!.total}  ${tail}`, tone });
+        const label = `${o!.merchant ?? "?"} · ${o!.currency ?? ""}${o!.total}`;
+        if (txn) audit({ kind: "assign", id: email.id, name: label, to: `txn ${txn.date ?? ""}`, via: "llm" });
+        else audit({ kind: "log", text: `  ai   ${label.length > 34 ? `${label.slice(0, 33)}…` : label.padEnd(34)} → no transaction match`, tone: "yellow" });
       }
     }
   }
 
   await db.plugin.update({ where: { id: "gmail" }, data: { lastSyncAt: new Date() } });
-  audit({ kind: "log", text: `Sync complete — ${parsed} orders parsed, ${matched} matched.`, tone: "green" });
+  audit({ kind: "log", text: "● Summary", tone: "bold" });
+  audit({ kind: "log", text: `  ${parsed} orders parsed · ${matched} matched · ${parsed - matched} unmatched`, tone: matched ? "green" : "dim" });
+  audit({ kind: "log", text: "Sync complete.", tone: "green" });
   return { scanned: ids.length, parsed, matched };
 }
