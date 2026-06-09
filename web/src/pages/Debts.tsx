@@ -1,0 +1,173 @@
+import { useMemo, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "../api.ts";
+import type { DebtsDTO, DebtDTO } from "../../../shared/types.ts";
+import { formatGBP, formatMoney, relativeDate } from "../format.ts";
+import { useToast } from "../components/Toasts.tsx";
+
+function payoffDate(months: number | null): string {
+  if (months == null) return "—";
+  if (months <= 0) return "now";
+  const d = new Date();
+  d.setMonth(d.getMonth() + months);
+  return d.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+}
+
+export default function Debts() {
+  const qc = useQueryClient();
+  const { notify } = useToast();
+  const { data } = useQuery({ queryKey: ["debts"], queryFn: () => api.debts() });
+  const accountsQuery = useQuery({ queryKey: ["accounts"], queryFn: () => api.accounts(), staleTime: 5 * 60_000 });
+  const cashAccounts = useMemo(() => (accountsQuery.data ?? []).flatMap((b) => b.accounts).filter((a) => a.source === "MANUAL"), [accountsQuery.data]);
+
+  const [strategy, setStrategy] = useState<"snowball" | "avalanche">("snowball");
+
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState({ name: "", owed: "0", rate: "" });
+  const payDialog = useRef<HTMLDialogElement>(null);
+  const [payFor, setPayFor] = useState<DebtDTO | null>(null);
+  const [pay, setPay] = useState({ amount: "", date: new Date().toLocaleDateString("en-CA"), accountId: "" });
+
+  const refresh = () => { qc.invalidateQueries({ queryKey: ["debts"] }); qc.invalidateQueries({ queryKey: ["summary"] }); qc.invalidateQueries({ queryKey: ["accounts"] }); };
+
+  const saveDebt = useMutation({
+    mutationFn: async () => {
+      const rate = form.rate.trim() ? form.rate.trim() : null;
+      if (editId) return api.patchAccount(editId, { name: form.name.trim(), manualBalance: form.owed.trim() || "0", interestRate: rate });
+      return api.createManualAccount({ name: form.name.trim(), type: "PERSONAL", source: "LIABILITY", manualBalance: form.owed.trim() || "0", interestRate: rate ?? undefined });
+    },
+    onSuccess: () => { refresh(); dialog.current?.close(); },
+    onError: (e: Error) => notify(e.message, { tone: "error" }),
+  });
+  const delDebt = useMutation({
+    mutationFn: (id: string) => api.deleteManualAccount(id),
+    onSuccess: refresh,
+    onError: (e: Error) => notify(e.message, { tone: "error" }),
+  });
+  const recordPayment = useMutation({
+    mutationFn: async () => {
+      if (!payFor) throw new Error("No debt");
+      const amt = Number(pay.amount);
+      if (!(amt > 0)) throw new Error("Enter an amount");
+      if (!pay.accountId) throw new Error("Pick the account you paid from");
+      const { id } = await api.createTxn({ accountId: pay.accountId, date: pay.date, amount: `-${amt}`, category: "transfer", note: `Repayment → ${payFor.name}` });
+      await api.linkDebt(id, payFor.id);
+    },
+    onSuccess: () => { refresh(); payDialog.current?.close(); notify("Payment recorded — debt reduced", { tone: "success" }); },
+    onError: (e: Error) => notify(e.message, { tone: "error" }),
+  });
+
+  const openNew = () => { setEditId(null); setForm({ name: "", owed: "0", rate: "" }); dialog.current?.showModal(); };
+  const openEdit = (d: DebtDTO) => { setEditId(d.id); setForm({ name: d.name, owed: String(d.balance), rate: d.interestRate != null ? String(d.interestRate) : "" }); dialog.current?.showModal(); };
+  const openPay = (d: DebtDTO) => { setPayFor(d); setPay({ amount: "", date: new Date().toLocaleDateString("en-CA"), accountId: cashAccounts[0]?.id ?? "" }); payDialog.current?.showModal(); };
+
+  const active = (data?.debts ?? []).filter((d) => d.balance > 0);
+  const order = useMemo(() => {
+    const a = [...active];
+    if (strategy === "avalanche") a.sort((x, y) => (y.interestRate ?? -1) - (x.interestRate ?? -1));
+    else a.sort((x, y) => x.balance - y.balance);
+    return a;
+  }, [active, strategy]);
+  const debtFreeMonths = active.reduce((m, d) => Math.max(m, d.projectedMonths ?? 0), 0);
+
+  return (
+    <div>
+      <div className="row-between"><h1>Debt</h1><button className="btn-primary" onClick={openNew}>Add debt</button></div>
+
+      {data && (
+        <div className="grid">
+          <div className="card stat"><span className="label">Total owed</span><span className="value neg">{formatGBP(data.totalOwed)}</span></div>
+          <div className="card stat"><span className="label">Repaid to date</span><span className="value pos">{formatGBP(data.totalPaid)}</span></div>
+          <div className="card stat"><span className="label">Monthly pace</span><span className="value">{formatGBP(data.monthlyTotal)}</span></div>
+          <div className="card stat"><span className="label">Debt-free</span><span className="value">{debtFreeMonths ? payoffDate(debtFreeMonths) : "—"}</span><span className="delta muted">{debtFreeMonths ? `~${debtFreeMonths} months at current pace` : "log payments to project"}</span></div>
+        </div>
+      )}
+
+      {active.length > 1 && (
+        <div className="card">
+          <div className="row-between" style={{ marginBottom: 8 }}>
+            <h3 style={{ margin: 0 }}>Suggested payoff order</h3>
+            <div className="tabs" style={{ margin: 0, border: "none" }}>
+              <button className={`tab${strategy === "snowball" ? " active" : ""}`} onClick={() => setStrategy("snowball")}>Snowball</button>
+              <button className={`tab${strategy === "avalanche" ? " active" : ""}`} onClick={() => setStrategy("avalanche")}>Avalanche</button>
+            </div>
+          </div>
+          <p className="muted" style={{ marginTop: 0 }}>
+            {strategy === "snowball"
+              ? "Clear the smallest balance first for a quick win, then roll that payment into the next."
+              : "Pay the highest-interest debt first to minimise total interest."}
+          </p>
+          <ol className="debt-order">
+            {order.map((d, i) => (
+              <li key={d.id}><span className={i === 0 ? "pos" : ""}>{i === 0 ? "▶ " : ""}{d.name}</span><span className="num">{formatGBP(d.balance)}{d.interestRate ? ` · ${d.interestRate}%` : ""}</span></li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      {data?.debts.length === 0 && <div className="card"><p className="muted">No debts yet. Add what you owe (e.g. family/friends, a loan) — interest-free is fine.</p></div>}
+
+      {data?.debts.map((d) => {
+        const progress = d.original > 0 ? Math.round((d.paidTotal / d.original) * 100) : 0;
+        return (
+          <div className="card" key={d.id}>
+            <div className="row-between" style={{ marginBottom: 8 }}>
+              <h3 style={{ margin: 0 }}>{d.name}{d.interestRate ? <span className="muted" style={{ fontSize: 13, fontWeight: 400 }}> · {d.interestRate}% APR</span> : null}</h3>
+              <span className="num neg" style={{ fontSize: 18 }}>{formatGBP(d.balance)}</span>
+            </div>
+            <div className="progress"><i className="ok" style={{ width: `${Math.min(progress, 100)}%` }} /></div>
+            <div className="row-between" style={{ marginTop: 6 }}>
+              <span className="muted" style={{ fontSize: 12 }}>{formatGBP(d.paidTotal)} repaid of {formatGBP(d.original)} ({progress}%)</span>
+              <span className="muted" style={{ fontSize: 12 }}>
+                {d.avgMonthly > 0 ? `${formatGBP(d.avgMonthly)}/mo · clear by ${payoffDate(d.projectedMonths)}` : "no payments logged"}
+              </span>
+            </div>
+            <div className="toolbar" style={{ marginTop: 12 }}>
+              <button className="btn-primary btn-sm" onClick={() => openPay(d)} disabled={cashAccounts.length === 0} title={cashAccounts.length === 0 ? "Add a cash account first (Manage)" : "Record a repayment"}>Record payment</button>
+              <button className="btn-sm" onClick={() => openEdit(d)}>Edit</button>
+              <button className="btn-danger btn-sm" onClick={() => { if (window.confirm(`Delete ${d.name}?`)) delDebt.mutate(d.id); }}>Delete</button>
+            </div>
+            {d.payments.length > 0 && (
+              <table style={{ marginTop: 12 }}>
+                <thead><tr><th>Date</th><th>Payment</th><th style={{ textAlign: "right" }}>Amount</th></tr></thead>
+                <tbody>
+                  {d.payments.slice(0, 6).map((p) => (
+                    <tr key={p.id}><td>{relativeDate(p.date)}</td><td>{p.name ?? "Repayment"}</td><td className="num pos">{formatGBP(p.amount)}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        );
+      })}
+
+      <dialog ref={dialog} className="modal" onClick={(e) => { if (e.target === dialog.current) dialog.current?.close(); }}>
+        <form className="modal-body" onSubmit={(e) => { e.preventDefault(); if (form.name.trim()) saveDebt.mutate(); }}>
+          <h3 style={{ marginTop: 0 }}>{editId ? "Edit debt" : "Add debt"}</h3>
+          <label className="field"><span>Who / what</span><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoFocus placeholder="e.g. Loan from Dad, Mortgage" /></label>
+          <label className="field"><span>Amount owed (£)</span><input inputMode="decimal" value={form.owed} onChange={(e) => setForm({ ...form, owed: e.target.value })} /></label>
+          <label className="field"><span>Interest rate (% APR, optional)</span><input inputMode="decimal" value={form.rate} onChange={(e) => setForm({ ...form, rate: e.target.value })} placeholder="blank for interest-free" /></label>
+          <div className="modal-actions"><button type="button" onClick={() => dialog.current?.close()}>Cancel</button><button className="btn-primary" type="submit">Save</button></div>
+        </form>
+      </dialog>
+
+      <dialog ref={payDialog} className="modal" onClick={(e) => { if (e.target === payDialog.current) payDialog.current?.close(); }}>
+        <form className="modal-body" onSubmit={(e) => { e.preventDefault(); recordPayment.mutate(); }}>
+          <h3 style={{ marginTop: 0 }}>Record payment{payFor ? ` → ${payFor.name}` : ""}</h3>
+          <div style={{ display: "flex", gap: 12 }}>
+            <label className="field" style={{ flex: 1 }}><span>Amount (£)</span><input inputMode="decimal" autoFocus value={pay.amount} onChange={(e) => setPay({ ...pay, amount: e.target.value })} placeholder="0.00" /></label>
+            <label className="field" style={{ flex: 1 }}><span>Date</span><input type="date" value={pay.date} onChange={(e) => setPay({ ...pay, date: e.target.value })} /></label>
+          </div>
+          <label className="field"><span>Paid from</span>
+            <select value={pay.accountId} onChange={(e) => setPay({ ...pay, accountId: e.target.value })}>
+              {cashAccounts.map((a) => <option key={a.id} value={a.id}>{a.displayName}</option>)}
+            </select>
+          </label>
+          <p className="muted" style={{ margin: 0, fontSize: 12 }}>Creates a repayment transaction linked to this debt and reduces the balance. For bank payments, link the synced transaction on Transactions instead (⛓).</p>
+          <div className="modal-actions"><button type="button" onClick={() => payDialog.current?.close()}>Cancel</button><button className="btn-primary" type="submit">Record</button></div>
+        </form>
+      </dialog>
+    </div>
+  );
+}

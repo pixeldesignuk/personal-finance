@@ -488,6 +488,11 @@ select {
 .tab:hover { color: var(--ink); transform: none; border-color: transparent; }
 .tab.active { color: var(--ink); border-bottom-color: var(--jade); }
 
+/* debt payoff order */
+.debt-order { list-style: none; padding: 0; margin: 0; }
+.debt-order li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; color: var(--ink-2); }
+.debt-order li:first-child { border-top: none; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }

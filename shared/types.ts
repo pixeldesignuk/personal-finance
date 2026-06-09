@@ -102,6 +102,31 @@ export interface InvestmentAccountDTO {
   holdings: HoldingDTO[];
 }
 
+export interface DebtPaymentDTO {
+  id: string;
+  date: string | null;
+  amount: number;     // positive repayment amount
+  name: string | null;
+}
+export interface DebtDTO {
+  id: string;
+  name: string;
+  balance: number;            // currently owed
+  interestRate: number | null; // annual % (usually null for family/friends)
+  paidTotal: number;          // sum of linked repayments
+  original: number;           // balance + paidTotal (rough starting amount)
+  avgMonthly: number;         // average monthly repayment pace
+  lastPaymentDate: string | null;
+  projectedMonths: number | null; // months to clear at current pace (null = no pace)
+  payments: DebtPaymentDTO[];
+}
+export interface DebtsDTO {
+  debts: DebtDTO[];
+  totalOwed: number;
+  totalPaid: number;
+  monthlyTotal: number;       // total avg monthly repayment across debts
+}
+
 export interface InvestmentsDTO {
   providers: { key: string; name: string; configured: boolean }[];
   accounts: InvestmentAccountDTO[];
@@ -160,6 +185,7 @@ export interface ManualAccountInput {
   source?: "MANUAL" | "ASSET" | "LIABILITY";
   currency?: string;
   manualBalance?: string;
+  interestRate?: string;
 }
 
 export interface ManualTxnInput {

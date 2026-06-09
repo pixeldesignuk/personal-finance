@@ -43,6 +43,7 @@ model Account {
   ownerName     String?
   manualBalance Decimal?
   balanceType   String?
+  interestRate  Decimal?       // annual % APR, for debts (projections / avalanche)
   provider      String?        // investment provider key, e.g. "trading212", "bitget"
   createdAt     DateTime       @default(now())
   balances      Balance[]

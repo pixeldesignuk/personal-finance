@@ -14,14 +14,13 @@ const statusClass = (s: string) => (s === "LN" ? "pos" : s === "EX" || s === "RJ
 
 // Which filter tab a group belongs to.
 const kindOf = (status: string) =>
-  status === "INVESTMENT" ? "investments" : status === "ASSET" ? "assets" : status === "LIABILITY" ? "debt" : "accounts";
-const TABS: [string, string][] = [["all", "All"], ["accounts", "Accounts"], ["investments", "Investments"], ["assets", "Assets"], ["debt", "Debt"]];
+  status === "INVESTMENT" ? "investments" : status === "ASSET" ? "assets" : "accounts";
+const TABS: [string, string][] = [["all", "All"], ["accounts", "Accounts"], ["investments", "Investments"], ["assets", "Assets"]];
 
-type Kind = "MANUAL" | "ASSET" | "LIABILITY";
+type Kind = "MANUAL" | "ASSET";
 const KIND_META: Record<Kind, { title: string; valueLabel: string }> = {
   MANUAL: { title: "Cash / manual account", valueLabel: "Current balance (£)" },
   ASSET: { title: "Asset", valueLabel: "Current value (£)" },
-  LIABILITY: { title: "Debt", valueLabel: "Amount owed (£)" },
 };
 
 export default function Accounts() {
@@ -61,7 +60,7 @@ export default function Accounts() {
   const removeBank = (requisitionId: string, name: string) => { if (window.confirm(`Remove ${name}? Deletes its stored transactions/balances.`)) wrap(() => api.removeBank(requisitionId)); };
   const reconnect = (institutionId: string) => api.connect(institutionId).then(({ link }) => { window.location.href = link; }).catch((e) => setMsg(e.message));
 
-  const shown = useMemo(() => banks.filter((b) => tab === "all" || kindOf(b.status) === tab), [banks, tab]);
+  const shown = useMemo(() => banks.filter((b) => b.status !== "LIABILITY" && (tab === "all" || kindOf(b.status) === tab)), [banks, tab]);
   const isManualish = (s: string) => ["MANUAL", "ASSET", "LIABILITY"].includes(s);
 
   return (
@@ -71,7 +70,6 @@ export default function Accounts() {
         <div className="toolbar">
           <button onClick={() => openAdd("MANUAL")}>Add cash</button>
           <button onClick={() => openAdd("ASSET")}>Add asset</button>
-          <button onClick={() => openAdd("LIABILITY")}>Add debt</button>
           <button className="btn-primary" onClick={() => navigate("/connect")}>Add bank</button>
         </div>
       </div>
@@ -133,10 +131,9 @@ export default function Accounts() {
             <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as Kind })}>
               <option value="MANUAL">Cash / manual</option>
               <option value="ASSET">Asset (house, car…)</option>
-              <option value="LIABILITY">Debt (mortgage, loan…)</option>
             </select>
           </label>
-          <label className="field"><span>Name</span><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoFocus placeholder={form.kind === "ASSET" ? "e.g. House" : form.kind === "LIABILITY" ? "e.g. Mortgage" : "e.g. Cash"} /></label>
+          <label className="field"><span>Name</span><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoFocus placeholder={form.kind === "ASSET" ? "e.g. House" : "e.g. Cash"} /></label>
           <label className="field"><span>{KIND_META[form.kind].valueLabel}</span><input inputMode="decimal" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} /></label>
           {form.kind === "MANUAL" && (
             <label className="field"><span>Account type</span>

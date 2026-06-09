@@ -7,6 +7,7 @@ import Accounts from "./pages/Accounts.tsx";
 import Budgets from "./pages/Budgets.tsx";
 import Reports from "./pages/Reports.tsx";
 import Investments from "./pages/Investments.tsx";
+import Debts from "./pages/Debts.tsx";
 import People from "./pages/People.tsx";
 import Rules from "./pages/Rules.tsx";
 import { SettingsDrawer } from "./components/SettingsDrawer.tsx";
@@ -21,6 +22,7 @@ export default function App() {
         <NavLink to="/budgets">Budget</NavLink>
         <NavLink to="/reports">Reports</NavLink>
         <NavLink to="/investments">Investments</NavLink>
+        <NavLink to="/debts">Debt</NavLink>
         <SettingsDrawer />
         <NavLink to="/connect" className="btn-primary nav-cta">Connect</NavLink>
       </nav>
@@ -31,6 +33,7 @@ export default function App() {
           <Route path="/budgets" element={<Budgets />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/investments" element={<Investments />} />
+          <Route path="/debts" element={<Debts />} />
           <Route path="/people" element={<People />} />
           <Route path="/rules" element={<Rules />} />
           <Route path="/accounts" element={<Accounts />} />

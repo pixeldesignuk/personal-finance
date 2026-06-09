@@ -97,6 +97,7 @@ accountsRouter.post("/accounts/manual", async (req, res, next) => {
         source: z.enum(["MANUAL", "ASSET", "LIABILITY"]).default("MANUAL"),
         currency: z.string().optional(),
         manualBalance: z.string().regex(/^-?\d+(\.\d+)?$/, "manualBalance must be a number").optional(),
+        interestRate: z.string().regex(/^\d+(\.\d+)?$/).optional(),
       })
       .parse(req.body);
     const prefix = body.source === "ASSET" ? "asset" : body.source === "LIABILITY" ? "debt" : "manual";
@@ -108,6 +109,7 @@ accountsRouter.post("/accounts/manual", async (req, res, next) => {
         name: body.name,
         currency: body.currency ?? "GBP",
         manualBalance: body.manualBalance ?? "0",
+        interestRate: body.interestRate ?? null,
       },
     });
     res.json({ id: account.id });
@@ -125,6 +127,7 @@ accountsRouter.patch("/accounts/:id", async (req, res, next) => {
         name: z.string().optional(),
         manualBalance: z.string().regex(/^-?\d+(\.\d+)?$/, "manualBalance must be a number").optional(),
         balanceType: z.string().nullable().optional(),
+        interestRate: z.string().regex(/^\d+(\.\d+)?$/).nullable().optional(),
       })
       .parse(req.body);
     const account = await db.account.findUnique({ where: { id: req.params.id } });
@@ -143,6 +146,7 @@ accountsRouter.patch("/accounts/:id", async (req, res, next) => {
     if (body.name !== undefined) data.name = body.name;
     if (body.manualBalance !== undefined) data.manualBalance = body.manualBalance;
     if (body.balanceType !== undefined) data.balanceType = body.balanceType || null;
+    if (body.interestRate !== undefined) data.interestRate = body.interestRate;
     const updated = await db.account.update({ where: { id: req.params.id }, data });
     res.json({ id: updated.id, displayName: displayName(updated) });
   } catch (err) {

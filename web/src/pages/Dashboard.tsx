@@ -75,7 +75,14 @@ export default function Dashboard() {
         {banks.length === 0 && <div className="muted">No accounts yet.</div>}
         {banks.map((bank) =>
           bank.accounts
-            .filter((a) => (!accountId || a.id === accountId) && (!hideSmall || Math.abs(a.currentBalance) >= 100))
+            .filter((a) => {
+              if (accountId && a.id !== accountId) return false;
+              if (hideSmall && Math.abs(a.currentBalance) < 100) return false;
+              if (a.source === "INVESTMENT" && summary && !summary.included.investments) return false;
+              if (a.source === "ASSET" && summary && !summary.included.assets) return false;
+              if (a.source === "LIABILITY" && summary && !summary.included.debts) return false;
+              return true;
+            })
             .map((a) => (
               <div key={a.id} className="lrow">
                 <span>{bank.institutionName} <span className="muted">— {a.displayName}</span></span>

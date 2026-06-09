@@ -4,7 +4,7 @@ import type {
   BankDTO, RemoveBankResult, NicknameResult,
   SummaryDTO, ManualAccountInput, ManualTxnInput,
   CategoryDTO, BudgetResponseDTO, CategoryInfoDTO, ReportDTO,
-  PersonDTO, RuleDTO, CategoryNameDTO, ReconcileResult, AuditEvent, InvestmentsDTO, SettingsDTO,
+  PersonDTO, RuleDTO, CategoryNameDTO, ReconcileResult, AuditEvent, InvestmentsDTO, SettingsDTO, DebtsDTO,
 } from "../../shared/types.ts";
 
 async function get<T>(url: string): Promise<T> {
@@ -54,7 +54,7 @@ export const api = {
   createManualAccount: (input: ManualAccountInput) => send<{ id: string }>("POST", "/api/accounts/manual", input),
   linkDebt: (id: string, debtAccountId: string) => send<{ linked: boolean }>("POST", `/api/transactions/${id}/link-debt`, { debtAccountId }),
   unlinkDebt: (id: string) => send<{ unlinked: boolean }>("POST", `/api/transactions/${id}/unlink-debt`),
-  patchAccount: (id: string, patch: { nickname?: string | null; type?: string; name?: string; manualBalance?: string; balanceType?: string | null }) =>
+  patchAccount: (id: string, patch: { nickname?: string | null; type?: string; name?: string; manualBalance?: string; balanceType?: string | null; interestRate?: string | null }) =>
     send<NicknameResult>("PATCH", `/api/accounts/${id}`, patch),
   deleteManualAccount: (id: string) => send<{ deleted: boolean }>("DELETE", `/api/accounts/${id}`),
   removeBank: (requisitionId: string) => send<RemoveBankResult>("DELETE", `/api/banks/${requisitionId}`),
@@ -98,6 +98,7 @@ export const api = {
     send<{ id: number }>("PATCH", `/api/categories/${id}`, patch),
   deleteCategory: (id: number) => send<{ deleted: boolean }>("DELETE", `/api/categories/${id}`),
   summary: () => get<SummaryDTO>("/api/summary"),
+  debts: () => get<DebtsDTO>("/api/debts"),
   settings: () => get<SettingsDTO>("/api/settings"),
   patchSettings: (patch: Record<string, boolean>) => send<Record<string, boolean>>("PATCH", "/api/settings", patch),
   investments: () => get<InvestmentsDTO>("/api/investments"),
