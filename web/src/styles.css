@@ -513,11 +513,11 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 .tab.active { color: var(--ink); border-bottom-color: var(--jade); }
 
 /* bespoke combobox (inline-text select with search) */
-.combo { display: inline-block; max-width: 100%; }
+.combo { display: block; width: 100%; }
 .combo-trigger {
   background-color: transparent; border: none; border-radius: 6px; padding: 4px 19px 4px 7px;
   font-family: var(--font-text); font-size: 13px; color: var(--ink); cursor: pointer;
-  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;
+  width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9' fill='none' stroke='%237e7c74' stroke-width='1.8'%3E%3Cpath d='M1.5 3L4.5 6 7.5 3'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 6px center;
 }
