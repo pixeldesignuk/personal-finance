@@ -126,6 +126,13 @@ export interface MerchantsDTO {
   variableMonthly: number;  // avg monthly variable spend
 }
 
+// Per-account recurring outgoings → the balance to keep in that account monthly.
+export interface AccountRecurringDTO {
+  accountId: string;
+  recurringMonthly: number;  // sum of fixed recurring payments leaving this account
+  items: { name: string; monthly: number }[];  // the recurring merchants, biggest first
+}
+
 export interface DebtPaymentDTO {
   id: string;
   date: string | null;

@@ -360,20 +360,56 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
 .grid > *:nth-child(3) { animation-delay: 0.10s; }
 .grid > *:nth-child(4) { animation-delay: 0.15s; }
 
-/* ---- account rows (Manage) ----------------------------------------------- */
-.acct-list { margin-top: 14px; }
-.acct-grid {
-  display: grid;
-  grid-template-columns: minmax(140px, 1.4fr) 120px minmax(180px, 1fr) auto;
-  align-items: center;
-  column-gap: 18px;
+/* ---- account cards (Manage) ---------------------------------------------- */
+.acct-bank { margin-bottom: 26px; }
+.acct-bank-head { margin-bottom: 14px; }
+.acct-cards { grid-template-columns: repeat(auto-fill, minmax(264px, 1fr)); margin-bottom: 0; }
+
+.acct-card {
+  margin-bottom: 0;
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 17px 18px 15px;
+  overflow: hidden;
+  transition: transform 0.18s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
-.acct-head { padding-bottom: 11px; border-bottom: 1px solid var(--line-strong); }
-.acct-row { padding: 14px 0; border-bottom: 1px solid var(--line); }
-.acct-row:last-child { border-bottom: none; }
-.acct-name { color: var(--ink); }
-.acct-bal { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
-.acct-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+/* a quiet jade aura that surfaces on hover, like ink warming a page */
+.acct-card::before {
+  content: ""; position: absolute; top: -45%; right: -32%;
+  width: 190px; height: 190px; border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--jade) 13%, transparent), transparent 70%);
+  opacity: 0; transition: opacity 0.28s ease; pointer-events: none;
+}
+.acct-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--jade) 30%, var(--line-strong));
+  box-shadow: 0 28px 52px -28px rgba(0, 0, 0, 0.9), 0 0 0 1px color-mix(in srgb, var(--jade) 9%, transparent);
+}
+.acct-card:hover::before { opacity: 1; }
+
+.acct-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.acct-name { font-family: var(--font-display); font-weight: 600; font-size: 15px; color: var(--ink); letter-spacing: -0.01em; line-height: 1.3; }
+
+.acct-card-figure { display: flex; flex-direction: column; gap: 4px; }
+.acct-card-label { font-size: 10px; letter-spacing: 0.18em; }
+.acct-card-bal { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 25px; letter-spacing: -0.03em; color: var(--ink); line-height: 1.08; }
+.acct-card-bal.neg { color: var(--coral); }
+.acct-card-bal .ccy { font-size: 12px; color: var(--ink-3); font-weight: 500; letter-spacing: 0; margin-right: 1px; }
+
+.acct-maintain {
+  display: inline-flex; align-items: center; gap: 7px; align-self: flex-start;
+  font-size: 11.5px; color: var(--ink-2); cursor: help;
+  padding: 4px 11px 4px 9px; border-radius: 99px;
+  background: color-mix(in srgb, var(--jade) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--jade) 20%, transparent);
+}
+.acct-maintain .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--jade); box-shadow: 0 0 8px var(--jade); flex: none; }
+
+.acct-card .select-xs { align-self: flex-start; }
+
+.acct-card-actions {
+  display: flex; gap: 7px; flex-wrap: wrap; margin-top: auto;
+  padding-top: 13px; border-top: 1px solid var(--line);
+}
 
 .chip {
   padding: 4px 11px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
@@ -389,10 +425,7 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
 .select-xs:hover { color: var(--ink-2); border-color: var(--line-strong); }
 
 @media (max-width: 680px) {
-  .acct-grid { grid-template-columns: 1fr; row-gap: 6px; }
-  .acct-head { display: none; }
-  .acct-actions { justify-content: flex-start; margin-top: 4px; }
-  .acct-bal { align-items: flex-start; }
+  .acct-cards { grid-template-columns: 1fr; }
 }
 
 /* ---- modal dialog -------------------------------------------------------- */

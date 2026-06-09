@@ -23,6 +23,7 @@ export default function App() {
           { to: "/transactions", label: "Transactions" },
           { to: "/reports", label: "Reports" },
           { to: "/merchants", label: "Merchants" },
+          { to: "/accounts", label: "Accounts" },
         ]} />
         <NavMenu label="Wealth" items={[
           { to: "/investments", label: "Investments" },

@@ -5,7 +5,11 @@ import { db } from "../lib/db.ts";
 import { GoCardlessClient } from "../gocardless/client.ts";
 import { displayName } from "../../shared/displayName.ts";
 import { currentBalance } from "../lib/balance.ts";
-import type { AccountDTO, BankDTO } from "../../shared/types.ts";
+import { effectiveCategory } from "../lib/effectiveCategory.ts";
+import { merchantToken } from "../categorise/helpers.ts";
+import { monthOf } from "../lib/budget.ts";
+import { classifyMerchant, coefficientOfVariation, median, type RecurType } from "../lib/merchants.ts";
+import type { AccountDTO, BankDTO, AccountRecurringDTO } from "../../shared/types.ts";
 
 export const accountsRouter = Router();
 const gc = new GoCardlessClient();
@@ -83,6 +87,75 @@ accountsRouter.get("/accounts", async (_req, res, next) => {
       }
     }
     res.json(banks);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Per-account recurring outgoings: how much you should keep in each account to
+// cover its committed (fixed) monthly payments. Merchants link to accounts via
+// the account their transactions belong to.
+accountsRouter.get("/accounts/recurring", async (_req, res, next) => {
+  try {
+    const txns = await db.transaction.findMany({
+      select: { accountId: true, merchantName: true, creditorName: true, debtorName: true, remittanceInfo: true, amount: true, bookingDate: true, category: true, categoryOverride: true },
+    });
+    const overrides = new Map((await db.merchant.findMany()).map((m) => [m.token, m]));
+    const tokenOf = (t: { merchantName: string | null; creditorName: string | null; debtorName: string | null; remittanceInfo: string | null }) =>
+      merchantToken(t.merchantName ?? t.creditorName ?? t.debtorName ?? t.remittanceInfo ?? null);
+
+    interface Agg { amounts: number[]; months: Set<string>; names: Map<string, number>; }
+    const fresh = (): Agg => ({ amounts: [], months: new Set(), names: new Map() });
+    const global = new Map<string, Agg>();                    // token → spend pattern (for classification)
+    const perAccount = new Map<string, Map<string, Agg>>();   // accountId → token → spend pattern
+
+    for (const t of txns) {
+      const amt = Number(t.amount);
+      const eff = effectiveCategory(t);
+      if (amt >= 0 || eff === "transfer" || eff === "income") continue; // outgoings only
+      const token = tokenOf(t);
+      if (!token) continue;
+      const name = t.merchantName ?? t.creditorName ?? t.debtorName ?? t.remittanceInfo ?? token;
+      const mo = t.bookingDate ? monthOf(t.bookingDate) : null;
+
+      const g = global.get(token) ?? fresh();
+      g.amounts.push(Math.abs(amt));
+      if (mo) g.months.add(mo);
+      g.names.set(name, (g.names.get(name) ?? 0) + 1);
+      global.set(token, g);
+
+      const byToken = perAccount.get(t.accountId) ?? new Map<string, Agg>();
+      const a = byToken.get(token) ?? fresh();
+      a.amounts.push(Math.abs(amt));
+      if (mo) a.months.add(mo);
+      a.names.set(name, (a.names.get(name) ?? 0) + 1);
+      byToken.set(token, a);
+      perAccount.set(t.accountId, byToken);
+    }
+
+    const topName = (m: Map<string, number>) => [...m.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] ?? "";
+    // Effective recurring type per merchant (auto-detected unless overridden).
+    const typeOf = new Map<string, RecurType | "ignore">();
+    for (const [token, g] of global) {
+      const detected = classifyMerchant(g.months.size, g.amounts.length / Math.max(1, g.months.size), coefficientOfVariation(g.amounts));
+      const ov = (overrides.get(token)?.recurring as RecurType | "ignore" | "auto" | undefined) ?? "auto";
+      typeOf.set(token, ov === "auto" ? detected : ov);
+    }
+
+    const result: AccountRecurringDTO[] = [];
+    for (const [accountId, byToken] of perAccount) {
+      const items: { name: string; monthly: number }[] = [];
+      for (const [token, a] of byToken) {
+        if (typeOf.get(token) !== "fixed") continue; // committed monthly payments only
+        const monthly = Number(median(a.amounts).toFixed(2));
+        if (monthly <= 0) continue;
+        items.push({ name: overrides.get(token)?.name ?? topName(a.names), monthly });
+      }
+      if (!items.length) continue;
+      items.sort((x, y) => y.monthly - x.monthly);
+      result.push({ accountId, recurringMonthly: Number(items.reduce((s, i) => s + i.monthly, 0).toFixed(2)), items });
+    }
+    res.json(result);
   } catch (err) {
     next(err);
   }

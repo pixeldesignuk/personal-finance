@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryState } from "nuqs";
 import { api } from "../api.ts";
-import type { BankDTO } from "../../../shared/types.ts";
+import type { BankDTO, AccountRecurringDTO } from "../../../shared/types.ts";
 import { formatMoney } from "../format.ts";
 
 // GoCardless requisition status codes → plain English.
@@ -25,8 +26,9 @@ const KIND_META: Record<Kind, { title: string; valueLabel: string }> = {
 
 export default function Accounts() {
   const [banks, setBanks] = useState<BankDTO[]>([]);
+  const [recurring, setRecurring] = useState<Record<string, AccountRecurringDTO>>({});
   const [msg, setMsg] = useState<string | null>(null);
-  const [tab, setTab] = useState("all");
+  const [tab, setTab] = useQueryState("tab", { defaultValue: "all", history: "replace" });
   const navigate = useNavigate();
 
   const dialog = useRef<HTMLDialogElement>(null);
@@ -34,6 +36,11 @@ export default function Accounts() {
 
   const load = () => api.accounts().then(setBanks).catch((e) => setMsg(e.message));
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    api.accountsRecurring()
+      .then((rows) => setRecurring(Object.fromEntries(rows.map((r) => [r.accountId, r]))))
+      .catch(() => setRecurring({}));
+  }, []);
   const wrap = async (fn: () => Promise<unknown>) => { try { await fn(); await load(); } catch (e) { setMsg((e as Error).message); } };
 
   const openAdd = (kind: Kind) => { setForm({ kind, name: "", type: "PERSONAL", value: "0" }); dialog.current?.showModal(); };
@@ -83,8 +90,8 @@ export default function Accounts() {
 
       {shown.length === 0 && <div className="card"><p className="muted">Nothing here yet.</p></div>}
       {shown.map((bank) => (
-        <div className="card" key={bank.requisitionId}>
-          <div className="row-between">
+        <section className="acct-bank" key={bank.requisitionId}>
+          <div className="row-between acct-bank-head">
             <h3 style={{ margin: 0 }}>
               {bank.institutionName}{" "}
               <span className={`badge ${statusClass(bank.status)}`}>{STATUS_LABEL[bank.status] ?? bank.status}</span>
@@ -96,32 +103,39 @@ export default function Accounts() {
               </div>
             )}
           </div>
-          <div className="acct-list">
-            <div className="acct-grid acct-head">
-              <span className="eyebrow">Account</span><span className="eyebrow">Type</span><span className="eyebrow">Balance</span><span />
-            </div>
+          <div className="grid acct-cards">
             {bank.accounts.map((a) => (
-              <div className="acct-grid acct-row" key={a.id}>
-                <span className="acct-name">{a.displayName}</span>
-                <span><button className="chip" onClick={() => toggleType(a.id, a.type)}>{a.type}</button></span>
-                <span className="acct-bal">
-                  <span className={`num ${a.source === "LIABILITY" ? "neg" : ""}`}>{a.currency ?? "GBP"} {formatMoney(a.currentBalance)}</span>
-                  {a.source === "BANK" && a.balances.length > 1 && (
-                    <select className="select-xs" value={a.balanceType ?? ""} onChange={(e) => setBalanceType(a.id, e.target.value)} title="Which GoCardless balance figure to display">
-                      <option value="">auto</option>
-                      {a.balances.map((b) => <option key={b.type} value={b.type}>{b.type} · {b.amount}</option>)}
-                    </select>
-                  )}
-                </span>
-                <span className="acct-actions">
+              <div className="card acct-card" key={a.id}>
+                <div className="acct-card-head">
+                  <span className="acct-name">{a.displayName}</span>
+                  <button className="chip" title="Toggle personal / business" onClick={() => toggleType(a.id, a.type)}>{a.type}</button>
+                </div>
+                <div className="acct-card-figure">
+                  <span className="eyebrow acct-card-label">{a.source === "LIABILITY" ? "Owed" : a.source === "ASSET" ? "Value" : "Balance"}</span>
+                  <span className={`acct-card-bal ${a.source === "LIABILITY" ? "neg" : ""}`}>
+                    <span className="ccy">{a.currency ?? "GBP"}</span> {formatMoney(a.currentBalance)}
+                  </span>
+                </div>
+                {recurring[a.id] && (
+                  <span className="acct-maintain" title={`Recurring out of this account:\n${recurring[a.id].items.map((i) => `· ${i.name} — £${formatMoney(i.monthly)}`).join("\n")}`}>
+                    <span className="dot" aria-hidden /> maintain ~£{formatMoney(recurring[a.id].recurringMonthly)}/mo
+                  </span>
+                )}
+                {a.source === "BANK" && a.balances.length > 1 && (
+                  <select className="select-xs" value={a.balanceType ?? ""} onChange={(e) => setBalanceType(a.id, e.target.value)} title="Which GoCardless balance figure to display">
+                    <option value="">auto</option>
+                    {a.balances.map((b) => <option key={b.type} value={b.type}>{b.type} · {b.amount}</option>)}
+                  </select>
+                )}
+                <div className="acct-card-actions">
                   <button className="btn-sm" onClick={() => rename(a.id, a.nickname ?? "")}>Rename</button>
                   {isManualish(a.source) && <button className="btn-sm" onClick={() => editBalance(a.id, a.source === "LIABILITY" ? -a.currentBalance : a.currentBalance, a.source === "LIABILITY" ? "amount owed" : a.source === "ASSET" ? "value" : "balance")}>Set {a.source === "LIABILITY" ? "owed" : a.source === "ASSET" ? "value" : "balance"}</button>}
                   {isManualish(a.source) && <button className="btn-danger btn-sm" onClick={() => removeManual(a.id, a.displayName)}>Delete</button>}
-                </span>
+                </div>
               </div>
             ))}
           </div>
-        </div>
+        </section>
       ))}
 
       <dialog ref={dialog} className="modal" onClick={(e) => { if (e.target === dialog.current) dialog.current?.close(); }}>

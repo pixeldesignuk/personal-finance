@@ -4,7 +4,7 @@ import type {
   BankDTO, RemoveBankResult, NicknameResult,
   SummaryDTO, ManualAccountInput, ManualTxnInput,
   CategoryDTO, BudgetResponseDTO, CategoryInfoDTO, ReportDTO,
-  PersonDTO, RuleDTO, CategoryNameDTO, ReconcileResult, AuditEvent, InvestmentsDTO, SettingsDTO, DebtsDTO, MerchantsDTO,
+  PersonDTO, RuleDTO, CategoryNameDTO, ReconcileResult, AuditEvent, InvestmentsDTO, SettingsDTO, DebtsDTO, MerchantsDTO, AccountRecurringDTO,
 } from "../../shared/types.ts";
 
 async function get<T>(url: string): Promise<T> {
@@ -51,6 +51,7 @@ export const api = {
   finalize: (id: string) => send<FinalizeResponse>("POST", `/api/connect/${id}/finalize`),
   sync: () => send<SyncResult[]>("POST", "/api/sync"),
   accounts: () => get<BankDTO[]>("/api/accounts"),
+  accountsRecurring: () => get<AccountRecurringDTO[]>("/api/accounts/recurring"),
   createManualAccount: (input: ManualAccountInput) => send<{ id: string }>("POST", "/api/accounts/manual", input),
   linkDebt: (id: string, debtAccountId: string) => send<{ linked: boolean }>("POST", `/api/transactions/${id}/link-debt`, { debtAccountId }),
   unlinkDebt: (id: string) => send<{ unlinked: boolean }>("POST", `/api/transactions/${id}/unlink-debt`),

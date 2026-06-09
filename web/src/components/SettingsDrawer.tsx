@@ -45,7 +45,6 @@ export function SettingsDrawer() {
               <div className="drawer-section">
                 <div className="eyebrow">Navigation</div>
                 <NavLink to="/people" className="drawer-link" onClick={() => setOpen(false)}>People</NavLink>
-                <NavLink to="/accounts" className="drawer-link" onClick={() => setOpen(false)}>Manage accounts</NavLink>
               </div>
               {!data && <div className="drawer-section muted">Loading…</div>}
               {groups.map((g) => (
