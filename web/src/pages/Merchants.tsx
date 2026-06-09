@@ -60,8 +60,8 @@ export default function Merchants() {
 
       <div className="card">
         <table className="txn-table">
-          <colgroup><col /><col style={{ width: 170 }} /><col style={{ width: 130 }} /><col style={{ width: 150 }} /><col style={{ width: 104 }} /><col style={{ width: 100 }} /><col style={{ width: 60 }} /><col style={{ width: 44 }} /></colgroup>
-          <thead><tr><th>Merchant</th><th>Category</th><th>Person</th><th>Type</th><th style={{ textAlign: "right" }}>Per month</th><th style={{ textAlign: "right" }}>Total</th><th style={{ textAlign: "right" }}>Txns</th><th></th></tr></thead>
+          <colgroup><col /><col style={{ width: 160 }} /><col style={{ width: 120 }} /><col style={{ width: 140 }} /><col style={{ width: 64 }} /><col style={{ width: 100 }} /><col style={{ width: 96 }} /><col style={{ width: 56 }} /><col style={{ width: 44 }} /></colgroup>
+          <thead><tr><th>Merchant</th><th>Category</th><th>Person</th><th>Type</th><th style={{ textAlign: "right" }}>Priority</th><th style={{ textAlign: "right" }}>Per month</th><th style={{ textAlign: "right" }}>Total</th><th style={{ textAlign: "right" }}>Txns</th><th></th></tr></thead>
           <tbody>
             {shown.map((m) => (
               <tr key={m.token}>
@@ -76,6 +76,7 @@ export default function Merchants() {
                 <td><Combobox value={m.categoryKey} options={catOpts} allowClear placeholder="—" onChange={(v) => set(m.token, { categoryKey: v })} /></td>
                 <td><Combobox value={m.personKey} options={personOpts} allowClear placeholder="—" onChange={(v) => set(m.token, { personKey: v })} /></td>
                 <td><Combobox value={m.override} placeholder="Auto" options={[{ value: "auto", label: `Auto · ${TYPE_LABEL[m.detected]}` }, { value: "fixed", label: "Recurring" }, { value: "variable", label: "Variable" }, { value: "ignore", label: "Ignore" }]} onChange={(v) => set(m.token, { recurring: (v ?? "auto") as MerchantDTO["override"] })} /></td>
+                <td className="num">{m.priority || ""}</td>
                 <td className="num">{formatGBP(m.monthlyTypical)}</td>
                 <td className="num">{formatGBP(m.totalSpent)}</td>
                 <td className="num">{m.txnCount}</td>
@@ -105,8 +106,16 @@ export default function Merchants() {
                 {people.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
               </select>
             </label>
-            <label className="field"><span>Priority (higher wins)</span><input inputMode="numeric" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} /></label>
-            <div className="modal-actions"><button type="button" onClick={() => dialog.current?.close()}>Cancel</button><button className="btn-primary" type="submit">Save</button></div>
+            <label className="field"><span>Priority (higher wins) · {Number(form.priority) || 0}</span>
+              <input type="range" min={0} max={100} value={Number(form.priority) || 0} className="prio-range"
+                style={{ background: `linear-gradient(to right, var(--jade) ${Number(form.priority) || 0}%, var(--surface-2) ${Number(form.priority) || 0}%)` }}
+                onChange={(e) => setForm({ ...form, priority: e.target.value })} />
+            </label>
+            <div className="modal-actions">
+              {(edit.categoryKey || edit.personKey) && <button type="button" className="btn-danger" style={{ marginRight: "auto" }} onClick={() => { set(edit.token, { categoryKey: null, personKey: null }); dialog.current?.close(); }}>Remove rule</button>}
+              <button type="button" onClick={() => dialog.current?.close()}>Cancel</button>
+              <button className="btn-primary" type="submit">Save</button>
+            </div>
           </form>
         )}
       </dialog>

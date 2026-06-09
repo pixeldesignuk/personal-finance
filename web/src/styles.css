@@ -359,6 +359,11 @@ select {
 .field select, .field input { width: 100%; }
 input.readonly { color: var(--ink-3); background: var(--bg-2); cursor: default; font-family: var(--font-mono); font-size: 12.5px; }
 input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
+/* priority slider styled as a progress bar */
+.prio-range { -webkit-appearance: none; appearance: none; height: 8px; border-radius: 999px; padding: 0; border: 1px solid var(--line-strong); cursor: pointer; }
+.prio-range:focus { box-shadow: none; border-color: var(--line-strong); }
+.prio-range::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--jade); border: 2px solid var(--bg-2); cursor: pointer; }
+.prio-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--jade); border: 2px solid var(--bg-2); cursor: pointer; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
 
 /* manual / cash transaction tag */

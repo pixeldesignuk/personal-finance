@@ -47,7 +47,6 @@ export function SettingsDrawer() {
                 <NavLink to="/merchants" className="drawer-link" onClick={() => setOpen(false)}>Merchants</NavLink>
                 <NavLink to="/debts" className="drawer-link" onClick={() => setOpen(false)}>Debt</NavLink>
                 <NavLink to="/people" className="drawer-link" onClick={() => setOpen(false)}>People</NavLink>
-                <NavLink to="/rules" className="drawer-link" onClick={() => setOpen(false)}>Rules</NavLink>
                 <NavLink to="/accounts" className="drawer-link" onClick={() => setOpen(false)}>Manage accounts</NavLink>
               </div>
               {!data && <div className="drawer-section muted">Loading…</div>}
