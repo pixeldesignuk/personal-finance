@@ -10,6 +10,7 @@ import Investments from "./pages/Investments.tsx";
 import Debts from "./pages/Debts.tsx";
 import Merchants from "./pages/Merchants.tsx";
 import People from "./pages/People.tsx";
+import { NavMenu } from "./components/NavMenu.tsx";
 import { SettingsDrawer } from "./components/SettingsDrawer.tsx";
 
 export default function App() {
@@ -18,10 +19,16 @@ export default function App() {
       <nav>
         <Link to="/" className="wordmark">Led<b>·</b>ger</Link>
         <NavLink to="/" end>Dashboard</NavLink>
-        <NavLink to="/transactions">Transactions</NavLink>
-        <NavLink to="/budgets">Budget</NavLink>
-        <NavLink to="/reports">Reports</NavLink>
-        <NavLink to="/investments">Investments</NavLink>
+        <NavMenu label="Budget" items={[
+          { to: "/budgets", label: "Budget" },
+          { to: "/transactions", label: "Transactions" },
+          { to: "/reports", label: "Reports" },
+          { to: "/merchants", label: "Merchants" },
+        ]} />
+        <NavMenu label="Wealth" items={[
+          { to: "/investments", label: "Investments" },
+          { to: "/debts", label: "Debts" },
+        ]} />
         <SettingsDrawer />
         <NavLink to="/connect" className="btn-primary nav-cta">Connect</NavLink>
       </nav>
