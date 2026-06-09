@@ -85,7 +85,7 @@ export default function Merchants() {
                 <td><Combobox value={m.categoryKey} options={catOpts} allowClear placeholder="—" onChange={(v) => set(m.token, { categoryKey: v })} /></td>
                 <td><Combobox value={m.personKey} options={personOpts} allowClear placeholder="—" onChange={(v) => set(m.token, { personKey: v })} /></td>
                 <td><Combobox value={m.override} placeholder="Auto" options={[{ value: "auto", label: `Auto · ${TYPE_LABEL[m.detected]}` }, { value: "fixed", label: "Recurring" }, { value: "variable", label: "Variable" }, { value: "ignore", label: "Ignore" }]} onChange={(v) => set(m.token, { recurring: (v ?? "auto") as MerchantDTO["override"] })} /></td>
-                <td className="num">{m.priority || ""}</td>
+                <td className="num">{m.priority}</td>
                 <td className="num">{formatGBP(m.monthlyTypical)}</td>
                 <td className="num">{formatGBP(m.totalSpent)}</td>
                 <td className="num">{m.txnCount}</td>
