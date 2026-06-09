@@ -51,7 +51,7 @@ merchantsRouter.get("/merchants", async (_req, res, next) => {
       const statement = top(g.name) ?? token;
       merchants.push({
         token,
-        name: ov?.name ?? statement,
+        name: ov?.name ?? null,
         statement,
         categoryKey: ov?.categoryKey ?? top(g.cats),
         totalSpent: Number(totalSpent.toFixed(2)),

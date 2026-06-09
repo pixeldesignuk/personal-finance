@@ -104,8 +104,8 @@ export interface InvestmentAccountDTO {
 
 export interface MerchantDTO {
   token: string;
-  name: string;        // friendly name (override) or the statement line if unset
-  statement: string;   // most-common raw statement line
+  name: string | null; // human-readable name layered on top (editable); null if unset
+  statement: string;   // raw bank statement line — immutable source of truth
   categoryKey: string | null;
   totalSpent: number;
   txnCount: number;

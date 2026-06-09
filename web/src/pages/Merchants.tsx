@@ -72,17 +72,19 @@ export default function Merchants() {
               <tr key={m.token}>
                 <td>
                   {nameEdit?.token === m.token ? (
-                    <input className="note-input" autoFocus value={nameEdit.value}
+                    <input className="note-input" autoFocus placeholder="Human-readable name" value={nameEdit.value}
                       onChange={(e) => setNameEdit({ token: m.token, value: e.target.value })}
                       onBlur={saveName}
                       onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setNameEdit(null); }} />
                   ) : (
                     <div className="td-clip">
-                      <Link className="amount-link" to={`/transactions?merchant=${encodeURIComponent(m.token)}`}>{m.name}</Link>
-                      <button className="btn-sm" style={{ marginLeft: 6, padding: "1px 6px" }} title="Rename merchant" onClick={() => setNameEdit({ token: m.token, value: m.name })}>✎</button>
+                      {m.name
+                        ? <Link className="amount-link" to={`/transactions?merchant=${encodeURIComponent(m.token)}`}>{m.name}</Link>
+                        : <Link className="amount-link muted" to={`/transactions?merchant=${encodeURIComponent(m.token)}`} style={{ fontStyle: "italic" }}>Unnamed</Link>}
+                      <button className="btn-sm" style={{ marginLeft: 6, padding: "1px 6px" }} title={m.name ? "Edit name" : "Add a name"} onClick={() => setNameEdit({ token: m.token, value: m.name ?? "" })}>{m.name ? "✎" : "+ name"}</button>
                     </div>
                   )}
-                  {m.statement !== m.name && <div className="note-line" title="Statement line">{m.statement}</div>}
+                  <div className="note-line" title="Bank statement line — not editable">{m.statement}</div>
                 </td>
                 <td>
                   <select value={m.categoryKey ?? ""} onChange={(e) => e.target.value && setCat.mutate({ token: m.token, categoryKey: e.target.value })}>
