@@ -398,7 +398,10 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
 .brand-mono { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
 .merchant-cell { display: flex; align-items: center; gap: 11px; min-width: 0; }
 .merchant-cell .td-clip { min-width: 0; }
-.lrow-acct { display: inline-flex; align-items: center; gap: 9px; min-width: 0; }
+.lrow-acct { display: inline-flex; align-items: center; gap: 11px; min-width: 0; }
+/* Bigger logos in bank lists with the white tile trimmed back to a hairline. */
+.lrow-acct .brand-logo { border-color: var(--line); }
+.lrow-acct .brand-logo img { padding: 0; }
 .txn-acct { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
 .txn-acct .td-clip { min-width: 0; }
 .txn-acct .badge.manual { flex: none; }

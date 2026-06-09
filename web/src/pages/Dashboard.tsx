@@ -102,7 +102,7 @@ export default function Dashboard() {
               return (
                 <div key={`${a.id}-${syncNonce}-${delta ?? "x"}`} className={`lrow${delta != null ? " flash-update" : ""}`}>
                   <span className="lrow-acct">
-                    <BrandLogo name={bank.institutionName} src={bank.institutionLogo} size={20} />
+                    <BrandLogo name={bank.institutionName} src={bank.institutionLogo} size={30} />
                     <span>{bank.institutionName} <span className="muted">— {a.displayName}</span></span>
                   </span>
                   <span className="num">
