@@ -15,12 +15,12 @@ const tokenOf = (t: { merchantName: string | null; creditorName: string | null; 
 merchantsRouter.get("/merchants", async (_req, res, next) => {
   try {
     const txns = await db.transaction.findMany({
-      select: { merchantName: true, creditorName: true, debtorName: true, remittanceInfo: true, amount: true, bookingDate: true, category: true, categoryOverride: true },
+      select: { merchantName: true, creditorName: true, debtorName: true, remittanceInfo: true, amount: true, bookingDate: true, category: true, categoryOverride: true, personKey: true },
     });
     const overrides = new Map((await db.merchant.findMany()).map((m) => [m.token, m]));
     const ruleByMerchant = new Map((await db.rule.findMany({ where: { NOT: { merchantId: null } } })).map((r) => [r.merchantId as string, r]));
 
-    interface Agg { name: Map<string, number>; amounts: number[]; months: Set<string>; last: string | null; cats: Map<string, number>; }
+    interface Agg { name: Map<string, number>; amounts: number[]; months: Set<string>; last: string | null; cats: Map<string, number>; persons: Map<string, number>; }
     const groups = new Map<string, Agg>();
     for (const t of txns) {
       const amt = Number(t.amount);
@@ -28,12 +28,13 @@ merchantsRouter.get("/merchants", async (_req, res, next) => {
       if (amt >= 0 || eff === "transfer" || eff === "income") continue; // spending only
       const token = tokenOf(t);
       if (!token) continue;
-      const g: Agg = groups.get(token) ?? { name: new Map(), amounts: [], months: new Set(), last: null, cats: new Map() };
+      const g: Agg = groups.get(token) ?? { name: new Map(), amounts: [], months: new Set(), last: null, cats: new Map(), persons: new Map() };
       const rawName = t.merchantName ?? t.creditorName ?? t.debtorName ?? t.remittanceInfo ?? token;
       g.name.set(rawName, (g.name.get(rawName) ?? 0) + 1);
       g.amounts.push(Math.abs(amt));
       if (t.bookingDate) { const m = monthOf(t.bookingDate); if (m) g.months.add(m); if (!g.last || t.bookingDate > g.last) g.last = t.bookingDate; }
       g.cats.set(eff, (g.cats.get(eff) ?? 0) + 1);
+      if (t.personKey) g.persons.set(t.personKey, (g.persons.get(t.personKey) ?? 0) + 1);
       groups.set(token, g);
     }
 
@@ -56,7 +57,7 @@ merchantsRouter.get("/merchants", async (_req, res, next) => {
         name: ov?.name ?? null,
         statement,
         categoryKey: rule?.categoryKey ?? top(g.cats),
-        personKey: rule?.personKey ?? null,
+        personKey: rule?.personKey ?? top(g.persons),
         priority: rule?.priority ?? 0,
         totalSpent: Number(totalSpent.toFixed(2)),
         txnCount: g.amounts.length,

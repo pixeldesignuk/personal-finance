@@ -60,8 +60,8 @@ export default function Merchants() {
 
       <div className="card">
         <table className="txn-table">
-          <colgroup><col /><col style={{ width: 170 }} /><col style={{ width: 130 }} /><col style={{ width: 150 }} /><col style={{ width: 110 }} /><col style={{ width: 100 }} /><col style={{ width: 44 }} /></colgroup>
-          <thead><tr><th>Merchant</th><th>Category</th><th>Person</th><th>Type</th><th style={{ textAlign: "right" }}>Per month</th><th style={{ textAlign: "right" }}>Total</th><th></th></tr></thead>
+          <colgroup><col /><col style={{ width: 170 }} /><col style={{ width: 130 }} /><col style={{ width: 150 }} /><col style={{ width: 104 }} /><col style={{ width: 100 }} /><col style={{ width: 60 }} /><col style={{ width: 44 }} /></colgroup>
+          <thead><tr><th>Merchant</th><th>Category</th><th>Person</th><th>Type</th><th style={{ textAlign: "right" }}>Per month</th><th style={{ textAlign: "right" }}>Total</th><th style={{ textAlign: "right" }}>Txns</th><th></th></tr></thead>
           <tbody>
             {shown.map((m) => (
               <tr key={m.token}>
@@ -78,6 +78,7 @@ export default function Merchants() {
                 <td><Combobox value={m.override} placeholder="Auto" options={[{ value: "auto", label: `Auto · ${TYPE_LABEL[m.detected]}` }, { value: "fixed", label: "Recurring" }, { value: "variable", label: "Variable" }, { value: "ignore", label: "Ignore" }]} onChange={(v) => set(m.token, { recurring: (v ?? "auto") as MerchantDTO["override"] })} /></td>
                 <td className="num">{formatGBP(m.monthlyTypical)}</td>
                 <td className="num">{formatGBP(m.totalSpent)}</td>
+                <td className="num">{m.txnCount}</td>
                 <td><button className="btn-sm" title="Edit merchant" onClick={() => openEdit(m)}>✎</button></td>
               </tr>
             ))}
@@ -92,8 +93,18 @@ export default function Merchants() {
             <h3 style={{ marginTop: 0 }}>Edit merchant</h3>
             <div className="note-line" style={{ marginTop: -6 }}>{edit.statement}</div>
             <label className="field"><span>Human-readable name</span><input value={form.name} autoFocus placeholder="e.g. Tesco" onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-            <div className="field"><span>Category</span><div><Combobox value={edit.categoryKey} options={catOpts} allowClear placeholder="—" onChange={(v) => { set(edit.token, { categoryKey: v }); setEdit({ ...edit, categoryKey: v }); }} /></div></div>
-            <div className="field"><span>Person</span><div><Combobox value={edit.personKey} options={personOpts} allowClear placeholder="—" onChange={(v) => { set(edit.token, { personKey: v }); setEdit({ ...edit, personKey: v }); }} /></div></div>
+            <label className="field"><span>Category</span>
+              <select value={edit.categoryKey ?? ""} onChange={(e) => { const v = e.target.value || null; set(edit.token, { categoryKey: v }); setEdit({ ...edit, categoryKey: v }); }}>
+                <option value="">—</option>
+                {catNames.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
+              </select>
+            </label>
+            <label className="field"><span>Person</span>
+              <select value={edit.personKey ?? ""} onChange={(e) => { const v = e.target.value || null; set(edit.token, { personKey: v }); setEdit({ ...edit, personKey: v }); }}>
+                <option value="">—</option>
+                {people.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
+              </select>
+            </label>
             <label className="field"><span>Priority (higher wins)</span><input inputMode="numeric" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} /></label>
             <div className="modal-actions"><button type="button" onClick={() => dialog.current?.close()}>Cancel</button><button className="btn-primary" type="submit">Save</button></div>
           </form>
