@@ -45,7 +45,7 @@ export function Combobox({ value, options, onChange, placeholder = "—", allowC
     <span className="combo">
       <button ref={triggerRef} type="button" className={`combo-trigger${selected && !muted ? "" : " muted"}`}
         onClick={() => { setOpen((o) => !o); setQ(""); setActive(0); }}>
-        {selected?.label ?? placeholder}<span className="combo-caret">▾</span>
+        {selected?.label ?? placeholder}
       </button>
       {open && createPortal(
         <div ref={popRef} className="combo-pop" style={{ left: pos.left, top: pos.top, minWidth: pos.width }}>
