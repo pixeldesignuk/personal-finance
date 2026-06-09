@@ -15,9 +15,12 @@ const tokenOf = (t: { merchantName: string | null; creditorName: string | null; 
 merchantsRouter.get("/merchants", async (_req, res, next) => {
   try {
     const txns = await db.transaction.findMany({
-      select: { merchantName: true, creditorName: true, debtorName: true, remittanceInfo: true, amount: true, bookingDate: true, category: true, categoryOverride: true, personKey: true },
+      select: { accountId: true, merchantName: true, creditorName: true, debtorName: true, remittanceInfo: true, amount: true, bookingDate: true, category: true, categoryOverride: true, personKey: true },
     });
     const overrides = new Map((await db.merchant.findMany()).map((m) => [m.token, m]));
+    // accountId → owning bank, so each merchant can show the account it's paid from.
+    const accts = await db.account.findMany({ include: { requisition: true } });
+    const bankByAccount = new Map(accts.map((a) => [a.id, { name: a.requisition?.institutionName ?? a.name ?? null, logo: a.requisition?.institutionLogo ?? null }]));
     // A merchant's rule may be linked by merchantId (new) or just match by token
     // (older rules) — index both so existing priorities/categories show.
     const allRules = await db.rule.findMany();
@@ -28,7 +31,7 @@ merchantsRouter.get("/merchants", async (_req, res, next) => {
       if (!ruleByMatch.has(r.matchText)) ruleByMatch.set(r.matchText, r);
     }
 
-    interface Agg { name: Map<string, number>; amounts: number[]; months: Set<string>; last: string | null; cats: Map<string, number>; persons: Map<string, number>; }
+    interface Agg { name: Map<string, number>; amounts: number[]; months: Set<string>; last: string | null; cats: Map<string, number>; persons: Map<string, number>; accounts: Map<string, number>; }
     const groups = new Map<string, Agg>();
     for (const t of txns) {
       const amt = Number(t.amount);
@@ -36,13 +39,14 @@ merchantsRouter.get("/merchants", async (_req, res, next) => {
       if (amt >= 0 || eff === "transfer" || eff === "income") continue; // spending only
       const token = tokenOf(t);
       if (!token) continue;
-      const g: Agg = groups.get(token) ?? { name: new Map(), amounts: [], months: new Set(), last: null, cats: new Map(), persons: new Map() };
+      const g: Agg = groups.get(token) ?? { name: new Map(), amounts: [], months: new Set(), last: null, cats: new Map(), persons: new Map(), accounts: new Map() };
       const rawName = t.merchantName ?? t.creditorName ?? t.debtorName ?? t.remittanceInfo ?? token;
       g.name.set(rawName, (g.name.get(rawName) ?? 0) + 1);
       g.amounts.push(Math.abs(amt));
       if (t.bookingDate) { const m = monthOf(t.bookingDate); if (m) g.months.add(m); if (!g.last || t.bookingDate > g.last) g.last = t.bookingDate; }
       g.cats.set(eff, (g.cats.get(eff) ?? 0) + 1);
       if (t.personKey) g.persons.set(t.personKey, (g.persons.get(t.personKey) ?? 0) + 1);
+      g.accounts.set(t.accountId, (g.accounts.get(t.accountId) ?? 0) + 1);
       groups.set(token, g);
     }
 
@@ -60,10 +64,14 @@ merchantsRouter.get("/merchants", async (_req, res, next) => {
       const monthlyTypical = effective === "fixed" ? median(g.amounts) : totalSpent / monthsActive;
       const statement = top(g.name) ?? token;
       const rule = ruleByMerchant.get(token) ?? ruleByMatch.get(token);
+      const topAccount = top(g.accounts);
+      const bank = topAccount ? bankByAccount.get(topAccount) : null;
       merchants.push({
         token,
         name: ov?.name ?? null,
         statement,
+        accountName: bank?.name ?? null,
+        accountLogo: bank?.logo ?? null,
         categoryKey: rule?.categoryKey ?? top(g.cats),
         categoryFromRule: Boolean(rule?.categoryKey),
         personKey: rule?.personKey ?? top(g.persons),

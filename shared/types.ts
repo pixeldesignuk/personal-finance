@@ -108,6 +108,8 @@ export interface MerchantDTO {
   token: string;
   name: string | null; // human-readable name layered on top (editable); null if unset
   statement: string;   // raw bank statement line — immutable source of truth
+  accountName: string | null; // the account/bank it's mostly paid from
+  accountLogo: string | null; // that bank's logo URL (null for manual/cash)
   categoryKey: string | null; // category (from the linked rule, or most-common txn category)
   categoryFromRule: boolean;  // true = saved as a rule; false = auto-detected suggestion
   personKey: string | null;   // person (from the linked rule)

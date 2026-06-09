@@ -78,7 +78,10 @@ export default function Merchants() {
               <tr key={m.token}>
                 <td>
                   <div className="merchant-cell">
-                    <BrandLogo name={m.name ?? m.statement} size={32} />
+                    <span className="merchant-logos">
+                      <BrandLogo name={m.name ?? m.statement} size={32} />
+                      {m.accountLogo && <BrandLogo name={m.accountName ?? ""} src={m.accountLogo} size={18} />}
+                    </span>
                     <div className="td-clip">
                       <div className="td-clip">
                         {m.name
