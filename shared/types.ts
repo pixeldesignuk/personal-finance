@@ -107,6 +107,7 @@ export interface MerchantDTO {
   name: string | null; // human-readable name layered on top (editable); null if unset
   statement: string;   // raw bank statement line — immutable source of truth
   categoryKey: string | null; // category (from the linked rule, or most-common txn category)
+  categoryFromRule: boolean;  // true = saved as a rule; false = auto-detected suggestion
   personKey: string | null;   // person (from the linked rule)
   priority: number;           // rule priority
   totalSpent: number;

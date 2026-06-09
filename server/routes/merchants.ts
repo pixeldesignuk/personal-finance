@@ -57,6 +57,7 @@ merchantsRouter.get("/merchants", async (_req, res, next) => {
         name: ov?.name ?? null,
         statement,
         categoryKey: rule?.categoryKey ?? top(g.cats),
+        categoryFromRule: Boolean(rule?.categoryKey),
         personKey: rule?.personKey ?? top(g.persons),
         priority: rule?.priority ?? 0,
         totalSpent: Number(totalSpent.toFixed(2)),
@@ -78,6 +79,34 @@ merchantsRouter.get("/merchants", async (_req, res, next) => {
       variableMonthly: Number(sumBy("variable").toFixed(2)),
     };
     res.json(dto);
+  } catch (err) { next(err); }
+});
+
+// Turn every auto-detected merchant category into a real rule (for merchants
+// that don't already have one). Makes the suggestions authoritative.
+merchantsRouter.post("/merchants/confirm-detected", async (_req, res, next) => {
+  try {
+    const txns = await db.transaction.findMany({ select: { merchantName: true, creditorName: true, debtorName: true, remittanceInfo: true, amount: true, category: true, categoryOverride: true } });
+    const ruled = new Set((await db.rule.findMany({ where: { NOT: { merchantId: null } } })).map((r) => r.merchantId));
+    const cats = new Map<string, Map<string, number>>();
+    for (const t of txns) {
+      const amt = Number(t.amount);
+      const eff = effectiveCategory(t);
+      if (amt >= 0 || eff === "transfer" || eff === "income" || eff === "uncategorised") continue;
+      const token = tokenOf(t);
+      if (!token || ruled.has(token)) continue;
+      const m = cats.get(token) ?? new Map();
+      m.set(eff, (m.get(eff) ?? 0) + 1);
+      cats.set(token, m);
+    }
+    let created = 0;
+    for (const [token, m] of cats) {
+      const detected = [...m.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+      if (!detected) continue;
+      await db.rule.create({ data: { matchText: token, merchantId: token, categoryKey: detected, priority: 50 } });
+      created++;
+    }
+    res.json({ created });
   } catch (err) { next(err); }
 });
 

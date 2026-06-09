@@ -5,13 +5,14 @@ export interface ComboOption { value: string; label: string }
 
 // A bespoke select that reads like inline table text but, on click, opens a
 // searchable autocomplete popover (portalled, so table overflow can't clip it).
-export function Combobox({ value, options, onChange, placeholder = "—", allowClear, clearLabel = "— none —" }: {
+export function Combobox({ value, options, onChange, placeholder = "—", allowClear, clearLabel = "— none —", muted }: {
   value: string | null;
   options: ComboOption[];
   onChange: (value: string | null) => void;
   placeholder?: string;
   allowClear?: boolean;
   clearLabel?: string;
+  muted?: boolean;  // render the selected value muted (e.g. an unconfirmed suggestion)
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -42,7 +43,7 @@ export function Combobox({ value, options, onChange, placeholder = "—", allowC
 
   return (
     <span className="combo">
-      <button ref={triggerRef} type="button" className={`combo-trigger${selected ? "" : " muted"}`}
+      <button ref={triggerRef} type="button" className={`combo-trigger${selected && !muted ? "" : " muted"}`}
         onClick={() => { setOpen((o) => !o); setQ(""); setActive(0); }}>
         {selected?.label ?? placeholder}<span className="combo-caret">▾</span>
       </button>

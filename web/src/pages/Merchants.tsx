@@ -43,11 +43,20 @@ export default function Merchants() {
     dialog.current?.close();
   };
 
+  const confirmDetected = useMutation({
+    mutationFn: () => api.confirmDetectedMerchants(),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["merchants"] }); qc.invalidateQueries({ queryKey: ["transactions"] }); },
+  });
+  const detectedCount = useMemo(() => (data?.merchants ?? []).filter((m) => m.categoryKey && !m.categoryFromRule).length, [data]);
+
   const shown = useMemo(() => (data?.merchants ?? []).filter((m) => tab === "all" || m.effective === tab), [data, tab]);
 
   return (
     <div>
-      <h1>Merchants</h1>
+      <div className="row-between">
+        <h1>Merchants</h1>
+        {detectedCount > 0 && <button onClick={() => confirmDetected.mutate()} disabled={confirmDetected.isPending} title="Save auto-detected categories as rules">Confirm {detectedCount} detected {detectedCount === 1 ? "category" : "categories"}</button>}
+      </div>
       {data && (
         <div className="grid">
           <div className="card stat"><span className="label">Monthly outgoings</span><span className="value">{formatGBP(data.monthlyOutgoings)}</span><span className="delta muted">committed / recurring</span></div>
@@ -73,7 +82,7 @@ export default function Merchants() {
                   </div>
                   <div className="note-line" title="Bank statement line — not editable">{m.statement}</div>
                 </td>
-                <td><Combobox value={m.categoryKey} options={catOpts} allowClear placeholder="—" onChange={(v) => set(m.token, { categoryKey: v })} /></td>
+                <td><Combobox value={m.categoryKey} options={catOpts} allowClear placeholder="—" muted={!m.categoryFromRule} onChange={(v) => set(m.token, { categoryKey: v })} /></td>
                 <td><Combobox value={m.personKey} options={personOpts} allowClear placeholder="—" onChange={(v) => set(m.token, { personKey: v })} /></td>
                 <td><Combobox value={m.override} placeholder="Auto" options={[{ value: "auto", label: `Auto · ${TYPE_LABEL[m.detected]}` }, { value: "fixed", label: "Recurring" }, { value: "variable", label: "Variable" }, { value: "ignore", label: "Ignore" }]} onChange={(v) => set(m.token, { recurring: (v ?? "auto") as MerchantDTO["override"] })} /></td>
                 <td className="num">{m.priority || ""}</td>
