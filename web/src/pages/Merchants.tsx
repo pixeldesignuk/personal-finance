@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { useQueryState } from "nuqs";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api.ts";
@@ -14,7 +15,7 @@ export default function Merchants() {
   const { data } = useQuery({ queryKey: ["merchants"], queryFn: () => api.merchants() });
   const catNames = (useQuery({ queryKey: ["categoryNames"], queryFn: () => api.categoryNames(), staleTime: 5 * 60_000 }).data ?? []);
   const people = (useQuery({ queryKey: ["people"], queryFn: () => api.people(), staleTime: 5 * 60_000 }).data ?? []);
-  const [tab, setTab] = useState("all");
+  const [tab, setTab] = useQueryState("tab", { defaultValue: "all", history: "replace" });
 
   const catOpts = useMemo(() => catNames.map((c) => ({ value: c.key, label: c.name })), [catNames]);
   const personOpts = useMemo(() => people.map((p) => ({ value: p.key, label: p.name })), [people]);

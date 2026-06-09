@@ -149,20 +149,23 @@ nav a.active:not(.nav-cta)::after {
 .cog-menu a:hover { background: var(--surface-2); color: var(--ink); }
 .cog-menu a.active { color: var(--jade); }
 
-/* top-nav dropdown groups (Budget, Wealth) — Radix-driven */
+/* top-nav dropdown groups (Budget, Wealth) */
+.nav-group { position: relative; display: flex; align-items: center; }
 .nav-group-trigger {
   background: transparent; border: none; padding: 4px 0; font-family: inherit;
   color: var(--ink-3); font-size: 14px; font-weight: 500; cursor: pointer;
   display: inline-flex; align-items: center; gap: 5px; transition: color 0.18s ease;
+  text-decoration: none;
 }
 .nav-group-trigger:hover { color: var(--ink); border-color: transparent; transform: none; }
 .nav-group-trigger.active { color: var(--ink); }
+.nav-group-trigger.active::after { display: none; }
 .nav-caret { font-size: 9px; line-height: 1; color: var(--ink-3); transition: transform 0.18s ease; }
-.nav-group-trigger[data-state="open"] .nav-caret { transform: rotate(180deg); }
+.nav-group-trigger[aria-expanded="true"] .nav-caret { transform: rotate(180deg); }
 
-/* Radix popper positions this; we only style its appearance. */
 .nav-menu {
-  display: flex; flex-direction: column; min-width: 184px; z-index: 30;
+  position: absolute; top: 100%; left: 0; margin-top: 8px; z-index: 30;
+  display: flex; flex-direction: column; min-width: 184px;
   background: linear-gradient(180deg, var(--surface), var(--bg-2));
   border: 1px solid var(--line-strong); border-radius: var(--r-sm);
   box-shadow: 0 24px 50px -22px rgba(0, 0, 0, 0.8); padding: 6px;
@@ -170,7 +173,7 @@ nav a.active:not(.nav-cta)::after {
 }
 .nav-menu a { padding: 8px 12px; border-radius: 7px; color: var(--ink-2); font-size: 14px; text-decoration: none; outline: none; cursor: pointer; }
 .nav-menu a::after { display: none !important; }
-.nav-menu a:hover, .nav-menu a[data-highlighted] { background: var(--surface-2); color: var(--ink); }
+.nav-menu a:hover { background: var(--surface-2); color: var(--ink); }
 .nav-menu a.active { color: var(--jade); }
 
 /* settings side-nav drawer */

@@ -19,8 +19,7 @@ export default function App() {
       <nav>
         <Link to="/" className="wordmark">Led<b>·</b>ger</Link>
         <NavLink to="/" end>Dashboard</NavLink>
-        <NavMenu label="Budget" items={[
-          { to: "/budgets", label: "Budget" },
+        <NavMenu label="Budget" to="/budgets" items={[
           { to: "/transactions", label: "Transactions" },
           { to: "/reports", label: "Reports" },
           { to: "/merchants", label: "Merchants" },
