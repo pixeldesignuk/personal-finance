@@ -4,7 +4,7 @@ import type {
   BankDTO, RemoveBankResult, NicknameResult,
   SummaryDTO, ManualAccountInput, ManualTxnInput,
   CategoryDTO, BudgetResponseDTO, CategoryInfoDTO, ReportDTO,
-  PersonDTO, RuleDTO, CategoryNameDTO, ReconcileResult, AuditEvent, InvestmentsDTO, SettingsDTO, DebtsDTO, MerchantsDTO, AccountRecurringDTO, PotsDTO,
+  PersonDTO, RuleDTO, CategoryNameDTO, ReconcileResult, AuditEvent, InvestmentsDTO, SettingsDTO, DebtsDTO, MerchantsDTO, AccountRecurringDTO, PotsDTO, PluginsDTO,
 } from "../../shared/types.ts";
 
 async function get<T>(url: string): Promise<T> {
@@ -111,6 +111,8 @@ export const api = {
   patchPot: (id: number, patch: { name?: string; target?: number | null; balance?: number; emoji?: string | null; note?: string | null; archived?: boolean }) => send<{ id: number }>("PATCH", `/api/pots/${id}`, patch),
   movePot: (id: number, amount: number) => send<{ id: number; balance: number }>("POST", `/api/pots/${id}/move`, { amount }),
   deletePot: (id: number) => send<{ deleted: boolean }>("DELETE", `/api/pots/${id}`),
+  plugins: () => get<PluginsDTO>("/api/plugins"),
+  disconnectGmail: () => send<{ ok: boolean }>("POST", "/api/plugins/gmail/disconnect"),
   investments: () => get<InvestmentsDTO>("/api/investments"),
   syncInvestment: (provider: string) => send<{ provider: string; total: number; holdings: number }>("POST", `/api/investments/${provider}/sync`),
   syncInvestments: () => send<{ results: { provider: string; total: number; holdings: number }[] }>("POST", "/api/investments/sync"),

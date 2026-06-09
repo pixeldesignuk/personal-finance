@@ -44,6 +44,7 @@ export function SettingsDrawer() {
             <div className="drawer-body">
               <div className="drawer-section">
                 <div className="eyebrow">Navigation</div>
+                <NavLink to="/plugins" className="drawer-link" onClick={() => setOpen(false)}>Plugins</NavLink>
                 <NavLink to="/people" className="drawer-link" onClick={() => setOpen(false)}>People</NavLink>
               </div>
               {!data && <div className="drawer-section muted">Loading…</div>}

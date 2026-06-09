@@ -22,6 +22,7 @@ import { settingsRouter } from "./routes/settings.ts";
 import { debtsRouter } from "./routes/debts.ts";
 import { merchantsRouter } from "./routes/merchants.ts";
 import { potsRouter } from "./routes/pots.ts";
+import { pluginsRouter } from "./routes/plugins.ts";
 
 const app = express();
 app.use(express.json());
@@ -45,6 +46,7 @@ app.use("/api", settingsRouter);
 app.use("/api", debtsRouter);
 app.use("/api", merchantsRouter);
 app.use("/api", potsRouter);
+app.use("/api", pluginsRouter);
 
 // Serve built frontend in production.
 const __dirname = dirname(fileURLToPath(import.meta.url));

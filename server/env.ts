@@ -12,6 +12,8 @@ const schema = z.object({
   TELEGRAM_ALLOWED_CHAT_ID: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().default("gemini-flash-latest"),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
   TRADING_212_KEY_ID: z.string().optional(),
   TRADING_212_SECRET: z.string().optional(),
   TRADING212_BASE_URL: z.string().optional(),

@@ -35,6 +35,37 @@ model Pot {
   createdAt DateTime @default(now())
 }
 
+// A connected integration (currently just Gmail). Single-user, so OAuth tokens
+// live here in the DB.
+model Plugin {
+  id           String    @id          // "gmail"
+  connected    Boolean   @default(false)
+  email        String?
+  refreshToken String?
+  accessToken  String?
+  tokenExpiry  DateTime?
+  lastSyncAt   DateTime?
+  createdAt    DateTime  @default(now())
+}
+
+// An order/receipt parsed from an email, optionally matched to a transaction.
+model EmailOrder {
+  id            String   @id @default(cuid())
+  source        String   @default("gmail")
+  messageId     String   @unique
+  emailDate     DateTime?
+  merchantName  String?
+  merchantToken String?
+  total         Decimal?
+  currency      String?
+  orderNumber   String?
+  items         Json?
+  subject       String?
+  transactionId String?
+  matched       Boolean  @default(false)
+  createdAt     DateTime @default(now())
+}
+
 model Requisition {
   id              String    @id
   institutionId   String

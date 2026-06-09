@@ -129,6 +129,17 @@ export interface MerchantsDTO {
   variableMonthly: number;  // avg monthly variable spend
 }
 
+export interface PluginsDTO {
+  gmail: {
+    available: boolean;   // GOOGLE_CLIENT_ID/SECRET configured
+    connected: boolean;
+    email: string | null;
+    lastSyncAt: string | null;
+    orders: number;       // total parsed email orders
+    matched: number;      // those linked to a transaction
+  };
+}
+
 // A savings pot — earmarks part of existing liquid cash toward a goal.
 export interface PotDTO {
   id: number;
