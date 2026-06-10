@@ -28,6 +28,16 @@ function categoryKeyboard(txId: string, cats: { key: string; name: string }[]) {
   return { inline_keyboard: rows };
 }
 
+// TEMP diagnostic: Telegram's view of the webhook (delivery errors, pending
+// updates, allowed_updates). Remove once debugged.
+telegramRouter.get("/telegram/webhook-info", async (_req, res) => {
+  try {
+    if (!env.TELEGRAM_BOT_TOKEN) { res.json({ error: "TELEGRAM_BOT_TOKEN not set" }); return; }
+    const r = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/getWebhookInfo`);
+    res.json(await r.json());
+  } catch (err) { res.json({ error: String(err) }); }
+});
+
 telegramRouter.post("/telegram/webhook", async (req, res) => {
   // Always 200 quickly so Telegram doesn't retry; do work inline but guarded.
   try {
