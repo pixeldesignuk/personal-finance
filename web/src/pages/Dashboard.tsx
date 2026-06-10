@@ -15,6 +15,10 @@ import { Upcoming } from "../components/Upcoming.tsx";
 import { PageHeader, Stat, Toggle } from "../components/ui";
 
 const nowMonth = () => new Date().toLocaleDateString("en-CA").slice(0, 7);
+const addMonth = (ym: string, delta: number) => {
+  const [y, m] = ym.split("-").map(Number);
+  return new Date(y, m - 1 + delta, 1).toLocaleDateString("en-CA").slice(0, 7);
+};
 const barClass = (pct: number) => (pct > 100 ? "over" : pct >= 80 ? "warn" : "ok");
 function payoffLabel(months: number | null): string {
   if (!months || months <= 0) return "—";
@@ -38,6 +42,8 @@ export default function Dashboard() {
   const { data: summary } = useQuery({ queryKey: ["summary"], queryFn: () => api.summary() });
   const dashQuery = useQuery({ queryKey: ["dashboard", accountId, month], queryFn: () => api.dashboard(accountId, month) });
   const { data: budget } = useQuery({ queryKey: ["budget", month], queryFn: () => api.budget(month) });
+  const prevMonth = addMonth(month, -1);
+  const { data: budgetPrev } = useQuery({ queryKey: ["budget", prevMonth], queryFn: () => api.budget(prevMonth) });
   const { data: pots } = useQuery({ queryKey: ["pots"], queryFn: () => api.pots() });
   const { data: debts } = useQuery({ queryKey: ["debts"], queryFn: () => api.debts() });
   const { data: upcoming } = useQuery({ queryKey: ["upcoming"], queryFn: () => api.upcoming(30) });
@@ -101,8 +107,24 @@ export default function Dashboard() {
   const spent = budget?.summary.spent ?? 0;
   const budgeted = budget?.summary.budgeted ?? 0;
   const income = budget?.summary.income ?? 0;
+  const net = income - spent;
   const budgetPct = budgeted > 0 ? Math.round((spent / budgeted) * 100) : (spent > 0 ? 100 : 0);
   const elapsed = monthElapsedPct();
+
+  // Month-over-month reference for the stat cards.
+  const prevSpent = budgetPrev?.summary.spent ?? 0;
+  const prevIncome = budgetPrev?.summary.income ?? 0;
+  const mom = (curr: number, prev: number, goodWhenUp: boolean): { node: string; tone: "muted" | "pos" | "neg" } => {
+    if (prev <= 0) return { node: "vs last month", tone: "muted" };
+    const d = curr - prev;
+    if (Math.abs(d) < 0.005) return { node: "— vs last month", tone: "muted" };
+    const up = d > 0;
+    const pct = Math.round((Math.abs(d) / prev) * 100);
+    return { node: `${up ? "↑" : "↓"} ${formatGBP(Math.abs(d))} (${pct}%) vs last month`, tone: up === goodWhenUp ? "pos" : "neg" };
+  };
+  const incomeMom = mom(income, prevIncome, true);
+  const spentMom = mom(spent, prevSpent, false);
+  const netMom = mom(net, prevIncome - prevSpent, true);
 
   // Budget groups (top spenders this month).
   const groups = useMemo(() => {
@@ -173,13 +195,18 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ── Headline figures ────────────────────────────────────────────── */}
+      {/* ── Headline figures (with month-over-month reference) ──────────── */}
       {summary && (
         <div className="grid">
-          <Stat label="In the bank" value={formatGBP(inBank)} delta={`across ${banks.flatMap((b) => b.accounts).filter((a) => a.source === "BANK" || a.source === "MANUAL").length} accounts`} />
-          <Stat label={`Spent · ${isThisMonth ? "this month" : monthLabel}`} value={formatGBP(spent)} valueTone="neg" delta={budgeted > 0 ? `${budgetPct}% of budget` : undefined} deltaTone={budgetPct > 100 ? "neg" : "muted"} />
-          <Stat label="Income" value={formatGBP(income)} valueTone="pos" />
-          <Stat label="Net this month" value={formatGBP(income - spent)} valueTone={income - spent < 0 ? "neg" : "pos"} delta={income > 0 ? `${Math.round(((income - spent) / income) * 100)}% saved` : undefined} />
+          <Stat label="Income" value={formatGBP(income)} valueTone="pos" delta={incomeMom.node} deltaTone={incomeMom.tone} />
+          <Stat label={`Spent · ${isThisMonth ? "this month" : monthLabel}`} value={formatGBP(spent)} valueTone="neg" delta={spentMom.node} deltaTone={spentMom.tone} />
+          <Stat
+            label="Upcoming · rest of month"
+            value={formatGBP(billsDue)}
+            valueTone="neg"
+            delta={`${incomeDue > 0 ? `+${formatGBP(incomeDue)} in · ` : ""}${billsDueCount} bill${billsDueCount === 1 ? "" : "s"} left`}
+          />
+          <Stat label="Net this month" value={formatGBP(net)} valueTone={net < 0 ? "neg" : "pos"} delta={netMom.node} deltaTone={netMom.tone} />
         </div>
       )}
 
