@@ -120,6 +120,23 @@ export async function loadTxnLites(): Promise<TxnLite[]> {
   });
 }
 
+const namesOf = (items: unknown): string[] =>
+  Array.isArray(items) ? (items as { name?: string }[]).map((i) => i?.name).filter((n): n is string => Boolean(n)) : [];
+
+// A short "what was bought" note, e.g. "🧾 Drill Brush, Sponges +2 more".
+function orderNote(merchant: string | null, itemNames: string[]): string {
+  const head = itemNames.slice(0, 3).join(", ");
+  const more = itemNames.length > 3 ? ` +${itemNames.length - 3} more` : "";
+  const body = head ? `${head}${more}` : merchant ?? "order";
+  return `🧾 ${body}`.slice(0, 140);
+}
+
+// Write the note only when empty — never overwrite the user's own note.
+async function maybeSetNote(txnId: string, note: string): Promise<void> {
+  const t = await db.transaction.findUnique({ where: { id: txnId }, select: { note: true } });
+  if (t && (t.note == null || t.note.trim() === "")) await db.transaction.update({ where: { id: txnId }, data: { note } });
+}
+
 export interface GmailSyncResult { scanned: number; parsed: number; matched: number }
 
 export async function syncGmail(audit: AuditFn): Promise<GmailSyncResult> {
@@ -181,7 +198,7 @@ export async function syncGmail(audit: AuditFn): Promise<GmailSyncResult> {
       if (isOrder) {
         parsed++;
         txn = matchTransaction({ total: o!.total!, date: email.date, token: oToken }, txns, taken);
-        if (txn) { taken.add(txn.id); matched++; }
+        if (txn) { taken.add(txn.id); matched++; await maybeSetNote(txn.id, orderNote(o!.merchant, o!.items.map((it) => it.name))); }
       }
       if (dup) dupes++;
       await db.emailOrder.create({
@@ -220,6 +237,7 @@ export async function syncGmail(audit: AuditFn): Promise<GmailSyncResult> {
       if (!txn) continue;
       taken.add(txn.id);
       await db.emailOrder.update({ where: { id: o.id }, data: { transactionId: txn.id, matched: true } });
+      await maybeSetNote(txn.id, orderNote(o.merchantName, namesOf(o.items)));
       rematched++;
       audit({ kind: "assign", id: o.id, name: `${o.merchantName ?? "?"} · ${o.currency ?? ""}${o.total}`, to: `txn ${txn.date ?? ""}`, via: "llm" });
     }

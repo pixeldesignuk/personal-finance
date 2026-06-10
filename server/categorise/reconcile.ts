@@ -44,6 +44,22 @@ export async function reconcile(opts: ReconcileOpts = {}): Promise<ReconcileResu
   })) as TxnRow[];
   const candidates = rows.filter((t) => effectiveCategory(t) === "uncategorised");
 
+  // #1 Item-aware categorisation: a matched Gmail order tells us WHAT was bought,
+  // which a bare merchant line can't. Fold the items into the text the LLM sees.
+  const orderRows = candidates.length
+    ? await db.emailOrder.findMany({ where: { transactionId: { in: candidates.map((c) => c.id) }, total: { not: null } }, select: { transactionId: true, merchantName: true, items: true } })
+    : [];
+  const orderTextById = new Map<string, string>();
+  for (const o of orderRows) {
+    const items = Array.isArray(o.items) ? (o.items as { name?: string }[]).map((i) => i?.name).filter((n): n is string => Boolean(n)) : [];
+    const parts = [o.merchantName, ...items].filter(Boolean);
+    if (parts.length && o.transactionId) orderTextById.set(o.transactionId, parts.join(", "));
+  }
+  const enrichedText = (t: TxnRow): string => {
+    const extra = orderTextById.get(t.id);
+    return extra ? `${txText(t)} · bought: ${extra}` : txText(t);
+  };
+
   const cats = await db.category.findMany({ where: { archived: false }, select: { key: true, name: true, group: true } });
   const categoryOptions = cats.map((c) => ({ key: c.key, name: c.name, group: c.group }));
   const validKeys = new Set(categoryOptions.map((c) => c.key));
@@ -65,7 +81,7 @@ export async function reconcile(opts: ReconcileOpts = {}): Promise<ReconcileResu
       audit?.({ kind: "assign", id: t.id, name: learnName(t) ?? text, to: ruled.categoryKey, via: "rule" });
       byRules++;
     } else {
-      remaining.push({ id: t.id, text, name: learnName(t) });
+      remaining.push({ id: t.id, text: enrichedText(t), name: learnName(t) });
     }
   }
   audit?.({ kind: "rules", categorised: byRules, remaining: remaining.length });

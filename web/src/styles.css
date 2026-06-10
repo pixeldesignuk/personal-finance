@@ -481,6 +481,14 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
   border: 1px solid color-mix(in srgb, var(--jade) 26%, transparent);
 }
 .order-tag-count { font-size: 11px; font-weight: 640; font-variant-numeric: tabular-nums; }
+.order-tag:hover { transform: none; background: color-mix(in srgb, var(--jade) 18%, transparent); border-color: var(--jade); color: var(--jade); }
+/* order-detail dialog */
+.order-detail-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.order-detail-total { font-size: 19px; margin-left: auto; }
+.order-items-list { list-style: none; margin: 4px 0 0; padding: 0; }
+.order-items-list li { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.order-items-list li:last-child { border-bottom: none; }
+.order-item-name { color: var(--ink); min-width: 0; }
 
 /* pot move (add / take) dialog */
 .pot-move-info { display: flex; gap: 10px; margin-top: 2px; }

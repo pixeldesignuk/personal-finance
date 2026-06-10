@@ -75,7 +75,16 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
     const orderByTxn = new Map(orderRows.map((o) => [o.transactionId as string, {
       merchant: o.merchantName,
       total: o.total != null ? Number(o.total.toString()) : null,
-      items: Array.isArray(o.items) ? (o.items as { name?: string }[]).map((i) => i?.name).filter((n): n is string => Boolean(n)) : [],
+      currency: o.currency,
+      orderNumber: o.orderNumber,
+      date: o.emailDate?.toISOString() ?? null,
+      items: Array.isArray(o.items)
+        ? (o.items as { name?: string; qty?: number | null; price?: number | null }[]).map((i) => ({
+            name: String(i?.name ?? ""),
+            qty: typeof i?.qty === "number" ? i.qty : null,
+            price: typeof i?.price === "number" ? i.price : null,
+          })).filter((i) => i.name)
+        : [],
     }]));
     const people = await db.person.findMany();
     const personName = (k: string | null) => people.find((p) => p.key === k)?.name ?? null;

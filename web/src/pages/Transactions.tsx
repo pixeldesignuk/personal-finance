@@ -263,6 +263,11 @@ export default function Transactions() {
   const startNote = (r: TransactionDTO) => { setNoteEditId(r.id); setNoteDraft(r.note ?? ""); };
   const saveNote = (id: string) => { noteMutation.mutate({ id, note: noteDraft.trim() || null }); setNoteEditId(null); };
 
+  // Order-detail dialog (click the receipt tag).
+  const orderDialog = useRef<HTMLDialogElement>(null);
+  const [orderView, setOrderView] = useState<{ name: string; order: NonNullable<TransactionDTO["order"]> } | null>(null);
+  const openOrder = (r: TransactionDTO) => { if (!r.order) return; setOrderView({ name: r.name ?? r.remittanceInfo ?? "Order", order: r.order }); orderDialog.current?.showModal(); };
+
   const [sheetOpen, setSheetOpen] = useState(false);
   const scopedAccount = accountId && accountId !== "all" ? accountId : undefined;
   const reconcileRun = useCallback((onEvent: (e: AuditEvent) => void) => api.reconcileStream(onEvent, scopedAccount), [scopedAccount]);
@@ -371,10 +376,10 @@ export default function Transactions() {
                   <div className="td-name">
                     <span className="td-clip" title={r.name ?? r.remittanceInfo ?? ""}>{r.name ?? r.remittanceInfo ?? ""}</span>
                     {r.order && (
-                      <span className="order-tag" title={`${r.order.merchant ?? "Order"}${r.order.items.length ? `\n• ${r.order.items.join("\n• ")}` : ""}`}>
+                      <button type="button" className="order-tag" title="View order details" onClick={() => openOrder(r)}>
                         <Receipt size={13} strokeWidth={1.9} />
                         {r.order.items.length > 0 && <span className="order-tag-count">{r.order.items.length}</span>}
-                      </span>
+                      </button>
                     )}
                   </div>
                   {noteEditId === r.id ? (
@@ -426,6 +431,39 @@ export default function Transactions() {
           </tbody>
         </table>
       </div>
+
+      <dialog ref={orderDialog} className="modal" onClick={(e) => { if (e.target === orderDialog.current) orderDialog.current?.close(); }}>
+        {orderView && (() => {
+          const o = orderView.order;
+          const sym = o.currency === "USD" ? "$" : o.currency === "EUR" ? "€" : "£";
+          return (
+            <div className="modal-body">
+              <div className="order-detail-head">
+                <span className="plugin-icon"><Receipt size={18} strokeWidth={1.9} /></span>
+                <div className="plugin-title">
+                  <h3 style={{ margin: 0 }}>{o.merchant ?? orderView.name}</h3>
+                  <span className="muted">
+                    {o.orderNumber ? `Order ${o.orderNumber}` : "Order"}
+                    {o.date ? ` · ${new Date(o.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : ""}
+                  </span>
+                </div>
+                {o.total != null && <span className="num order-detail-total">{sym}{formatMoney(o.total)}</span>}
+              </div>
+              {o.items.length > 0 ? (
+                <ul className="order-items-list">
+                  {o.items.map((it, i) => (
+                    <li key={i}>
+                      <span className="order-item-name">{it.qty && it.qty > 1 ? `${it.qty}× ` : ""}{it.name}</span>
+                      {it.price != null && <span className="num muted">{sym}{formatMoney(it.price)}</span>}
+                    </li>
+                  ))}
+                </ul>
+              ) : <p className="muted">No line items captured.</p>}
+              <div className="modal-actions"><button type="button" onClick={() => orderDialog.current?.close()}>Close</button></div>
+            </div>
+          );
+        })()}
+      </dialog>
     </div>
   );
 }
