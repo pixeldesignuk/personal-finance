@@ -103,7 +103,7 @@ export const api = {
   merchants: () => get<MerchantsDTO>("/api/merchants"),
   merchantOrders: (token: string) => get<EmailOrderDTO[]>(`/api/merchants/${encodeURIComponent(token)}/orders`),
   confirmDetectedMerchants: () => send<{ created: number }>("POST", "/api/merchants/confirm-detected"),
-  patchMerchant: (token: string, patch: { name?: string | null; recurring?: "auto" | "fixed" | "variable" | "ignore"; categoryKey?: string | null; personKey?: string | null; priority?: number }) =>
+  patchMerchant: (token: string, patch: { name?: string | null; domain?: string | null; recurring?: "auto" | "fixed" | "variable" | "ignore"; categoryKey?: string | null; personKey?: string | null; priority?: number }) =>
     send<{ ok: boolean }>("PATCH", `/api/merchants/${encodeURIComponent(token)}`, patch),
   settings: () => get<SettingsDTO>("/api/settings"),
   patchSettings: (patch: Record<string, boolean>) => send<Record<string, boolean>>("PATCH", "/api/settings", patch),

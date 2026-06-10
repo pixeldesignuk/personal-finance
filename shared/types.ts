@@ -108,6 +108,7 @@ export interface InvestmentAccountDTO {
 export interface MerchantDTO {
   token: string;
   name: string | null; // human-readable name layered on top (editable); null if unset
+  domain: string | null; // brand domain for the logo (e.g. tesco.com), editable
   statement: string;   // raw bank statement line — immutable source of truth
   accountName: string | null; // the account/bank it's mostly paid from
   accountLogo: string | null; // that bank's logo URL (null for manual/cash)

@@ -8,6 +8,7 @@ import type { MerchantDTO } from "../../../shared/types.ts";
 import { formatGBP, formatMoney, relativeDate } from "../format.ts";
 import { Combobox } from "../components/Combobox.tsx";
 import { BrandLogo } from "../components/BrandLogo.tsx";
+import { merchantLogo } from "../brand.ts";
 
 const ccySym = (c: string | null) => (c === "USD" ? "$" : c === "EUR" ? "€" : "£");
 
@@ -41,11 +42,11 @@ export default function Merchants() {
   const dialog = useRef<HTMLDialogElement>(null);
   const [edit, setEdit] = useState<MerchantDTO | null>(null);
   const editOrders = useQuery({ queryKey: ["merchantOrders", edit?.token], queryFn: () => api.merchantOrders(edit!.token), enabled: Boolean(edit && edit.orderCount > 0) });
-  const [form, setForm] = useState({ name: "", priority: "0" });
-  const openEdit = (m: MerchantDTO) => { setEdit(m); setForm({ name: m.name ?? "", priority: String(m.priority) }); dialog.current?.showModal(); };
+  const [form, setForm] = useState({ name: "", domain: "", priority: "0" });
+  const openEdit = (m: MerchantDTO) => { setEdit(m); setForm({ name: m.name ?? "", domain: m.domain ?? "", priority: String(m.priority) }); dialog.current?.showModal(); };
   const saveEdit = () => {
     if (!edit) return;
-    set(edit.token, { name: form.name.trim() || null, priority: Number(form.priority) || 0 });
+    set(edit.token, { name: form.name.trim() || null, domain: form.domain.trim() || null, priority: Number(form.priority) || 0 });
     dialog.current?.close();
   };
 
@@ -83,7 +84,7 @@ export default function Merchants() {
                 <td>
                   <div className="merchant-cell">
                     <span className="merchant-logos">
-                      <BrandLogo name={m.name ?? m.statement} size={32} />
+                      <BrandLogo name={m.name ?? m.statement} src={merchantLogo(m.name, m.domain)} size={32} />
                       {m.accountLogo && <BrandLogo name={m.accountName ?? ""} src={m.accountLogo} size={18} />}
                     </span>
                     <div className="td-clip">
@@ -118,6 +119,12 @@ export default function Merchants() {
             <h3 style={{ marginTop: 0 }}>Edit merchant</h3>
             <label className="field"><span>Statement line (from your bank — read-only)</span><input value={edit.statement} readOnly className="readonly" /></label>
             <label className="field"><span>Human-readable name</span><input value={form.name} autoFocus placeholder="e.g. Tesco" onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+            <label className="field"><span>Brand domain (logo)</span>
+              <span className="domain-field">
+                <BrandLogo name={form.name || edit.statement} src={merchantLogo(form.name || null, form.domain || null)} size={26} />
+                <input value={form.domain} placeholder="e.g. tesco.com" onChange={(e) => setForm({ ...form, domain: e.target.value })} />
+              </span>
+            </label>
             <label className="field"><span>Category</span>
               <select value={edit.categoryKey ?? ""} onChange={(e) => { const v = e.target.value || null; set(edit.token, { categoryKey: v }); setEdit({ ...edit, categoryKey: v }); }}>
                 <option value="">—</option>

@@ -1,0 +1,1 @@
+ALTER TABLE "Merchant" ADD COLUMN IF NOT EXISTS "domain" TEXT;

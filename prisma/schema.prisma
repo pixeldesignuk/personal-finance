@@ -193,6 +193,7 @@ model Person {
 model Merchant {
   token       String  @id
   name        String?
+  domain      String?
   categoryKey String?
   recurring   String  @default("auto") // auto | fixed | variable | ignore
 }

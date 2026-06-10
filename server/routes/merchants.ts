@@ -76,6 +76,7 @@ merchantsRouter.get("/merchants", async (_req, res, next) => {
       merchants.push({
         token,
         name: ov?.name ?? null,
+        domain: ov?.domain ?? null,
         statement,
         accountName: bank?.name ?? null,
         accountLogo: bank?.logo ?? null,
@@ -151,19 +152,23 @@ merchantsRouter.patch("/merchants/:token", async (req, res, next) => {
   try {
     const b = z.object({
       name: z.string().nullable().optional(),
+      domain: z.string().nullable().optional(),
       recurring: z.enum(["auto", "fixed", "variable", "ignore"]).optional(),
       categoryKey: z.string().nullable().optional(),
       personKey: z.string().nullable().optional(),
       priority: z.number().int().optional(),
     }).parse(req.body);
     const token = req.params.token;
+    const cleanDomain = (d: string | null | undefined) =>
+      d === undefined ? undefined : d ? d.toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "").trim() || null : null;
 
     // Merchant holds the human name + recurring classification.
     await db.merchant.upsert({
       where: { token },
-      create: { token, name: b.name ?? null, recurring: b.recurring ?? "auto" },
+      create: { token, name: b.name ?? null, domain: cleanDomain(b.domain) ?? null, recurring: b.recurring ?? "auto" },
       update: {
         ...(b.name !== undefined ? { name: b.name } : {}),
+        ...(b.domain !== undefined ? { domain: cleanDomain(b.domain) } : {}),
         ...(b.recurring !== undefined ? { recurring: b.recurring } : {}),
       },
     });
