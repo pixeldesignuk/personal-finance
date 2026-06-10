@@ -1,4 +1,5 @@
 import { db } from "../lib/db.ts";
+import { env } from "../env.ts";
 import { merchantToken } from "../categorise/helpers.ts";
 import { geminiGenerateJson, geminiEnabled } from "../categorise/gemini.ts";
 import type { AuditFn } from "../categorise/audit.ts";
@@ -145,6 +146,60 @@ async function maybeSetNote(txnId: string, note: string): Promise<void> {
   if (t && (t.note == null || t.note.trim() === "")) await db.transaction.update({ where: { id: txnId }, data: { note } });
 }
 
+// Link every still-open order/refund to a transaction if one now exists. This is
+// the bidirectional half of matching: it runs both at the end of a Gmail sync
+// (a new email looking for its transaction) AND after a bank sync (a freshly
+// posted transaction claiming an order that was parsed earlier — bank data lags
+// email by hours/days, so the order often arrives first and waits here).
+// Idempotent: a `taken` set built from already-linked orders prevents
+// double-claiming, and notes are only written when blank.
+export async function rematchOpenOrders(audit?: AuditFn): Promise<{ matched: number }> {
+  const open = await db.emailOrder.findMany({ where: { total: { not: null }, transactionId: null } });
+  if (!open.length) return { matched: 0 };
+
+  // Orders match spending (debits); refunds match incoming money (credits).
+  const debits = await loadTxnLites(false);
+  const credits = await loadTxnLites(true);
+  const taken = new Set(
+    (await db.emailOrder.findMany({ where: { transactionId: { not: null } }, select: { transactionId: true } }))
+      .map((e) => e.transactionId!).filter(Boolean),
+  );
+
+  audit?.({ kind: "log", text: `● Matching ${open.length} open order${open.length === 1 ? "" : "s"} to transactions`, tone: "bold" });
+  let matched = 0;
+  for (const o of open) {
+    const pool = o.isRefund ? credits : debits;
+    const txn = matchTransaction(
+      { total: Number(o.total!.toString()), date: o.emailDate?.toISOString() ?? null, token: o.merchantToken },
+      pool,
+      taken,
+    );
+    if (!txn) continue;
+    taken.add(txn.id);
+    await db.emailOrder.update({ where: { id: o.id }, data: { transactionId: txn.id, matched: true } });
+    await maybeSetNote(txn.id, o.isRefund ? refundNote(o.merchantName) : orderNote(o.merchantName, namesOf(o.items)));
+    matched++;
+    audit?.({ kind: "assign", id: o.id, name: `${o.isRefund ? "↩ " : ""}${o.merchantName ?? "?"} · ${o.currency ?? ""}${o.total}`, to: `txn ${txn.date ?? ""}`, via: "llm" });
+  }
+  audit?.({ kind: "log", text: `  ${matched} linked`, tone: matched ? "green" : "dim" });
+  return { matched };
+}
+
+// Re-arm the Gmail push watch if it's missing or close to expiry. No-op unless a
+// Pub/Sub topic is configured and Gmail is connected. Called on connect and from
+// the sync cron (the watch lapses after ~7 days).
+export async function ensureGmailWatch(force = false): Promise<{ armed: boolean; expiry?: Date }> {
+  if (!env.GMAIL_PUBSUB_TOPIC) return { armed: false };
+  const p = await db.plugin.findUnique({ where: { id: "gmail" } });
+  if (!p?.connected || !p.refreshToken) return { armed: false };
+  if (!force && p.watchExpiry && p.watchExpiry.getTime() > Date.now() + 24 * 3_600_000) return { armed: false, expiry: p.watchExpiry };
+  const token = await ensureAccessToken();
+  const r = await gmail.watch(token, env.GMAIL_PUBSUB_TOPIC);
+  const expiry = new Date(Number(r.expiration));
+  await db.plugin.update({ where: { id: "gmail" }, data: { watchExpiry: expiry } });
+  return { armed: true, expiry };
+}
+
 export interface GmailSyncResult { scanned: number; parsed: number; matched: number }
 
 export async function syncGmail(audit: AuditFn): Promise<GmailSyncResult> {
@@ -246,23 +301,10 @@ export async function syncGmail(audit: AuditFn): Promise<GmailSyncResult> {
     }
   }
 
-  // Re-match previously-parsed orders that never linked (the transaction may have
-  // landed later, or matching has since tightened/improved).
-  const open = await db.emailOrder.findMany({ where: { total: { not: null }, transactionId: null } });
-  let rematched = 0;
-  if (open.length) {
-    audit({ kind: "log", text: "● Re-matching open orders", tone: "bold" });
-    for (const o of open) {
-      const txn = matchTransaction({ total: Number(o.total!.toString()), date: o.emailDate?.toISOString() ?? null, token: o.merchantToken }, txns, taken);
-      if (!txn) continue;
-      taken.add(txn.id);
-      await db.emailOrder.update({ where: { id: o.id }, data: { transactionId: txn.id, matched: true } });
-      await maybeSetNote(txn.id, orderNote(o.merchantName, namesOf(o.items)));
-      rematched++;
-      audit({ kind: "assign", id: o.id, name: `${o.merchantName ?? "?"} · ${o.currency ?? ""}${o.total}`, to: `txn ${txn.date ?? ""}`, via: "llm" });
-    }
-    audit({ kind: "log", text: `  ${rematched} re-matched`, tone: rematched ? "green" : "dim" });
-  }
+  // Re-match previously-parsed orders that never linked — the transaction may
+  // have landed since, or matching has tightened. Now refund-aware and shared
+  // with the post-bank-sync hook (see rematchOpenOrders).
+  const { matched: rematched } = await rematchOpenOrders(audit);
 
   const totalMatched = matched + rematched;
   // Advance the cursor to the newest email seen (never backwards).

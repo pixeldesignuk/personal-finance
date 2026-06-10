@@ -2,13 +2,35 @@ import { Router } from "express";
 import { db } from "../lib/db.ts";
 import { env } from "../env.ts";
 import * as gmail from "../plugins/gmail.ts";
-import { syncGmail } from "../plugins/gmailSync.ts";
+import { syncGmail, ensureGmailWatch } from "../plugins/gmailSync.ts";
 import { toEmailOrderDTO, orderMatchesQuery } from "../plugins/emailOrderDTO.ts";
 import { recordSyncRun } from "../lib/syncRun.ts";
 import type { AuditFn } from "../categorise/audit.ts";
 import type { PluginsDTO } from "../../shared/types.ts";
 
 export const pluginsRouter = Router();
+
+// Coalesce bursts of Gmail push notifications into a single sync, and never run
+// two at once (a queued flag re-runs once if a push lands mid-sync).
+let pushSyncing = false;
+let pushQueued = false;
+let pushTimer: ReturnType<typeof setTimeout> | undefined;
+async function runGmailPushSync(): Promise<void> {
+  if (pushSyncing) { pushQueued = true; return; }
+  pushSyncing = true;
+  try {
+    await recordSyncRun("gmail-push", () => {}, (audit) => syncGmail(audit));
+  } catch (err) {
+    console.error("gmail push sync failed:", err instanceof Error ? err.message : err);
+  } finally {
+    pushSyncing = false;
+    if (pushQueued) { pushQueued = false; void runGmailPushSync(); }
+  }
+}
+function scheduleGmailPushSync(): void {
+  if (pushTimer) clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => { void runGmailPushSync(); }, 4000);
+}
 
 pluginsRouter.get("/plugins", async (_req, res, next) => {
   try {
@@ -25,6 +47,8 @@ pluginsRouter.get("/plugins", async (_req, res, next) => {
         lastSyncAt: p?.lastSyncAt?.toISOString() ?? null,
         orders,
         matched,
+        realtime: Boolean(env.GMAIL_PUBSUB_TOPIC),
+        watchExpiry: p?.watchExpiry?.toISOString() ?? null,
       },
     };
     res.json(dto);
@@ -48,8 +72,20 @@ pluginsRouter.get("/plugins/gmail/callback", async (req, res, next) => {
       create: { id: "gmail", connected: true, email: profile.emailAddress, refreshToken: tok.refresh_token ?? null, accessToken: tok.access_token, tokenExpiry: expiry },
       update: { connected: true, email: profile.emailAddress, accessToken: tok.access_token, tokenExpiry: expiry, ...(tok.refresh_token ? { refreshToken: tok.refresh_token } : {}) },
     });
+    // Arm realtime push (no-op unless GMAIL_PUBSUB_TOPIC is configured).
+    try { await ensureGmailWatch(true); } catch (err) { console.error("gmail watch arm failed:", err instanceof Error ? err.message : err); }
     res.redirect(`${env.APP_BASE_URL}/plugins?gmail=connected`);
   } catch (err) { next(err); }
+});
+
+// Pub/Sub push endpoint: Gmail → Pub/Sub → here when new mail arrives. We ack
+// immediately and run a debounced incremental sync (which parses + matches +
+// re-matches). The shared-secret token in the URL keeps it from being triggered
+// by anyone who guesses the path.
+pluginsRouter.post("/plugins/gmail/push", (req, res) => {
+  if (env.GMAIL_PUSH_TOKEN && String(req.query.token ?? "") !== env.GMAIL_PUSH_TOKEN) { res.sendStatus(403); return; }
+  res.sendStatus(204); // ack fast so Pub/Sub doesn't retry
+  scheduleGmailPushSync();
 });
 
 // Streaming sync: fetch order emails, Gemini-extract, match to transactions.
@@ -86,10 +122,13 @@ pluginsRouter.get("/plugins/gmail/orders", async (req, res, next) => {
 
 pluginsRouter.post("/plugins/gmail/disconnect", async (_req, res, next) => {
   try {
+    // Best-effort: cancel the push watch while we still have a token.
+    const p = await db.plugin.findUnique({ where: { id: "gmail" } });
+    if (p?.accessToken) { try { await gmail.stopWatch(p.accessToken); } catch { /* token may be stale; ignore */ } }
     await db.plugin.upsert({
       where: { id: "gmail" },
       create: { id: "gmail", connected: false },
-      update: { connected: false, email: null, refreshToken: null, accessToken: null, tokenExpiry: null },
+      update: { connected: false, email: null, refreshToken: null, accessToken: null, tokenExpiry: null, watchExpiry: null },
     });
     res.json({ ok: true });
   } catch (err) { next(err); }

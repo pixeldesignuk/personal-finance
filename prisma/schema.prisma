@@ -46,6 +46,7 @@ model Plugin {
   tokenExpiry  DateTime?
   lastSyncAt   DateTime?
   cursor       String?               // newest processed email epoch (incremental sync)
+  watchExpiry  DateTime?             // when the current Gmail users.watch lapses
   createdAt    DateTime  @default(now())
 }
 

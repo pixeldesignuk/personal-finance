@@ -166,6 +166,8 @@ export interface PluginsDTO {
     lastSyncAt: string | null;
     orders: number;       // total parsed email orders
     matched: number;      // those linked to a transaction
+    realtime: boolean;    // Pub/Sub push configured (GMAIL_PUBSUB_TOPIC set)
+    watchExpiry: string | null; // when the current push watch lapses
   };
 }
 

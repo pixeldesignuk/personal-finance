@@ -4,8 +4,12 @@ Running todo of planned features. Newest ideas at the bottom; check off when shi
 
 ## Open
 
-- [ ] **Realtime Gmail monitoring** — push-based order capture: Gmail API `users.watch` + Google Cloud Pub/Sub + a webhook endpoint so new order emails parse automatically as they arrive. *Needs Pub/Sub infra setup. (Near-realtime polling is already available via `POST /api/sync/all` + a cron.)*
-- [ ] **Wire scheduled syncs** — point a cron / Trigger.dev job at `POST /api/sync/all` (endpoint + unified sync-log already built). *Deploy-side config only.*
+- [ ] **Realtime Gmail monitoring** — *code shipped* (Gmail `users.watch` + `POST /api/plugins/gmail/push` webhook + auto-renewal in `/sync/all` + bidirectional `rematchOpenOrders`). **Activation pending:** Google Cloud Pub/Sub setup + `GMAIL_PUBSUB_TOPIC`/`GMAIL_PUSH_TOKEN` env vars — see [`docs/gmail-realtime-setup.md`](docs/gmail-realtime-setup.md). Until configured, stays near-realtime via the cron.
+- [ ] **Wire scheduled syncs** — point a cron / Trigger.dev job at `POST /api/sync/all` (endpoint + unified sync-log already built; also renews the Gmail watch). *Deploy-side config only.*
+
+### Done
+
+- [x] **Bidirectional, timing-resilient order matching** — `rematchOpenOrders` links orders↔transactions from both sides (email-arrives and bank-transaction-arrives), refund-aware; runs after every bank sync and Gmail sync. Handles bank data lagging email by hours/days.
 
 ## Next — from competitive research (2026-06-10)
 

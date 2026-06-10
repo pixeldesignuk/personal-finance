@@ -46,6 +46,25 @@ export async function getProfile(accessToken: string): Promise<{ emailAddress: s
   return res.json() as Promise<{ emailAddress: string }>;
 }
 
+// Register a push notification watch on the INBOX. Google publishes to the given
+// Pub/Sub topic when mail arrives; the watch lapses after ~7 days so it must be
+// re-armed. Returns the new `expiration` (ms epoch as a string).
+export async function watch(accessToken: string, topicName: string): Promise<{ historyId: string; expiration: string }> {
+  const res = await fetch(`${GMAIL}/watch`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ topicName, labelIds: ["INBOX"], labelFilterBehavior: "INCLUDE" }),
+  });
+  if (!res.ok) throw new Error(`Gmail watch error ${res.status}: ${await res.text()}`);
+  return res.json() as Promise<{ historyId: string; expiration: string }>;
+}
+
+// Cancel any active watch (idempotent — a missing watch is not an error).
+export async function stopWatch(accessToken: string): Promise<void> {
+  const res = await fetch(`${GMAIL}/stop`, { method: "POST", headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!res.ok && res.status !== 404) throw new Error(`Gmail stop error ${res.status}: ${await res.text()}`);
+}
+
 // List message IDs matching a Gmail search query, up to `max`.
 export async function listMessages(accessToken: string, q: string, max = 60): Promise<string[]> {
   const ids: string[] = [];

@@ -14,6 +14,10 @@ const schema = z.object({
   GEMINI_MODEL: z.string().default("gemini-flash-latest"),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
+  // Gmail realtime (Pub/Sub push). Topic is the full resource name
+  // (projects/<id>/topics/<name>); the token is a shared secret in the push URL.
+  GMAIL_PUBSUB_TOPIC: z.string().optional(),
+  GMAIL_PUSH_TOKEN: z.string().optional(),
   TRADING_212_KEY_ID: z.string().optional(),
   TRADING_212_SECRET: z.string().optional(),
   TRADING212_BASE_URL: z.string().optional(),

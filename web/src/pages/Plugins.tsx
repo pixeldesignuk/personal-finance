@@ -79,6 +79,7 @@ export default function Plugins() {
                 <div><span className="eyebrow">Account</span><span>{g.email}</span></div>
                 <div><span className="eyebrow">Orders</span><span>{g.orders} found · {g.matched} matched</span></div>
                 <div><span className="eyebrow">Last sync</span><span>{g.lastSyncAt ? new Date(g.lastSyncAt).toLocaleString("en-GB") : "never"}</span></div>
+                <div><span className="eyebrow">Realtime</span><span>{g.realtime ? (g.watchExpiry ? `On · renews ${new Date(g.watchExpiry).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : "On · arming…") : "Off · scheduled"}</span></div>
               </div>
               <div className="plugin-actions">
                 <button className="btn-primary" disabled={syncOpen} onClick={() => setSyncOpen(true)}>Sync now</button>

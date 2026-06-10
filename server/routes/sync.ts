@@ -4,7 +4,7 @@ import { GoCardlessClient, GoCardlessError } from "../gocardless/client.ts";
 import { applyRules, type Rule } from "../lib/rules.ts";
 import { reconcile } from "../categorise/reconcile.ts";
 import { syncAllInvestments } from "../investments/sync.ts";
-import { syncGmail } from "../plugins/gmailSync.ts";
+import { syncGmail, rematchOpenOrders, ensureGmailWatch } from "../plugins/gmailSync.ts";
 import { recordSyncRun } from "../lib/syncRun.ts";
 import { currentBalance, type BalanceLike } from "../lib/balance.ts";
 import { displayName } from "../../shared/displayName.ts";
@@ -196,8 +196,12 @@ syncRouter.post("/sync/stream", async (_req, res) => {
       }
       const inv = await syncAllInvestments(audit);
       if (inv.length) audit({ kind: "log", text: `Investments synced (${inv.length}).`, tone: "dim" });
-      audit({ kind: "log", text: `Sync complete — ${totalNew} new transaction${totalNew === 1 ? "" : "s"}.`, tone: "green" });
-      return { accounts: accounts.length, newTransactions: totalNew, investments: inv.length };
+      // New transactions may complete orders parsed from email earlier — link them.
+      let ordersLinked = 0;
+      try { ordersLinked = (await rematchOpenOrders(audit)).matched; }
+      catch (err) { audit({ kind: "log", text: `order match: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
+      audit({ kind: "log", text: `Sync complete — ${totalNew} new transaction${totalNew === 1 ? "" : "s"}${ordersLinked ? `, ${ordersLinked} order${ordersLinked === 1 ? "" : "s"} linked` : ""}.`, tone: "green" });
+      return { accounts: accounts.length, newTransactions: totalNew, investments: inv.length, ordersLinked };
     });
   } catch {
     // already streamed + recorded
@@ -235,7 +239,14 @@ syncRouter.post("/sync/all", async (_req, res, next) => {
       let gmailMatched = 0;
       try { gmailMatched = (await syncGmail(audit)).matched; }
       catch (err) { audit({ kind: "log", text: `gmail: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
-      return { newTransactions: totalNew, investments: inv.length, gmailMatched };
+      // Belt-and-braces: link any orders the gmail pass didn't (e.g. gmail errored).
+      let ordersLinked = 0;
+      try { ordersLinked = (await rematchOpenOrders(audit)).matched; }
+      catch (err) { audit({ kind: "log", text: `order match: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
+      // Re-arm the realtime Gmail watch before it lapses (~7-day lifetime).
+      try { const w = await ensureGmailWatch(); if (w.armed) audit({ kind: "log", text: "Gmail watch renewed.", tone: "dim" }); }
+      catch (err) { audit({ kind: "log", text: `gmail watch: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
+      return { newTransactions: totalNew, investments: inv.length, gmailMatched, ordersLinked };
     });
     res.json(summary);
   } catch (err) { next(err); }
