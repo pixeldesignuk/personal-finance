@@ -91,6 +91,13 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
     }]));
     const people = await db.person.findMany();
     const personName = (k: string | null) => people.find((p) => p.key === k)?.name ?? null;
+    // How the transaction got here (upload method), derived from its origin marker.
+    const txnOrigin = (t: { raw: unknown; account: { source: string } }): TransactionDTO["origin"] => {
+      const raw = t.raw as Record<string, unknown> | null;
+      if (raw?.telegramReceipt) return "receipt";
+      if (raw?.telegram) return "telegram";
+      return t.account.source === "BANK" ? "bank" : "manual";
+    };
     // Friendly merchant names (Merchant table) override the raw statement line.
     const merchantNames = new Map((await db.merchant.findMany({ where: { NOT: { name: null } } })).map((m) => [m.token, m.name] as const));
     const friendlyName = (t: { merchantName: string | null; creditorName: string | null; debtorName: string | null; remittanceInfo: string | null }) => {
@@ -115,6 +122,7 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
       flag: (t.flag as "red" | "orange" | "yellow" | null) ?? null,
       debtAccountId: t.debtAccountId,
       source: t.account.source,
+      origin: txnOrigin(t),
       status: t.status,
       order: orderByTxn.get(t.id) ?? null,
     }));

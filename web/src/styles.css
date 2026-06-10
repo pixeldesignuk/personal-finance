@@ -669,6 +669,9 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 
 /* manual / cash transaction tag */
 .badge.manual { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 42%, transparent); }
+/* upload-method tag (telegram / receipt) */
+.origin-tag { display: inline-flex; align-items: center; gap: 3px; flex: none; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 7px 2px 5px; border-radius: 99px; border: 1px solid var(--line-strong); color: var(--ink-2); line-height: 1.4; }
+.origin-tag.tg { color: #82c4e8; border-color: color-mix(in srgb, #82c4e8 38%, transparent); background: color-mix(in srgb, #82c4e8 10%, transparent); }
 
 /* ---- reconcile audit bottom sheet --------------------------------------- */
 .sheet-backdrop {

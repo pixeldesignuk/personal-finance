@@ -1,11 +1,9 @@
-import { randomUUID } from "node:crypto";
 import { db } from "../lib/db.ts";
 import { merchantToken } from "../categorise/helpers.ts";
 import { geminiExtractReceiptImage } from "../categorise/gemini.ts";
 import { rematchOpenOrders } from "../plugins/gmailSync.ts";
-import { applyRules, type Rule } from "../lib/rules.ts";
+import { createReceiptTransaction } from "../lib/receiptTxn.ts";
 import { storageEnabled, putObject } from "../lib/storage.ts";
-import { getOrCreateCashAccount } from "./cashAccount.ts";
 import { getFilePath, downloadFile } from "./api.ts";
 
 const extFor = (mime: string) => (mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : mime.includes("pdf") ? "pdf" : "jpg");
@@ -73,20 +71,7 @@ export async function handleReceiptPhoto(fileId: string, fileUniqueId: string): 
   // (it moves to the bank charge later if one syncs — see reconcileReceiptProvisionals).
   let createdTxn = false;
   if (saved && !saved.matched) {
-    const accountId = await getOrCreateCashAccount();
-    const ruleRows = await db.rule.findMany();
-    const ruled = applyRules(o.merchant ?? "", ruleRows.map((r) => ({ matchText: r.matchText, categoryKey: r.categoryKey, personKey: r.personKey, priority: r.priority }) as Rule));
-    const txnId = `receipt-${randomUUID()}`;
-    const note = items.length ? `🧾 ${items.slice(0, 3).map((i) => i.name).join(", ")}${items.length > 3 ? ` +${items.length - 3} more` : ""}`.slice(0, 140) : null;
-    await db.transaction.create({
-      data: {
-        id: txnId, accountId, bookingDate: o.date ?? new Date().toISOString().slice(0, 10),
-        amount: `-${Number(o.total)}`, currency: o.currency ?? "GBP", merchantName: o.merchant,
-        category: ruled.categoryKey ?? "uncategorised", personKey: ruled.personKey ?? null,
-        note, status: "booked", raw: { telegramReceipt: true, emailOrderId: saved.id },
-      },
-    });
-    await db.emailOrder.update({ where: { id: saved.id }, data: { transactionId: txnId, matched: true } });
+    await createReceiptTransaction({ id: saved.id, merchantName: o.merchant ?? null, total: o.total, currency: o.currency ?? "GBP", emailDate, items });
     createdTxn = true;
   }
 

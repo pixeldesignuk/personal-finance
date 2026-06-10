@@ -70,6 +70,7 @@ export interface TransactionDTO {
   flag: "red" | "orange" | "yellow" | null;  // spend-reduction flag
   debtAccountId: string | null;  // linked liability (repayment)
   source: AccountSource;
+  origin: "bank" | "telegram" | "receipt" | "manual"; // how it got here (upload method)
   status: string;
   order: { merchant: string | null; total: number | null; currency: string | null; orderNumber: string | null; date: string | null; items: EmailOrderItem[] } | null; // matched email order (Gmail plugin)
 }
