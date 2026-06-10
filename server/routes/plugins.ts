@@ -18,10 +18,12 @@ let pushTimer: ReturnType<typeof setTimeout> | undefined;
 async function runGmailPushSync(): Promise<void> {
   if (pushSyncing) { pushQueued = true; return; }
   pushSyncing = true;
+  console.log("[gmail-push] sync starting");
   try {
-    await recordSyncRun("gmail-push", () => {}, (audit) => syncGmail(audit));
+    const r = await recordSyncRun("gmail-push", () => {}, (audit) => syncGmail(audit));
+    console.log(`[gmail-push] sync done — scanned ${r.scanned}, parsed ${r.parsed}, matched ${r.matched}`);
   } catch (err) {
-    console.error("gmail push sync failed:", err instanceof Error ? err.message : err);
+    console.error("[gmail-push] sync failed:", err instanceof Error ? err.message : err);
   } finally {
     pushSyncing = false;
     if (pushQueued) { pushQueued = false; void runGmailPushSync(); }
@@ -83,7 +85,12 @@ pluginsRouter.get("/plugins/gmail/callback", async (req, res, next) => {
 // re-matches). The shared-secret token in the URL keeps it from being triggered
 // by anyone who guesses the path.
 pluginsRouter.post("/plugins/gmail/push", (req, res) => {
-  if (env.GMAIL_PUSH_TOKEN && String(req.query.token ?? "") !== env.GMAIL_PUSH_TOKEN) { res.sendStatus(403); return; }
+  if (env.GMAIL_PUSH_TOKEN && String(req.query.token ?? "") !== env.GMAIL_PUSH_TOKEN) {
+    console.warn("[gmail-push] rejected — bad/missing token");
+    res.sendStatus(403);
+    return;
+  }
+  console.log("[gmail-push] notification received — scheduling sync");
   res.sendStatus(204); // ack fast so Pub/Sub doesn't retry
   scheduleGmailPushSync();
 });
