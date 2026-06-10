@@ -2,11 +2,14 @@ import { useMemo, useRef, useState } from "react";
 import { useQueryState } from "nuqs";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Receipt } from "lucide-react";
 import { api } from "../api.ts";
 import type { MerchantDTO } from "../../../shared/types.ts";
-import { formatGBP, relativeDate } from "../format.ts";
+import { formatGBP, formatMoney, relativeDate } from "../format.ts";
 import { Combobox } from "../components/Combobox.tsx";
 import { BrandLogo } from "../components/BrandLogo.tsx";
+
+const ccySym = (c: string | null) => (c === "USD" ? "$" : c === "EUR" ? "€" : "£");
 
 const TABS: [string, string][] = [["all", "All"], ["fixed", "Recurring"], ["variable", "Variable"]];
 const TYPE_LABEL: Record<string, string> = { fixed: "Recurring", variable: "Variable", oneoff: "One-off", ignore: "Ignored", auto: "Auto" };
@@ -37,6 +40,7 @@ export default function Merchants() {
   // Full-edit dialog (name + priority + everything).
   const dialog = useRef<HTMLDialogElement>(null);
   const [edit, setEdit] = useState<MerchantDTO | null>(null);
+  const editOrders = useQuery({ queryKey: ["merchantOrders", edit?.token], queryFn: () => api.merchantOrders(edit!.token), enabled: Boolean(edit && edit.orderCount > 0) });
   const [form, setForm] = useState({ name: "", priority: "0" });
   const openEdit = (m: MerchantDTO) => { setEdit(m); setForm({ name: m.name ?? "", priority: String(m.priority) }); dialog.current?.showModal(); };
   const saveEdit = () => {
@@ -83,10 +87,11 @@ export default function Merchants() {
                       {m.accountLogo && <BrandLogo name={m.accountName ?? ""} src={m.accountLogo} size={18} />}
                     </span>
                     <div className="td-clip">
-                      <div className="td-clip">
+                      <div className="merchant-name-row">
                         {m.name
-                          ? <Link className="amount-link" to={`/transactions?merchant=${encodeURIComponent(m.token)}`}>{m.name}</Link>
-                          : <Link className="amount-link muted" style={{ fontStyle: "italic" }} to={`/transactions?merchant=${encodeURIComponent(m.token)}`}>Unnamed</Link>}
+                          ? <Link className="amount-link td-clip" to={`/transactions?merchant=${encodeURIComponent(m.token)}`}>{m.name}</Link>
+                          : <Link className="amount-link muted td-clip" style={{ fontStyle: "italic" }} to={`/transactions?merchant=${encodeURIComponent(m.token)}`}>Unnamed</Link>}
+                        {m.orderCount > 0 && <span className="merchant-orders" title={`${m.orderCount} matched order${m.orderCount === 1 ? "" : "s"}`}><Receipt size={11} strokeWidth={2} />{m.orderCount}</span>}
                       </div>
                       <div className="note-line" title="Bank statement line — not editable">{m.statement}</div>
                     </div>
@@ -130,6 +135,23 @@ export default function Merchants() {
                 style={{ background: `linear-gradient(to right, var(--jade) ${Number(form.priority) || 0}%, var(--surface-2) ${Number(form.priority) || 0}%)` }}
                 onChange={(e) => setForm({ ...form, priority: e.target.value })} />
             </label>
+            {edit.orderCount > 0 && (
+              <div className="field">
+                <span>Recent orders · {edit.orderCount}</span>
+                <div className="merchant-orders-list">
+                  {(editOrders.data ?? []).slice(0, 8).map((o) => (
+                    <div key={o.id} className="mo-row">
+                      <span className="mo-main">{o.items.length ? o.items.slice(0, 3).map((i) => i.name).join(", ") + (o.items.length > 3 ? ` +${o.items.length - 3}` : "") : (o.subject ?? "Order")}</span>
+                      <span className="mo-side">
+                        <span className="num">{ccySym(o.currency)}{formatMoney(o.total ?? 0)}</span>
+                        <span className="muted">{o.emailDate ? new Date(o.emailDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""}</span>
+                      </span>
+                    </div>
+                  ))}
+                  {editOrders.isLoading && <div className="muted" style={{ padding: "8px 0" }}>Loading…</div>}
+                </div>
+              </div>
+            )}
             <div className="modal-actions">
               {(edit.categoryKey || edit.personKey) && <button type="button" className="btn-danger" style={{ marginRight: "auto" }} onClick={() => { set(edit.token, { categoryKey: null, personKey: null }); dialog.current?.close(); }}>Remove rule</button>}
               <button type="button" onClick={() => dialog.current?.close()}>Cancel</button>

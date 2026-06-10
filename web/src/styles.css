@@ -402,6 +402,19 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
 /* merchant avatar with the source-bank logo badged on its corner */
 .merchant-logos { position: relative; flex: none; width: 32px; height: 32px; }
 .merchant-logos .brand-logo:last-child { position: absolute; right: -3px; bottom: -3px; box-shadow: 0 0 0 2px var(--surface); }
+.merchant-name-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.merchant-orders {
+  display: inline-flex; align-items: center; gap: 3px; flex: none;
+  font-size: 11px; font-weight: 640; font-variant-numeric: tabular-nums; color: var(--jade);
+  padding: 1px 7px 1px 5px; border-radius: 999px;
+  background: color-mix(in srgb, var(--jade) 11%, transparent);
+  border: 1px solid color-mix(in srgb, var(--jade) 26%, transparent);
+}
+.merchant-orders-list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface-2); padding: 2px 12px; max-height: 220px; overflow-y: auto; }
+.mo-row { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.mo-row:last-child { border-bottom: none; }
+.mo-main { color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mo-side { display: flex; align-items: baseline; gap: 12px; flex: none; font-size: 13px; }
 .lrow-acct { display: inline-flex; align-items: center; gap: 11px; min-width: 0; }
 /* Bigger logos in bank lists with the white tile trimmed back to a hairline. */
 .lrow-acct .brand-logo { border-color: var(--line); }

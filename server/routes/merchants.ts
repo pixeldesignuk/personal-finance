@@ -5,7 +5,7 @@ import { merchantToken } from "../categorise/helpers.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
 import { monthOf } from "../lib/budget.ts";
 import { classifyMerchant, coefficientOfVariation, median, type RecurType } from "../lib/merchants.ts";
-import type { MerchantsDTO, MerchantDTO } from "../../shared/types.ts";
+import type { MerchantsDTO, MerchantDTO, EmailOrderDTO } from "../../shared/types.ts";
 
 export const merchantsRouter = Router();
 
@@ -21,6 +21,12 @@ merchantsRouter.get("/merchants", async (_req, res, next) => {
     // accountId → owning bank, so each merchant can show the account it's paid from.
     const accts = await db.account.findMany({ include: { requisition: true } });
     const bankByAccount = new Map(accts.map((a) => [a.id, { name: a.requisition?.institutionName ?? a.name ?? null, logo: a.requisition?.institutionLogo ?? null }]));
+    // Matched Gmail orders per merchant — joined via the order's transaction token.
+    const matchedOrders = await db.emailOrder.findMany({ where: { transactionId: { not: null }, total: { not: null } }, select: { transactionId: true } });
+    const orderTxns = matchedOrders.length ? await db.transaction.findMany({ where: { id: { in: [...new Set(matchedOrders.map((o) => o.transactionId!))] } }, select: { id: true, merchantName: true, creditorName: true, debtorName: true, remittanceInfo: true } }) : [];
+    const tokenByTxn = new Map(orderTxns.map((t) => [t.id, tokenOf(t)]));
+    const orderCountByToken = new Map<string, number>();
+    for (const o of matchedOrders) { const tok = tokenByTxn.get(o.transactionId!); if (tok) orderCountByToken.set(tok, (orderCountByToken.get(tok) ?? 0) + 1); }
     // A merchant's rule may be linked by merchantId (new) or just match by token
     // (older rules) — index both so existing priorities/categories show.
     const allRules = await db.rule.findMany();
@@ -72,6 +78,7 @@ merchantsRouter.get("/merchants", async (_req, res, next) => {
         statement,
         accountName: bank?.name ?? null,
         accountLogo: bank?.logo ?? null,
+        orderCount: orderCountByToken.get(token) ?? 0,
         categoryKey: rule?.categoryKey ?? top(g.cats),
         categoryFromRule: Boolean(rule?.categoryKey),
         personKey: rule?.personKey ?? top(g.persons),
@@ -95,6 +102,31 @@ merchantsRouter.get("/merchants", async (_req, res, next) => {
       variableMonthly: Number(sumBy("variable").toFixed(2)),
     };
     res.json(dto);
+  } catch (err) { next(err); }
+});
+
+// Recent Gmail orders for one merchant (joined via that merchant's transactions).
+merchantsRouter.get("/merchants/:token/orders", async (req, res, next) => {
+  try {
+    const token = req.params.token;
+    const txns = await db.transaction.findMany({ select: { id: true, merchantName: true, creditorName: true, debtorName: true, remittanceInfo: true } });
+    const ids = txns.filter((t) => tokenOf(t) === token).map((t) => t.id);
+    const rows = ids.length
+      ? await db.emailOrder.findMany({ where: { transactionId: { in: ids }, total: { not: null } }, orderBy: [{ emailDate: "desc" }, { createdAt: "desc" }], take: 100 })
+      : [];
+    const orders: EmailOrderDTO[] = rows.map((o) => ({
+      id: o.id,
+      emailDate: o.emailDate?.toISOString() ?? null,
+      merchantName: o.merchantName,
+      total: o.total != null ? Number(o.total.toString()) : null,
+      currency: o.currency,
+      orderNumber: o.orderNumber,
+      items: (o.items as unknown as EmailOrderDTO["items"]) ?? [],
+      subject: o.subject,
+      transactionId: o.transactionId,
+      matched: o.matched,
+    }));
+    res.json(orders);
   } catch (err) { next(err); }
 });
 
