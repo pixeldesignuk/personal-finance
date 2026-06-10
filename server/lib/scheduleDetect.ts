@@ -91,13 +91,23 @@ export async function detectSchedules(today: Date = new Date()): Promise<{ detec
       else { e.sum += amt; if (amt > e.main.amount) e.main = { amount: amt, date: t.bookingDate! }; }
     }
     if (byMonth.size >= 2) {
-      const day = typicalDayOfMonth([...byMonth.values()].map((v) => v.main.date)) ?? 28;
-      const amount = median([...byMonth.values()].map((v) => v.sum));
-      const lastSeen = incomeCredits.map((t) => t.bookingDate!).sort().slice(-1)[0] ?? null;
+      // Salary ≈ the typical *largest* monthly inflow (median across months), not
+      // the sum of every income-tagged credit (which sweeps in refunds/transfers).
+      const mains = [...byMonth.values()].map((v) => v.main);
+      const day = typicalDayOfMonth(mains.map((m) => m.date)) ?? 28;
+      const amount = median(mains.map((m) => m.amount));
+      const lastSeenIso = incomeCredits.map((t) => t.bookingDate!).sort().slice(-1)[0] ?? null;
+      const lastSeen = lastSeenIso ? new Date(`${lastSeenIso}T00:00:00`) : null;
       const existing = await db.recurringSchedule.findUnique({ where: { merchantToken: incomeToken } });
-      const status = existing && existing.status !== "auto" ? existing.status : "auto";
-      const f = { name: "Income", accountId: null, direction: "in", amount, cadence: "monthly", dayOfMonth: day, lastSeen: lastSeen ? new Date(`${lastSeen}T00:00:00`) : null, nextDue: inferNextDue(day, today), status };
-      await db.recurringSchedule.upsert({ where: { merchantToken: incomeToken }, create: { merchantToken: incomeToken, ...f }, update: f });
+      const userSet = existing != null && existing.status !== "auto";
+      await db.recurringSchedule.upsert({
+        where: { merchantToken: incomeToken },
+        create: { merchantToken: incomeToken, name: "Income", accountId: null, direction: "in", amount, cadence: "monthly", dayOfMonth: day, lastSeen, nextDue: inferNextDue(day, today), status: "auto" },
+        // Once the user confirms/edits, keep their amount + day; only refresh timing.
+        update: userSet
+          ? { lastSeen, nextDue: inferNextDue(existing!.dayOfMonth ?? day, today) }
+          : { name: "Income", accountId: null, direction: "in", amount, cadence: "monthly", dayOfMonth: day, lastSeen, nextDue: inferNextDue(day, today), status: "auto" },
+      });
       qualifying.add(incomeToken);
     }
   }
