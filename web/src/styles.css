@@ -522,6 +522,15 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
 .plugin-meta { display: flex; flex-wrap: wrap; gap: 10px; }
 .plugin-meta > div { flex: 1; min-width: 130px; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: var(--r-sm); background: var(--surface-2); border: 1px solid var(--line); font-size: 13px; }
 .plugin-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.run-row { gap: 14px; }
+.run-main { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.run-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.run-dot.run-ok { background: var(--jade); box-shadow: 0 0 8px var(--jade); }
+.run-dot.run-error { background: var(--coral); box-shadow: 0 0 8px var(--coral); }
+.run-dot.run-running { background: var(--amber); }
+.run-source { text-transform: capitalize; color: var(--ink); font-weight: 540; min-width: 74px; }
+.run-summary { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.run-time { font-size: 12px; flex: none; }
 .order-row { gap: 14px; }
 .order-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .order-merchant { color: var(--ink); }

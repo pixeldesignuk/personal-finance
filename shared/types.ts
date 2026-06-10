@@ -148,6 +148,16 @@ export interface EmailOrderDTO {
   matched: boolean;
 }
 
+export interface SyncRunDTO {
+  id: string;
+  source: string;       // gmail | bank | investments | all
+  status: string;       // running | ok | error
+  startedAt: string;
+  finishedAt: string | null;
+  summary: unknown;     // per-source counts
+  error: string | null;
+}
+
 export interface PluginsDTO {
   gmail: {
     available: boolean;   // GOOGLE_CLIENT_ID/SECRET configured

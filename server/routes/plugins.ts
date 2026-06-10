@@ -4,6 +4,7 @@ import { env } from "../env.ts";
 import * as gmail from "../plugins/gmail.ts";
 import { syncGmail } from "../plugins/gmailSync.ts";
 import { toEmailOrderDTO, orderMatchesQuery } from "../plugins/emailOrderDTO.ts";
+import { recordSyncRun } from "../lib/syncRun.ts";
 import type { AuditFn } from "../categorise/audit.ts";
 import type { PluginsDTO } from "../../shared/types.ts";
 
@@ -57,11 +58,11 @@ pluginsRouter.post("/plugins/gmail/sync/stream", async (_req, res) => {
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("X-Accel-Buffering", "no");
   res.flushHeaders?.();
-  const audit: AuditFn = (e) => res.write(`${JSON.stringify(e)}\n`);
+  const stream: AuditFn = (e) => res.write(`${JSON.stringify(e)}\n`);
   try {
-    await syncGmail(audit);
-  } catch (err) {
-    audit({ kind: "fatal", error: err instanceof Error ? err.message : String(err) });
+    await recordSyncRun("gmail", stream, (audit) => syncGmail(audit));
+  } catch {
+    // already streamed (fatal) + recorded
   } finally {
     res.end();
   }

@@ -4,6 +4,8 @@ import { GoCardlessClient, GoCardlessError } from "../gocardless/client.ts";
 import { applyRules, type Rule } from "../lib/rules.ts";
 import { reconcile } from "../categorise/reconcile.ts";
 import { syncAllInvestments } from "../investments/sync.ts";
+import { syncGmail } from "../plugins/gmailSync.ts";
+import { recordSyncRun } from "../lib/syncRun.ts";
 import { currentBalance, type BalanceLike } from "../lib/balance.ts";
 import { displayName } from "../../shared/displayName.ts";
 import type { AuditFn } from "../categorise/audit.ts";
@@ -174,29 +176,67 @@ syncRouter.post("/sync/stream", async (_req, res) => {
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("X-Accel-Buffering", "no");
   res.flushHeaders?.();
-  const audit: AuditFn = (e) => res.write(`${JSON.stringify(e)}\n`);
+  const stream: AuditFn = (e) => res.write(`${JSON.stringify(e)}\n`);
   try {
-    const accounts = await db.account.findMany({ where: { source: "BANK" } });
-    if (!accounts.length) audit({ kind: "log", text: "No bank accounts to sync.", tone: "dim" });
-    let totalNew = 0;
-    for (const a of accounts) {
-      try {
-        const r = await syncAccount(a.id, audit);
-        totalNew += r.newCount ?? 0;
-      } catch (err) {
-        if (err instanceof GoCardlessError && err.status === 429) {
-          audit({ kind: "log", text: `  rate limited (retry after ${err.retryAfter ?? "unknown"})`, tone: "red" });
-          continue;
+    await recordSyncRun("bank", stream, async (audit) => {
+      const accounts = await db.account.findMany({ where: { source: "BANK" } });
+      if (!accounts.length) audit({ kind: "log", text: "No bank accounts to sync.", tone: "dim" });
+      let totalNew = 0;
+      for (const a of accounts) {
+        try {
+          const r = await syncAccount(a.id, audit);
+          totalNew += r.newCount ?? 0;
+        } catch (err) {
+          if (err instanceof GoCardlessError && err.status === 429) {
+            audit({ kind: "log", text: `  rate limited (retry after ${err.retryAfter ?? "unknown"})`, tone: "red" });
+            continue;
+          }
+          audit({ kind: "log", text: `  ✗ ${err instanceof Error ? err.message : String(err)}`, tone: "red" });
         }
-        audit({ kind: "log", text: `  ✗ ${err instanceof Error ? err.message : String(err)}`, tone: "red" });
       }
-    }
-    const inv = await syncAllInvestments(audit);
-    if (inv.length) audit({ kind: "log", text: `Investments synced (${inv.length}).`, tone: "dim" });
-    audit({ kind: "log", text: `Sync complete — ${totalNew} new transaction${totalNew === 1 ? "" : "s"}.`, tone: "green" });
-  } catch (err) {
-    audit({ kind: "fatal", error: err instanceof Error ? err.message : String(err) });
+      const inv = await syncAllInvestments(audit);
+      if (inv.length) audit({ kind: "log", text: `Investments synced (${inv.length}).`, tone: "dim" });
+      audit({ kind: "log", text: `Sync complete — ${totalNew} new transaction${totalNew === 1 ? "" : "s"}.`, tone: "green" });
+      return { accounts: accounts.length, newTransactions: totalNew, investments: inv.length };
+    });
+  } catch {
+    // already streamed + recorded
   } finally {
     res.end();
   }
+});
+
+// Recent sync runs (the unified audit log) — newest first, without the big log.
+syncRouter.get("/sync/runs", async (_req, res, next) => {
+  try {
+    const runs = await db.syncRun.findMany({
+      orderBy: { startedAt: "desc" }, take: 40,
+      select: { id: true, source: true, status: true, startedAt: true, finishedAt: true, summary: true, error: true },
+    });
+    res.json(runs.map((r) => ({
+      id: r.id, source: r.source, status: r.status,
+      startedAt: r.startedAt.toISOString(), finishedAt: r.finishedAt?.toISOString() ?? null,
+      summary: r.summary, error: r.error,
+    })));
+  } catch (err) { next(err); }
+});
+
+// Headless "sync everything" for cron / Trigger.dev — records one SyncRun ("all").
+syncRouter.post("/sync/all", async (_req, res, next) => {
+  try {
+    const summary = await recordSyncRun("all", () => {}, async (audit) => {
+      const accounts = await db.account.findMany({ where: { source: "BANK" } });
+      let totalNew = 0;
+      for (const a of accounts) {
+        try { const r = await syncAccount(a.id, audit); totalNew += r.newCount ?? 0; }
+        catch (err) { audit({ kind: "log", text: `bank ${a.id}: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
+      }
+      const inv = await syncAllInvestments(audit);
+      let gmailMatched = 0;
+      try { gmailMatched = (await syncGmail(audit)).matched; }
+      catch (err) { audit({ kind: "log", text: `gmail: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
+      return { newTransactions: totalNew, investments: inv.length, gmailMatched };
+    });
+    res.json(summary);
+  } catch (err) { next(err); }
 });

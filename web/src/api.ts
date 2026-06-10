@@ -1,6 +1,6 @@
 import type {
   InstitutionDTO, ConnectResponse, FinalizeResponse,
-  SyncResult, DashboardDTO, TransactionDTO,
+  SyncResult, SyncRunDTO, DashboardDTO, TransactionDTO,
   BankDTO, RemoveBankResult, NicknameResult,
   SummaryDTO, ManualAccountInput, ManualTxnInput,
   CategoryDTO, BudgetResponseDTO, CategoryInfoDTO, ReportDTO,
@@ -50,6 +50,7 @@ export const api = {
   connect: (institutionId: string) => send<ConnectResponse>("POST", "/api/connect", { institutionId }),
   finalize: (id: string) => send<FinalizeResponse>("POST", `/api/connect/${id}/finalize`),
   sync: () => send<SyncResult[]>("POST", "/api/sync"),
+  syncRuns: () => get<SyncRunDTO[]>("/api/sync/runs"),
   accounts: () => get<BankDTO[]>("/api/accounts"),
   accountsRecurring: () => get<AccountRecurringDTO[]>("/api/accounts/recurring"),
   createManualAccount: (input: ManualAccountInput) => send<{ id: string }>("POST", "/api/accounts/manual", input),

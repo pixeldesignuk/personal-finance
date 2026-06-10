@@ -69,6 +69,19 @@ model EmailOrder {
   createdAt     DateTime @default(now())
 }
 
+// Unified audit log for every sync (gmail / bank / investments / all): timings,
+// outcome, counts, and the full audit trail (incl. AI inputs + raw responses).
+model SyncRun {
+  id         String    @id @default(cuid())
+  source     String
+  status     String    @default("running") // running | ok | error
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  summary    Json?
+  error      String?
+  log        Json?
+}
+
 model Requisition {
   id              String    @id
   institutionId   String

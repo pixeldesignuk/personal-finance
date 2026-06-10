@@ -16,6 +16,7 @@ export default function Plugins() {
   const { notify } = useToast();
   const { data } = useQuery({ queryKey: ["plugins"], queryFn: () => api.plugins() });
   const ordersQuery = useQuery({ queryKey: ["gmailOrders"], queryFn: () => api.gmailOrders(), enabled: Boolean(data?.gmail.connected) });
+  const runsQuery = useQuery({ queryKey: ["syncRuns"], queryFn: () => api.syncRuns() });
   const [params, setParams] = useSearchParams();
 
   useEffect(() => {
@@ -39,6 +40,15 @@ export default function Plugins() {
     qc.invalidateQueries({ queryKey: ["plugins"] });
     qc.invalidateQueries({ queryKey: ["gmailOrders"] });
     qc.invalidateQueries({ queryKey: ["transactions"] });
+    qc.invalidateQueries({ queryKey: ["syncRuns"] });
+  };
+  const runs = runsQuery.data ?? [];
+  const summaryText = (s: unknown) => {
+    if (!s || typeof s !== "object") return "";
+    return Object.entries(s as Record<string, unknown>)
+      .filter(([, v]) => typeof v === "number")
+      .map(([k, v]) => `${v} ${k.replace(/([A-Z])/g, " $1").toLowerCase()}`)
+      .join(" · ");
   };
 
   const g = data?.gmail;
@@ -106,6 +116,21 @@ export default function Plugins() {
           ))}
         </div>
       )}
+
+      <div className="card">
+        <h3>Recent syncs</h3>
+        {runs.length === 0 && <p className="muted">No syncs recorded yet.</p>}
+        {runs.slice(0, 12).map((r) => (
+          <div key={r.id} className="lrow run-row">
+            <span className="run-main">
+              <span className={`run-dot run-${r.status}`} />
+              <span className="run-source">{r.source}</span>
+              <span className="muted run-summary">{r.error ?? summaryText(r.summary)}</span>
+            </span>
+            <span className="muted run-time">{new Date(r.startedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+          </div>
+        ))}
+      </div>
 
       <AuditSheet open={syncOpen} title="Gmail sync" run={syncRun} onClose={() => setSyncOpen(false)} onDone={onSyncDone} />
     </div>
