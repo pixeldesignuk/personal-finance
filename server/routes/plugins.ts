@@ -3,8 +3,9 @@ import { db } from "../lib/db.ts";
 import { env } from "../env.ts";
 import * as gmail from "../plugins/gmail.ts";
 import { syncGmail } from "../plugins/gmailSync.ts";
+import { toEmailOrderDTO, orderMatchesQuery } from "../plugins/emailOrderDTO.ts";
 import type { AuditFn } from "../categorise/audit.ts";
-import type { PluginsDTO, EmailOrderDTO } from "../../shared/types.ts";
+import type { PluginsDTO } from "../../shared/types.ts";
 
 export const pluginsRouter = Router();
 
@@ -66,27 +67,19 @@ pluginsRouter.post("/plugins/gmail/sync/stream", async (_req, res) => {
   }
 });
 
-// Parsed orders (most recent first), for the Orders list.
-pluginsRouter.get("/plugins/gmail/orders", async (_req, res, next) => {
+// Parsed orders with optional search (?q=) and filter (all|matched|unmatched|refunds).
+pluginsRouter.get("/plugins/gmail/orders", async (req, res, next) => {
   try {
-    const rows = await db.emailOrder.findMany({
-      where: { total: { not: null } },
-      orderBy: [{ emailDate: "desc" }, { createdAt: "desc" }],
-      take: 300,
-    });
-    const orders: EmailOrderDTO[] = rows.map((o) => ({
-      id: o.id,
-      emailDate: o.emailDate?.toISOString() ?? null,
-      merchantName: o.merchantName,
-      total: o.total != null ? Number(o.total.toString()) : null,
-      currency: o.currency,
-      orderNumber: o.orderNumber,
-      items: (o.items as unknown as EmailOrderDTO["items"]) ?? [],
-      subject: o.subject,
-      transactionId: o.transactionId,
-      matched: o.matched,
-    }));
-    res.json(orders);
+    const filter = String(req.query.filter ?? "all");
+    const q = String(req.query.q ?? "").trim();
+    const where: Record<string, unknown> = { total: { not: null } };
+    if (filter === "matched") where.matched = true;
+    else if (filter === "unmatched") { where.matched = false; where.isRefund = false; }
+    else if (filter === "refunds") where.isRefund = true;
+    const rows = await db.emailOrder.findMany({ where, orderBy: [{ emailDate: "desc" }, { createdAt: "desc" }], take: 600 });
+    let orders = rows.map(toEmailOrderDTO);
+    if (q) orders = orders.filter((o) => orderMatchesQuery(o, q));
+    res.json(orders.slice(0, 400));
   } catch (err) { next(err); }
 });
 

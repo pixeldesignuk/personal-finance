@@ -45,6 +45,7 @@ model Plugin {
   accessToken  String?
   tokenExpiry  DateTime?
   lastSyncAt   DateTime?
+  cursor       String?               // newest processed email epoch (incremental sync)
   createdAt    DateTime  @default(now())
 }
 
@@ -61,6 +62,8 @@ model EmailOrder {
   orderNumber   String?
   items         Json?
   subject       String?
+  tags          Json?
+  isRefund      Boolean  @default(false)
   transactionId String?
   matched       Boolean  @default(false)
   createdAt     DateTime @default(now())

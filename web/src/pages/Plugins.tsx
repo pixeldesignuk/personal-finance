@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Mail } from "lucide-react";
 import { api } from "../api.ts";
 import type { AuditEvent } from "../../../shared/types.ts";
@@ -86,12 +86,15 @@ export default function Plugins() {
 
       {g?.connected && (
         <div className="card">
-          <h3>Orders</h3>
+          <div className="row-between" style={{ marginBottom: 6 }}>
+            <h3 style={{ margin: 0 }}>Recent orders</h3>
+            <Link to="/orders" className="amount-link">View all →</Link>
+          </div>
           {orders.length === 0 && <p className="muted">No orders parsed yet — hit “Sync now”.</p>}
-          {orders.map((o) => (
+          {orders.slice(0, 6).map((o) => (
             <div key={o.id} className="lrow order-row">
               <div className="order-main">
-                <span className="order-merchant">{o.merchantName ?? o.subject ?? "Order"}</span>
+                <span className="order-merchant">{o.merchantName ?? o.subject ?? "Order"}{o.isRefund && <span className="order-refund-tag">refund</span>}</span>
                 {o.items.length > 0 && <span className="order-items muted">{o.items.slice(0, 3).map((i) => i.name).join(", ")}{o.items.length > 3 ? ` +${o.items.length - 3} more` : ""}</span>}
               </div>
               <div className="order-side">

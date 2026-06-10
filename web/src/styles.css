@@ -485,6 +485,17 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
 .order-items { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 52ch; }
 .order-side { display: flex; align-items: center; gap: 12px; flex: none; }
 .order-date { font-size: 12px; min-width: 52px; text-align: right; }
+/* Orders page */
+.orders-search { max-width: 320px; }
+.order-row-btn { width: 100%; background: transparent; border: none; border-bottom: 1px solid var(--line); border-radius: 0; padding: 11px 4px; text-align: left; cursor: pointer; }
+.order-row-btn:hover { background: var(--surface-2); transform: none; border-color: var(--line); }
+.order-row-btn:last-child { border-bottom: none; }
+.order-lead { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.order-icon { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 32px; height: 32px; border-radius: 9px; color: var(--jade); background: color-mix(in srgb, var(--jade) 10%, var(--surface-2)); border: 1px solid color-mix(in srgb, var(--jade) 22%, var(--line-strong)); }
+.order-icon.refund, .plugin-icon.refund { color: var(--amber); background: color-mix(in srgb, var(--amber) 10%, var(--surface-2)); border-color: color-mix(in srgb, var(--amber) 26%, var(--line-strong)); }
+.order-refund-tag { margin-left: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--amber); border: 1px solid color-mix(in srgb, var(--amber) 40%, transparent); border-radius: 99px; padding: 1px 7px; vertical-align: middle; }
+.order-tag-pill { font-size: 11px; color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--line); border-radius: 99px; padding: 2px 9px; }
+.order-tags-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 4px; }
 /* receipt tag on a transaction with a matched email order */
 .td-name { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .order-tag {

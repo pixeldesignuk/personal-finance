@@ -5,7 +5,8 @@ import { merchantToken } from "../categorise/helpers.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
 import { monthOf } from "../lib/budget.ts";
 import { classifyMerchant, coefficientOfVariation, median, type RecurType } from "../lib/merchants.ts";
-import type { MerchantsDTO, MerchantDTO, EmailOrderDTO } from "../../shared/types.ts";
+import { toEmailOrderDTO } from "../plugins/emailOrderDTO.ts";
+import type { MerchantsDTO, MerchantDTO } from "../../shared/types.ts";
 
 export const merchantsRouter = Router();
 
@@ -114,19 +115,7 @@ merchantsRouter.get("/merchants/:token/orders", async (req, res, next) => {
     const rows = ids.length
       ? await db.emailOrder.findMany({ where: { transactionId: { in: ids }, total: { not: null } }, orderBy: [{ emailDate: "desc" }, { createdAt: "desc" }], take: 100 })
       : [];
-    const orders: EmailOrderDTO[] = rows.map((o) => ({
-      id: o.id,
-      emailDate: o.emailDate?.toISOString() ?? null,
-      merchantName: o.merchantName,
-      total: o.total != null ? Number(o.total.toString()) : null,
-      currency: o.currency,
-      orderNumber: o.orderNumber,
-      items: (o.items as unknown as EmailOrderDTO["items"]) ?? [],
-      subject: o.subject,
-      transactionId: o.transactionId,
-      matched: o.matched,
-    }));
-    res.json(orders);
+    res.json(rows.map(toEmailOrderDTO));
   } catch (err) { next(err); }
 });
 

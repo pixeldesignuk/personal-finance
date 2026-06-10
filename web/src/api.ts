@@ -113,7 +113,7 @@ export const api = {
   movePot: (id: number, amount: number) => send<{ id: number; balance: number }>("POST", `/api/pots/${id}/move`, { amount }),
   deletePot: (id: number) => send<{ deleted: boolean }>("DELETE", `/api/pots/${id}`),
   plugins: () => get<PluginsDTO>("/api/plugins"),
-  gmailOrders: () => get<EmailOrderDTO[]>("/api/plugins/gmail/orders"),
+  gmailOrders: (q = "", filter = "all") => get<EmailOrderDTO[]>(`/api/plugins/gmail/orders?q=${encodeURIComponent(q)}&filter=${encodeURIComponent(filter)}`),
   gmailSyncStream: (onEvent: (e: AuditEvent) => void) => streamNdjson("/api/plugins/gmail/sync/stream", {}, onEvent),
   disconnectGmail: () => send<{ ok: boolean }>("POST", "/api/plugins/gmail/disconnect"),
   investments: () => get<InvestmentsDTO>("/api/investments"),

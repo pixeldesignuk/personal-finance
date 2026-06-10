@@ -10,6 +10,7 @@ import Investments from "./pages/Investments.tsx";
 import Debts from "./pages/Debts.tsx";
 import Savings from "./pages/Savings.tsx";
 import Plugins from "./pages/Plugins.tsx";
+import Orders from "./pages/Orders.tsx";
 import Merchants from "./pages/Merchants.tsx";
 import People from "./pages/People.tsx";
 import { NavMenu } from "./components/NavMenu.tsx";
@@ -25,6 +26,7 @@ export default function App() {
           { to: "/transactions", label: "Transactions" },
           { to: "/reports", label: "Reports" },
           { to: "/merchants", label: "Merchants" },
+          { to: "/orders", label: "Orders" },
           { to: "/accounts", label: "Accounts" },
         ]} />
         <NavMenu label="Wealth" items={[
@@ -45,6 +47,7 @@ export default function App() {
           <Route path="/debts" element={<Debts />} />
           <Route path="/savings" element={<Savings />} />
           <Route path="/plugins" element={<Plugins />} />
+          <Route path="/orders" element={<Orders />} />
           <Route path="/merchants" element={<Merchants />} />
           {/* Rules are managed per-merchant on the Merchants page */}
           <Route path="/people" element={<People />} />

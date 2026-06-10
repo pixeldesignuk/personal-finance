@@ -140,6 +140,8 @@ export interface EmailOrderDTO {
   currency: string | null;
   orderNumber: string | null;
   items: EmailOrderItem[];
+  tags: string[];
+  isRefund: boolean;
   subject: string | null;
   transactionId: string | null;
   matched: boolean;

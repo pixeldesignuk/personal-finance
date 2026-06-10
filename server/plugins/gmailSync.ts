@@ -17,11 +17,13 @@ async function ensureAccessToken(): Promise<string> {
 interface ExtractedOrder {
   ref: string;
   isOrder: boolean;
+  isRefund: boolean;
   merchant: string | null;
   total: number | null;
   currency: string | null;
   orderNumber: string | null;
   items: { name: string; qty: number | null; price: number | null }[];
+  tags: string[];
 }
 
 // Ask Gemini to extract structured order data from a batch of emails.
@@ -33,12 +35,14 @@ async function extractBatch(emails: gmail.GmailMessage[], batch: number, audit: 
 
 For each email return an object:
 - "id": the ref (e.g. "t0")
-- "isOrder": boolean
+- "isOrder": boolean (a purchase/order/receipt)
+- "isRefund": boolean (a refund/return confirmation crediting money back)
 - "merchant": clean brand name (e.g. "Amazon", "ASOS", "Deliveroo") or null
-- "total": the order TOTAL as a number with no currency symbol, or null
+- "total": the TOTAL amount as a number with no currency symbol, or null
 - "currency": ISO code like "GBP","USD","EUR" or null
 - "orderNumber": string or null
 - "items": array of {"name": string, "qty": number|null, "price": number|null}
+- "tags": 1-4 short lowercase category tags describing it for search (e.g. ["groceries","household"], ["electronics"], ["takeaway"], ["clothing"])
 
 Emails:
 ${block}
@@ -54,6 +58,7 @@ Respond with ONLY a JSON array, one object per email, nothing else.`;
     return arr.map((o: Record<string, unknown>) => ({
       ref: String(o.id ?? ""),
       isOrder: Boolean(o.isOrder),
+      isRefund: Boolean(o.isRefund),
       merchant: typeof o.merchant === "string" && o.merchant.trim() ? o.merchant.trim() : null,
       total: typeof o.total === "number" ? o.total : null,
       currency: typeof o.currency === "string" ? o.currency : null,
@@ -65,6 +70,7 @@ Respond with ONLY a JSON array, one object per email, nothing else.`;
             price: typeof it.price === "number" ? it.price : null,
           })).filter((it: { name: string }) => it.name)
         : [],
+      tags: Array.isArray(o.tags) ? (o.tags as unknown[]).map((t) => String(t).toLowerCase().trim()).filter(Boolean).slice(0, 4) : [],
     }));
   } catch (err) {
     audit({ kind: "log", text: `  ✗ extraction batch failed: ${err instanceof Error ? err.message : err}`, tone: "red" });
@@ -107,9 +113,10 @@ export function matchTransaction(order: { total: number; date: string | null; to
 }
 
 // Build the transaction lookup used for matching: raw token + friendly-name token.
-export async function loadTxnLites(): Promise<TxnLite[]> {
+// `credits` flips to incoming money (for matching refunds).
+export async function loadTxnLites(credits = false): Promise<TxnLite[]> {
   const txnRows = await db.transaction.findMany({
-    where: { amount: { lt: 0 } },
+    where: credits ? { amount: { gt: 0 } } : { amount: { lt: 0 } },
     select: { id: true, amount: true, bookingDate: true, merchantName: true, creditorName: true, debtorName: true, remittanceInfo: true },
   });
   const named = await db.merchant.findMany({ where: { NOT: { name: null } }, select: { token: true, name: true } });
@@ -130,6 +137,7 @@ function orderNote(merchant: string | null, itemNames: string[]): string {
   const body = head ? `${head}${more}` : merchant ?? "order";
   return `🧾 ${body}`.slice(0, 140);
 }
+const refundNote = (merchant: string | null) => `🔁 refund — ${merchant ?? "order"}`.slice(0, 140);
 
 // Write the note only when empty — never overwrite the user's own note.
 async function maybeSetNote(txnId: string, note: string): Promise<void> {
@@ -143,8 +151,11 @@ export async function syncGmail(audit: AuditFn): Promise<GmailSyncResult> {
   if (!geminiEnabled()) audit({ kind: "log", text: "⚠ No GEMINI_API_KEY — emails can't be parsed.", tone: "yellow" });
   const token = await ensureAccessToken();
 
+  const plugin = await db.plugin.findUnique({ where: { id: "gmail" } });
   audit({ kind: "log", text: "● Searching Gmail for orders & receipts", tone: "bold" });
-  const ids = await gmail.listMessages(token, "category:purchases newer_than:120d", 80);
+  // Incremental: only fetch emails newer than the last processed one.
+  const query = plugin?.cursor ? `category:purchases after:${plugin.cursor}` : "category:purchases newer_than:120d";
+  const ids = await gmail.listMessages(token, query, 80);
   const seen = new Set((await db.emailOrder.findMany({ where: { messageId: { in: ids } }, select: { messageId: true } })).map((e) => e.messageId));
   const fresh = ids.filter((id) => !seen.has(id));
   audit({ kind: "log", text: `  ${ids.length} candidates · ${fresh.length} new · ${seen.size} already parsed`, tone: "dim" });
@@ -162,19 +173,20 @@ export async function syncGmail(audit: AuditFn): Promise<GmailSyncResult> {
     catch (err) { audit({ kind: "log", text: `  ✗ ${id}: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
   }
 
-  // Matching context: recent spending transactions (raw + friendly tokens).
+  // Matching context: spending transactions (for orders) + credits (for refunds).
   const txns = await loadTxnLites();
+  const creditTxns = await loadTxnLites(true);
   const taken = new Set((await db.emailOrder.findMany({ where: { transactionId: { not: null } }, select: { transactionId: true } })).map((e) => e.transactionId!).filter(Boolean));
 
-  // Dedupe repeat emails for one purchase (order confirmation + dispatch/receipt).
-  // Key on order number when present, else merchant+total+day.
-  const orderSig = (token: string | null, total: number, orderNo: string | null, date: Date | null) =>
-    orderNo ? `${token}|${total}|${orderNo.toLowerCase().replace(/\s+/g, "")}` : `${token}|${total}|${date ? date.toISOString().slice(0, 10) : ""}`;
-  const existingSigs = await db.emailOrder.findMany({ where: { total: { not: null } }, select: { merchantToken: true, total: true, orderNumber: true, emailDate: true } });
-  const seenSigs = new Set(existingSigs.map((o) => orderSig(o.merchantToken, Number(o.total!.toString()), o.orderNumber, o.emailDate)));
+  // Dedupe repeat emails for one purchase/refund (confirmation + dispatch/receipt).
+  // Key on order number when present, else merchant+total+day (+ refund flag).
+  const orderSig = (token: string | null, total: number, orderNo: string | null, date: Date | null, refund: boolean) =>
+    `${refund ? "r" : "o"}|${orderNo ? `${token}|${total}|${orderNo.toLowerCase().replace(/\s+/g, "")}` : `${token}|${total}|${date ? date.toISOString().slice(0, 10) : ""}`}`;
+  const existingSigs = await db.emailOrder.findMany({ where: { total: { not: null } }, select: { merchantToken: true, total: true, orderNumber: true, emailDate: true, isRefund: true } });
+  const seenSigs = new Set(existingSigs.map((o) => orderSig(o.merchantToken, Number(o.total!.toString()), o.orderNumber, o.emailDate, o.isRefund)));
 
   audit({ kind: "log", text: "● Extracting order details (Gemini)", tone: "bold" });
-  let parsed = 0, matched = 0, dupes = 0;
+  let parsed = 0, matched = 0, dupes = 0, refunds = 0;
   const SIZE = 20;
   for (let i = 0; i < emails.length; i += SIZE) {
     const chunk = emails.slice(i, i + SIZE);
@@ -184,18 +196,24 @@ export async function syncGmail(audit: AuditFn): Promise<GmailSyncResult> {
       const email = chunk[j];
       const o = byRef.get(`t${j}`);
       const emailDate = email.date ? new Date(email.date) : null;
-      const parsedOk = Boolean(o?.isOrder && o.total != null && o.merchant);
+      const hasTotal = Boolean(o && o.total != null && o.merchant);
+      const isRefund = hasTotal && Boolean(o!.isRefund);
+      const parsedOk = hasTotal && (o!.isOrder || isRefund);
       const oToken = parsedOk ? merchantToken(o!.merchant) : null;
-      // A repeat email for an order we already captured: record the message (so
+      // A repeat email for something we already captured: record the message (so
       // it isn't re-fetched) but null its total so it's hidden + not matched.
       let dup = false;
       if (parsedOk) {
-        const sig = orderSig(oToken, o!.total!, o!.orderNumber, emailDate);
+        const sig = orderSig(oToken, o!.total!, o!.orderNumber, emailDate, isRefund);
         if (seenSigs.has(sig)) dup = true; else seenSigs.add(sig);
       }
-      const isOrder = parsedOk && !dup;
+      const record = parsedOk && !dup;
       let txn: TxnLite | null = null;
-      if (isOrder) {
+      if (record && isRefund) {
+        txn = matchTransaction({ total: o!.total!, date: email.date, token: oToken }, creditTxns, taken);
+        refunds++;
+        if (txn) { taken.add(txn.id); matched++; await maybeSetNote(txn.id, refundNote(o!.merchant)); }
+      } else if (record) {
         parsed++;
         txn = matchTransaction({ total: o!.total!, date: email.date, token: oToken }, txns, taken);
         if (txn) { taken.add(txn.id); matched++; await maybeSetNote(txn.id, orderNote(o!.merchant, o!.items.map((it) => it.name))); }
@@ -207,17 +225,19 @@ export async function syncGmail(audit: AuditFn): Promise<GmailSyncResult> {
           emailDate,
           merchantName: parsedOk ? o!.merchant : null,
           merchantToken: oToken,
-          total: isOrder ? o!.total : null,
+          total: record ? o!.total : null,
           currency: o?.currency ?? null,
           orderNumber: o?.orderNumber ?? null,
-          items: isOrder ? (o!.items as unknown as object) : undefined,
+          items: record && !isRefund ? (o!.items as unknown as object) : undefined,
+          tags: record ? (o!.tags as unknown as object) : undefined,
+          isRefund,
           subject: email.subject || null,
           transactionId: txn?.id ?? null,
           matched: Boolean(txn),
         },
       });
-      if (isOrder) {
-        const label = `${o!.merchant ?? "?"} · ${o!.currency ?? ""}${o!.total}`;
+      if (record) {
+        const label = `${isRefund ? "↩ " : ""}${o!.merchant ?? "?"} · ${o!.currency ?? ""}${o!.total}`;
         if (txn) audit({ kind: "assign", id: email.id, name: label, to: `txn ${txn.date ?? ""}`, via: "llm" });
         else audit({ kind: "log", text: `  ai   ${label.length > 34 ? `${label.slice(0, 33)}…` : label.padEnd(34)} → no transaction match`, tone: "yellow" });
       } else if (dup) {
@@ -245,9 +265,14 @@ export async function syncGmail(audit: AuditFn): Promise<GmailSyncResult> {
   }
 
   const totalMatched = matched + rematched;
-  await db.plugin.update({ where: { id: "gmail" }, data: { lastSyncAt: new Date() } });
+  // Advance the cursor to the newest email seen (never backwards).
+  const maxEpoch = emails.reduce((mx, e) => {
+    const t = e.date ? Math.floor(new Date(e.date).getTime() / 1000) : 0;
+    return t > mx ? t : mx;
+  }, plugin?.cursor ? Number(plugin.cursor) : 0);
+  await db.plugin.update({ where: { id: "gmail" }, data: { lastSyncAt: new Date(), ...(maxEpoch ? { cursor: String(maxEpoch) } : {}) } });
   audit({ kind: "log", text: "● Summary", tone: "bold" });
-  audit({ kind: "log", text: `  ${parsed} new orders · ${totalMatched} matched${rematched ? ` (${rematched} re-matched)` : ""}${dupes ? ` · ${dupes} duplicates skipped` : ""}`, tone: totalMatched ? "green" : "dim" });
+  audit({ kind: "log", text: `  ${parsed} new orders · ${refunds} refunds · ${totalMatched} matched${rematched ? ` (${rematched} re-matched)` : ""}${dupes ? ` · ${dupes} duplicates skipped` : ""}`, tone: totalMatched ? "green" : "dim" });
   audit({ kind: "log", text: "Sync complete.", tone: "green" });
   return { scanned: ids.length, parsed, matched: totalMatched };
 }
