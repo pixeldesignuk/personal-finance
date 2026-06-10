@@ -6,6 +6,7 @@ import { isAllowed, normalizeParsed, confirmText, parseTextExpense } from "../li
 import { applyRules, type Rule } from "../lib/rules.ts";
 import { sendMessage, editMessageText, answerCallbackQuery } from "../telegram/api.ts";
 import { getOrCreateCashAccount } from "../telegram/cashAccount.ts";
+import { handleReceiptPhoto } from "../telegram/receipt.ts";
 
 export const telegramRouter = Router();
 
@@ -77,8 +78,24 @@ telegramRouter.post("/telegram/webhook", async (req, res) => {
     const chatId = msg.chat?.id;
     if (!isAllowed(chatId, env.TELEGRAM_ALLOWED_CHAT_ID)) return;
 
+    // A photo (or image/PDF document) → treat as a receipt: scan with Gemini,
+    // store it, match it to a transaction.
+    const photo = Array.isArray(msg.photo) && msg.photo.length ? msg.photo[msg.photo.length - 1] : null;
+    const doc = msg.document && /^(image\/|application\/pdf)/.test(String(msg.document.mime_type ?? "")) ? msg.document : null;
+    const file = photo ?? doc;
+    if (file?.file_id) {
+      await sendMessage(chatId, "📸 Reading your receipt…");
+      try {
+        await sendMessage(chatId, await handleReceiptPhoto(file.file_id, file.file_unique_id ?? file.file_id));
+      } catch (err) {
+        console.error("telegram receipt error", err);
+        await sendMessage(chatId, "Couldn't read that receipt — try a clearer, well-lit photo.");
+      }
+      return;
+    }
+
     if (!msg.text) {
-      await sendMessage(chatId, "Send a text expense like '£12.50 lunch' (photos aren't supported).");
+      await sendMessage(chatId, "Send a text expense like '£12.50 lunch', or a photo of a receipt.");
       return;
     }
     const parsed = parseTextExpense(msg.text);

@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useQueryState } from "nuqs";
-import { Receipt } from "lucide-react";
+import { Receipt, Camera } from "lucide-react";
 import { api } from "../api.ts";
 import type { EmailOrderDTO } from "../../../shared/types.ts";
 import { formatMoney, ccySymbol } from "../format.ts";
@@ -26,8 +26,8 @@ export default function Orders() {
   return (
     <div>
       <PageHeader
-        title="Orders"
-        subtitle={<>Purchases parsed from your email and matched to transactions. <a href="/plugins">Manage Gmail →</a></>}
+        title="Receipts"
+        subtitle={<>Purchases from your email and receipts you snap to the Telegram bot, matched to transactions. <a href="/plugins">Manage Gmail →</a></>}
         actions={<input className="orders-search" placeholder="Search merchant, item, tag, order #…" value={q} onChange={(e) => onSearch(e.target.value)} />}
       />
 
@@ -38,7 +38,7 @@ export default function Orders() {
         {orders.map((o) => (
           <button key={o.id} className="order-row order-row-btn" onClick={() => setView(o)}>
             <span className="order-lead">
-              <span className={`order-icon${o.isRefund ? " refund" : ""}`}><Receipt size={15} strokeWidth={1.9} /></span>
+              <span className={`order-icon${o.isRefund ? " refund" : ""}`} title={o.source === "telegram" ? "Snapped receipt" : "Email order"}>{o.source === "telegram" ? <Camera size={15} strokeWidth={1.9} /> : <Receipt size={15} strokeWidth={1.9} />}</span>
               <span className="order-main">
                 <span className="order-merchant">{o.merchantName ?? o.subject ?? "Order"}{o.isRefund && <span className="order-refund-tag">refund</span>}</span>
                 <span className="order-items muted">

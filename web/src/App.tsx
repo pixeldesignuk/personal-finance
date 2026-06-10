@@ -31,7 +31,7 @@ export default function App() {
             { to: "/reports", label: "Reports" },
             { to: "/recurring", label: "Recurring" },
             { to: "/merchants", label: "Merchants" },
-            { to: "/orders", label: "Orders" },
+            { to: "/orders", label: "Receipts" },
             { to: "/accounts", label: "Accounts" },
           ]} />
           <NavMenu label="Wealth" items={[

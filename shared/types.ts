@@ -135,6 +135,7 @@ export interface MerchantsDTO {
 export interface EmailOrderItem { name: string; qty: number | null; price: number | null }
 export interface EmailOrderDTO {
   id: string;
+  source: string;        // "gmail" | "telegram"
   emailDate: string | null;
   merchantName: string | null;
   total: number | null;

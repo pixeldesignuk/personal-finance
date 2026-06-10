@@ -2,6 +2,7 @@ import type { EmailOrderDTO } from "../../shared/types.ts";
 
 interface Row {
   id: string;
+  source?: string;
   emailDate: Date | null;
   merchantName: string | null;
   total: { toString(): string } | null;
@@ -18,6 +19,7 @@ interface Row {
 export function toEmailOrderDTO(o: Row): EmailOrderDTO {
   return {
     id: o.id,
+    source: o.source ?? "gmail",
     emailDate: o.emailDate?.toISOString() ?? null,
     merchantName: o.merchantName,
     total: o.total != null ? Number(o.total.toString()) : null,

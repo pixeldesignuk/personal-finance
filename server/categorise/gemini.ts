@@ -110,6 +110,31 @@ export async function geminiGenerateJson(prompt: string, audit?: AuditFn, batch 
   return generateWithRetry(ai, prompt, batch, audit);
 }
 
+// Extract a purchase from a receipt photo (Gemini vision). Returns the raw JSON
+// string (same shape as the email order extractor) or "" without a key.
+export async function geminiExtractReceiptImage(base64: string, mimeType: string): Promise<string> {
+  if (!env.GEMINI_API_KEY) return "";
+  const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+  const prompt = `This is a photo of a purchase receipt. Extract it and respond with ONLY a JSON object:
+{"merchant": clean brand/store name or null, "total": grand total paid as a number with no currency symbol or null, "currency": "GBP"|"USD"|"EUR"|null, "orderNumber": string or null, "date": "YYYY-MM-DD" or null, "items": [{"name": string, "qty": number|null, "price": number|null}], "tags": 1-4 short lowercase category tags (e.g. ["groceries"],["fuel"],["clothing"])}
+If it is not a legible purchase receipt, return {"merchant": null, "total": null}.`;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const resp = await ai.models.generateContent({
+        model: env.GEMINI_MODEL,
+        contents: [{ role: "user", parts: [{ inlineData: { mimeType, data: base64 } }, { text: prompt }] }],
+        config: { responseMimeType: "application/json", maxOutputTokens: 4096 },
+      });
+      return resp.text ?? "";
+    } catch (err) {
+      const status = errorStatus(err);
+      const retryable = status === null || RETRYABLE.has(status);
+      if (attempt > MAX_RETRIES || !retryable) throw err;
+      await sleep(800 * 2 ** (attempt - 1));
+    }
+  }
+}
+
 // Classify transactions with Gemini Flash. Returns a Map of real transaction
 // id -> categoryKey, validated against the allowed category keys. Returns an
 // empty map (a no-op) when no API key is configured. Batched; a failed batch
