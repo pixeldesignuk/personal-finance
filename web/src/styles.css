@@ -531,6 +531,24 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
 .run-source { text-transform: capitalize; color: var(--ink); font-weight: 540; min-width: 74px; }
 .run-summary { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .run-time { font-size: 12px; flex: none; }
+
+/* bar list (top merchants / categories) */
+.barlist { display: flex; flex-direction: column; gap: 13px; }
+.barlist-row { display: flex; flex-direction: column; gap: 6px; }
+.barlist-head { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.barlist-label { color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barlist-sub { font-size: 12px; flex: none; }
+.barlist-val { margin-left: auto; flex: none; font-size: 13px; }
+.barlist-track { height: 7px; border-radius: 99px; background: rgba(233, 230, 223, 0.07); overflow: hidden; }
+.barlist-track > i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--jade-deep), var(--jade)); transition: width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+/* reports matrix */
+.report-table { width: 100%; border-collapse: collapse; }
+.report-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-3); font-weight: 600; padding: 9px 10px; border-bottom: 1px solid var(--line-strong); white-space: nowrap; }
+.report-table td { padding: 9px 10px; border-bottom: 1px solid var(--line); }
+.report-table tbody tr:hover > td { background: color-mix(in srgb, var(--jade) 5%, transparent); }
+.report-table .report-total > td { border-top: 1px solid var(--line-strong); border-bottom: none; }
+.num.strong { color: var(--ink); }
 .order-row { gap: 14px; }
 .order-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .order-merchant { color: var(--ink); }

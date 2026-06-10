@@ -1,15 +1,18 @@
 import type { MerchantTotal } from "../../../../shared/types.ts";
-import { formatMoney } from "../../format.ts";
+import { BarList } from "../BarList.tsx";
+import { BrandLogo } from "../BrandLogo.tsx";
+import { merchantLogo } from "../../brand.ts";
 
 export function TopMerchants({ data }: { data: MerchantTotal[] }) {
   return (
-    <table>
-      <thead><tr><th>Merchant</th><th>Spent</th><th>#</th></tr></thead>
-      <tbody>
-        {data.map((m) => (
-          <tr key={m.merchant}><td>{m.merchant}</td><td>£{formatMoney(m.total)}</td><td>{m.count}</td></tr>
-        ))}
-      </tbody>
-    </table>
+    <BarList
+      items={data.slice(0, 8).map((m) => ({
+        key: m.merchant,
+        label: m.merchant,
+        value: m.total,
+        sub: `${m.count}×`,
+        leading: <BrandLogo name={m.merchant} src={merchantLogo(m.merchant, null)} size={22} />,
+      }))}
+    />
   );
 }
