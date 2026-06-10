@@ -140,9 +140,9 @@ function orderNote(merchant: string | null, itemNames: string[]): string {
   const head = itemNames.slice(0, 3).join(", ");
   const more = itemNames.length > 3 ? ` +${itemNames.length - 3} more` : "";
   const body = head ? `${head}${more}` : merchant ?? "order";
-  return `🧾 ${body}`.slice(0, 140);
+  return body.slice(0, 140);
 }
-const refundNote = (merchant: string | null) => `🔁 refund — ${merchant ?? "order"}`.slice(0, 140);
+const refundNote = (merchant: string | null) => `refund — ${merchant ?? "order"}`.slice(0, 140);
 
 // Write the note only when empty — never overwrite the user's own note.
 async function maybeSetNote(txnId: string, note: string): Promise<void> {
