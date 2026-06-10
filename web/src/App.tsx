@@ -16,28 +16,32 @@ import Merchants from "./pages/Merchants.tsx";
 import People from "./pages/People.tsx";
 import { NavMenu } from "./components/NavMenu.tsx";
 import { SettingsDrawer } from "./components/SettingsDrawer.tsx";
+import { MobileNav } from "./components/MobileNav.tsx";
 
 export default function App() {
   return (
     <>
       <nav>
         <Link to="/" className="wordmark">Led<b>·</b>ger</Link>
-        <NavLink to="/" end>Dashboard</NavLink>
-        <NavMenu label="Budget" to="/budgets" items={[
-          { to: "/transactions", label: "Transactions" },
-          { to: "/reports", label: "Reports" },
-          { to: "/merchants", label: "Merchants" },
-          { to: "/orders", label: "Orders" },
-          { to: "/accounts", label: "Accounts" },
-        ]} />
-        <NavMenu label="Wealth" items={[
-          { to: "/investments", label: "Investments" },
-          { to: "/savings", label: "Savings" },
-          { to: "/assets", label: "Assets" },
-          { to: "/debts", label: "Debts" },
-        ]} />
-        <SettingsDrawer />
-        <NavLink to="/connect" className="btn-primary nav-cta">Connect</NavLink>
+        <div className="nav-right">
+          <NavLink to="/" end>Dashboard</NavLink>
+          <NavMenu label="Budget" to="/budgets" items={[
+            { to: "/transactions", label: "Transactions" },
+            { to: "/reports", label: "Reports" },
+            { to: "/merchants", label: "Merchants" },
+            { to: "/orders", label: "Orders" },
+            { to: "/accounts", label: "Accounts" },
+          ]} />
+          <NavMenu label="Wealth" items={[
+            { to: "/investments", label: "Investments" },
+            { to: "/savings", label: "Savings" },
+            { to: "/assets", label: "Assets" },
+            { to: "/debts", label: "Debts" },
+          ]} />
+          <SettingsDrawer />
+          <NavLink to="/connect" className="btn-primary nav-cta">Connect</NavLink>
+        </div>
+        <MobileNav />
       </nav>
       <div className="container">
         <Routes>

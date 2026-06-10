@@ -101,6 +101,9 @@ nav {
   backdrop-filter: blur(14px) saturate(1.2);
   border-bottom: 1px solid var(--line);
 }
+.nav-right { display: flex; align-items: center; gap: 26px; }
+.nav-mobile-btn { display: none; margin-left: auto; background: transparent; border: 1px solid var(--line-strong); border-radius: var(--r-sm); width: 38px; height: 38px; padding: 0; font-size: 18px; color: var(--ink); }
+.nav-mobile-btn:hover { transform: none; border-color: var(--jade); }
 .wordmark {
   font-family: var(--font-display);
   font-style: normal;
@@ -209,6 +212,32 @@ nav a.active:not(.nav-cta)::after {
   font-weight: 640; font-size: 13px;
 }
 .nav-cta:hover { filter: brightness(1.06); }
+
+/* ---- mobile nav drawer --------------------------------------------------- */
+.mnav-backdrop { position: fixed; inset: 0; z-index: 70; background: rgba(6, 7, 8, 0.55); backdrop-filter: blur(2px); display: flex; justify-content: flex-end; }
+.mnav { width: 300px; max-width: 86vw; height: 100%; background: linear-gradient(180deg, var(--surface), var(--bg-2)); border-left: 1px solid var(--line-strong); box-shadow: -30px 0 70px -28px rgba(0,0,0,0.8); display: flex; flex-direction: column; animation: drawer-in 0.2s cubic-bezier(0.2,0.8,0.2,1); }
+.mnav-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.mnav-body { padding: 8px 16px 24px; overflow-y: auto; display: flex; flex-direction: column; }
+.mnav-group { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.mnav-group .eyebrow { margin-bottom: 4px; }
+.mnav-link { display: block; padding: 10px 8px; border-radius: 8px; color: var(--ink-2); text-decoration: none; font-size: 15px; }
+.mnav-link:hover, .mnav-link.active { background: var(--surface-2); color: var(--ink); }
+.mnav-link.active { color: var(--jade); }
+.mnav-cta { text-align: center; margin-top: 16px; padding: 11px; }
+
+/* ---- responsive ---------------------------------------------------------- */
+@media (max-width: 760px) {
+  .nav-right { display: none; }
+  .nav-mobile-btn { display: inline-flex; align-items: center; justify-content: center; }
+  h1 { font-size: 24px; }
+  .container { padding-left: 14px; padding-right: 14px; }
+  .row-between { gap: 10px; }
+  .toolbar { flex-wrap: wrap; }
+  .card { padding: 15px 15px; }
+  .card:has(table) { overflow-x: auto; }
+  .txn-table { min-width: 640px; }
+  .orders-search { max-width: none; width: 100%; }
+}
 
 /* ---- layout -------------------------------------------------------------- */
 .container { max-width: none; margin: 0 auto; padding: clamp(22px, 4vw, 38px) clamp(18px, 5vw, 40px) 80px; }
