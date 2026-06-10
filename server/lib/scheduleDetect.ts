@@ -43,10 +43,10 @@ export async function detectSchedules(today: Date = new Date()): Promise<{ detec
     const cv = coefficientOfVariation(g.amounts.map(Math.abs));
     const med = median(g.amounts);
     const isFixed = override === "fixed" || (override === "auto" && classifyMerchant(monthsActive, perMonth, cv) === "fixed");
-    // Income (wages) gets a wider net: a roughly-monthly inflow counts even if the
-    // amount drifts more than a "fixed" bill would (overtime, tax, variable pay).
-    const isIncome = med > 0 && monthsActive >= 3 && perMonth <= 1.6 && cv < 0.45;
-    if (!isFixed && !isIncome) continue;
+    // Per-merchant schedules are BILLS only. Recurring income (wages) has a
+    // varying payroll reference, so it's handled by the income stream below
+    // (keyed on the "income" category) rather than per-merchant grouping.
+    if (!isFixed || med >= 0) continue;
 
     qualifying.add(token);
     const day = typicalDayOfMonth(g.dates) ?? 1;
@@ -56,7 +56,7 @@ export async function detectSchedules(today: Date = new Date()): Promise<{ detec
     const fields = {
       name: (named.get(token) as string | undefined) ?? g.name ?? token,
       accountId: topAccount,
-      direction: med < 0 ? "out" : "in",
+      direction: "out",
       amount: Math.abs(med),
       cadence: "monthly",
       dayOfMonth: day,
@@ -69,6 +69,37 @@ export async function detectSchedules(today: Date = new Date()): Promise<{ detec
       create: { merchantToken: token, ...fields },
       update: fields,
     });
+  }
+
+  // Income stream: aggregate everything categorised "income" into ONE recurring
+  // income schedule. We key on the category (set by rules / the default that tags
+  // positive transactions as income) rather than the merchant name, because the
+  // payroll reference varies month to month. Learns the typical monthly amount
+  // and pay day. Skipped if the user has added/confirmed their own income entry.
+  const incomeToken = "income:stream";
+  const manualIncome = await db.recurringSchedule.findFirst({ where: { direction: "in", status: { not: "ignored" }, NOT: { merchantToken: incomeToken } } });
+  if (manualIncome) {
+    await db.recurringSchedule.deleteMany({ where: { merchantToken: incomeToken, status: "auto" } });
+  } else {
+    const incomeCredits = txns.filter((t) => Number(t.amount) > 0 && t.bookingDate && effectiveCategory(t) === "income");
+    const byMonth = new Map<string, { sum: number; main: { amount: number; date: string } }>();
+    for (const t of incomeCredits) {
+      const m = t.bookingDate!.slice(0, 7);
+      const amt = Number(t.amount);
+      const e = byMonth.get(m);
+      if (!e) byMonth.set(m, { sum: amt, main: { amount: amt, date: t.bookingDate! } });
+      else { e.sum += amt; if (amt > e.main.amount) e.main = { amount: amt, date: t.bookingDate! }; }
+    }
+    if (byMonth.size >= 2) {
+      const day = typicalDayOfMonth([...byMonth.values()].map((v) => v.main.date)) ?? 28;
+      const amount = median([...byMonth.values()].map((v) => v.sum));
+      const lastSeen = incomeCredits.map((t) => t.bookingDate!).sort().slice(-1)[0] ?? null;
+      const existing = await db.recurringSchedule.findUnique({ where: { merchantToken: incomeToken } });
+      const status = existing && existing.status !== "auto" ? existing.status : "auto";
+      const f = { name: "Income", accountId: null, direction: "in", amount, cadence: "monthly", dayOfMonth: day, lastSeen: lastSeen ? new Date(`${lastSeen}T00:00:00`) : null, nextDue: inferNextDue(day, today), status };
+      await db.recurringSchedule.upsert({ where: { merchantToken: incomeToken }, create: { merchantToken: incomeToken, ...f }, update: f });
+      qualifying.add(incomeToken);
+    }
   }
 
   // Prune auto schedules whose merchant no longer qualifies (keep user-curated ones).

@@ -25,6 +25,11 @@ Full analysis (parity matrix vs YNAB / Monarch / Copilot / Actual / Lunch Money 
 - [x] **Upcoming panel** — `/api/upcoming` (next-30-days bills + income, this-month totals) + reusable `Upcoming` component on Dashboard and `/recurring`.
 - [x] **Dashboard redesign (safe-to-spend)** — month-scoped; safe-to-spend hero (`in bank − bills due − pots`), projected income + payday + projected month-end balance, stat row, debt/savings goal cards, month-scoped category bar list (donut + top-merchants removed), budget-by-group, cash-flow trend, balances.
 
+### Next up (requested 2026-06-10)
+
+- [ ] **Variable spend in Upcoming (learned estimates)** — beyond fixed bills, project *variable* recurring spend (groceries, fuel, eating out) as **estimates** learned from the trailing monthly average per merchant/category. Model each as `estimated remaining this month = max(0, avgMonthly − spentSoFarThisMonth)`, dated ~month-end. Add an `estimated` flag on schedules + upcoming items; show with a "~" / distinct style; **include by default with a toggle to exclude estimated projections** from Upcoming + safe-to-spend. (Extends RecurringSchedule + `/api/upcoming`.)
+- [ ] **Receipts (Telegram + Gemini vision)** — expand "Orders" → "Receipts": snap a receipt to the Telegram bot → download the photo (Telegram getFile) → Gemini *vision* extracts merchant/total/items/date (same schema as the Gmail order extractor) → store as an `EmailOrder` with `source:"telegram"` → run the same `rematchOpenOrders` matching. Reuses the Orders UI + matching engine; new work = Telegram media handling + Gemini image input. Rename the Orders space to Receipts.
+
 ### P1
 
 - [ ] **Cash-flow forecast view** — `/forecast` projecting balances from current balances + recurring + income + one-offs (reuse monthly chart first; daily calendar later).
