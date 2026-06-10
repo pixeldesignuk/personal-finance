@@ -123,7 +123,7 @@ If it is not a legible purchase receipt, return {"merchant": null, "total": null
       const resp = await ai.models.generateContent({
         model: env.GEMINI_MODEL,
         contents: [{ role: "user", parts: [{ inlineData: { mimeType, data: base64 } }, { text: prompt }] }],
-        config: { responseMimeType: "application/json", maxOutputTokens: 4096 },
+        config: { responseMimeType: "application/json", maxOutputTokens: 16384 },
       });
       return resp.text ?? "";
     } catch (err) {

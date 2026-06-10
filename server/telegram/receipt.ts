@@ -21,11 +21,16 @@ export async function handleReceiptPhoto(fileId: string, fileUniqueId: string): 
   if (!path) return "Couldn't fetch that file from Telegram.";
   const { base64, mimeType } = await downloadFile(path);
 
-  const raw = await geminiExtractReceiptImage(base64, mimeType);
+  let raw: string;
+  try { raw = await geminiExtractReceiptImage(base64, mimeType); }
+  catch (err) { return `⚠️ Scan failed: ${err instanceof Error ? err.message.slice(0, 200) : String(err)}`; }
   if (!raw) return "Receipt scanning needs GEMINI_API_KEY set.";
+  // Defensive: strip ```json fences the model sometimes adds.
+  const clean = raw.replace(/^\s*```(?:json)?/i, "").replace(/```\s*$/i, "").trim();
   let o: { merchant?: string | null; total?: number | null; currency?: string | null; orderNumber?: string | null; date?: string | null; items?: unknown; tags?: unknown };
-  try { o = JSON.parse(raw); } catch { return "Couldn't read that receipt — try a clearer, well-lit photo."; }
-  if (!o || o.total == null || !o.merchant) return "That doesn't look like a receipt I can read — try a clearer photo.";
+  try { o = JSON.parse(clean); } catch { return `⚠️ Couldn't parse the scan output: ${clean.slice(0, 180) || "(empty)"}`; }
+  if (Array.isArray(o)) o = o[0] ?? {};
+  if (!o || o.total == null || !o.merchant) return `⚠️ Not recognised as a receipt — model returned: ${JSON.stringify(o).slice(0, 180)}`;
 
   const messageId = `telegram-${fileUniqueId}`;
   if (await db.emailOrder.findUnique({ where: { messageId } })) return "Already saved that receipt.";
