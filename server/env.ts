@@ -39,4 +39,8 @@ if (!parsed.success) {
   );
 }
 
-export const env = parsed.data;
+export const env = {
+  ...parsed.data,
+  // Accept TELEGRAM_BOT_KEY as an alias for TELEGRAM_BOT_TOKEN (env naming drift).
+  TELEGRAM_BOT_TOKEN: parsed.data.TELEGRAM_BOT_TOKEN ?? process.env.TELEGRAM_BOT_KEY,
+};
