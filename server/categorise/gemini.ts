@@ -110,6 +110,28 @@ export async function geminiGenerateJson(prompt: string, audit?: AuditFn, batch 
   return generateWithRetry(ai, prompt, batch, audit);
 }
 
+// Parse a free-text cash expense/income message (e.g. "Spent £18 cash on Rajas
+// fast food for the office today") into structured fields. Returns null without
+// a key or if no amount is found.
+export async function geminiParseExpense(text: string): Promise<{ amount: number; isIncome: boolean; merchant: string | null; summary: string } | null> {
+  if (!env.GEMINI_API_KEY) return null;
+  const prompt = `Extract a single personal cash transaction from this message. Respond with ONLY a JSON object:
+{"amount": the money amount as a positive number with no symbol (or null if there is no amount), "isIncome": true if money was received, false if spent, "merchant": short payee/merchant name or null, "summary": a short 3-6 word plain-text description, no emojis}
+Message: ${JSON.stringify(text)}`;
+  let raw: string;
+  try { raw = await geminiGenerateJson(prompt); } catch { return null; }
+  try {
+    const o = JSON.parse(raw.replace(/^\s*```(?:json)?/i, "").replace(/```\s*$/i, "").trim());
+    if (o == null || o.amount == null || !Number.isFinite(Number(o.amount)) || Number(o.amount) === 0) return null;
+    return {
+      amount: Math.abs(Number(o.amount)),
+      isIncome: Boolean(o.isIncome),
+      merchant: typeof o.merchant === "string" && o.merchant.trim() ? o.merchant.trim() : null,
+      summary: typeof o.summary === "string" ? o.summary.trim() : "",
+    };
+  } catch { return null; }
+}
+
 // Extract a purchase from a receipt photo (Gemini vision). Returns the raw JSON
 // string (same shape as the email order extractor) or "" without a key.
 export async function geminiExtractReceiptImage(base64: string, mimeType: string): Promise<string> {

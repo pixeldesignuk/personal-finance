@@ -2,7 +2,8 @@ import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import { env } from "../env.ts";
 import { db } from "../lib/db.ts";
-import { isAllowed, normalizeParsed, confirmText, parseTextExpense } from "../lib/cashTxn.ts";
+import { isAllowed, confirmText, parseTextExpense } from "../lib/cashTxn.ts";
+import { geminiParseExpense } from "../categorise/gemini.ts";
 import { applyRules, type Rule } from "../lib/rules.ts";
 import { sendMessage, editMessageText, answerCallbackQuery } from "../telegram/api.ts";
 import { getOrCreateCashAccount } from "../telegram/cashAccount.ts";
@@ -98,27 +99,44 @@ telegramRouter.post("/telegram/webhook", async (req, res) => {
       await sendMessage(chatId, "Send a text expense like '£12.50 lunch', or a photo of a receipt.");
       return;
     }
-    const parsed = parseTextExpense(msg.text);
-    if (!parsed) {
-      await sendMessage(chatId, "Couldn't read an amount — try e.g. '£12.50 lunch'.");
-      return;
+    try {
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+      // Prefer AI parsing (natural language → clean summary); fall back to the
+      // free regex parser if no key / no parse.
+      const ai = await geminiParseExpense(msg.text).catch(() => null);
+      let amount: number, merchant: string | null, summary: string | null, income: boolean;
+      if (ai) {
+        income = ai.isIncome;
+        amount = income ? Math.abs(ai.amount) : -Math.abs(ai.amount);
+        merchant = ai.merchant;
+        summary = ai.summary || null;
+      } else {
+        const parsed = parseTextExpense(msg.text);
+        if (!parsed) { await sendMessage(chatId, "Couldn't read an amount — try e.g. '£12.50 lunch'."); return; }
+        income = parsed.amount > 0;
+        amount = parsed.amount;
+        merchant = parsed.merchant || null;
+        summary = null;
+      }
+      const ruleRows = await db.rule.findMany();
+      const ruled = applyRules(msg.text, ruleRows.map((r) => ({ matchText: r.matchText, categoryKey: r.categoryKey, personKey: r.personKey, priority: r.priority }) as Rule));
+      const category = ruled.categoryKey ?? (income ? "income" : "uncategorised");
+      const personKey = ruled.personKey ?? null;
+      const accountId = await getOrCreateCashAccount();
+      // Short id keeps the inline-button callback_data within Telegram's 64-byte limit.
+      const id = `tg-${randomUUID().slice(0, 18)}`;
+      await db.transaction.create({
+        data: {
+          id, accountId, bookingDate: today, amount: amount.toFixed(2), currency: "GBP",
+          merchantName: merchant, remittanceInfo: merchant ?? msg.text.slice(0, 80), note: summary,
+          category, personKey, status: "booked", raw: { telegram: true },
+        },
+      });
+      await sendMessage(chatId, confirmText({ amount: amount.toFixed(2), category, note: summary ?? merchant ?? "", date: today }), categoryKeyboard(id, await activeCategories()));
+    } catch (err) {
+      console.error("telegram text error", err);
+      await sendMessage(chatId, `⚠️ Couldn't log that: ${err instanceof Error ? err.message.slice(0, 150) : String(err)}`);
     }
-
-    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
-    const n = normalizeParsed(parsed, today);
-    const ruleRows = await db.rule.findMany();
-    const ruled = applyRules(msg.text, ruleRows.map((r) => ({ matchText: r.matchText, categoryKey: r.categoryKey, personKey: r.personKey, priority: r.priority }) as Rule));
-    const category = ruled.categoryKey ?? n.category; // n.category is "income"/"uncategorised"
-    const personKey = ruled.personKey ?? null;
-    const accountId = await getOrCreateCashAccount();
-    const id = `manual-${randomUUID()}`;
-    await db.transaction.create({
-      data: {
-        id, accountId, bookingDate: n.date, amount: n.amount, currency: "GBP",
-        remittanceInfo: n.note || null, category, personKey, status: "booked", raw: { telegram: true },
-      },
-    });
-    await sendMessage(chatId, confirmText({ ...n, category }), categoryKeyboard(id, await activeCategories()));
   } catch (err) {
     console.error("telegram webhook error", err);
   }
