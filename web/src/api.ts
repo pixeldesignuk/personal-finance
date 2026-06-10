@@ -125,6 +125,7 @@ export const api = {
   gmailOrders: (q = "", filter = "all") => get<EmailOrderDTO[]>(`/api/plugins/gmail/orders?q=${encodeURIComponent(q)}&filter=${encodeURIComponent(filter)}`),
   gmailSyncStream: (onEvent: (e: AuditEvent) => void) => streamNdjson("/api/plugins/gmail/sync/stream", {}, onEvent),
   disconnectGmail: () => send<{ ok: boolean }>("POST", "/api/plugins/gmail/disconnect"),
+  registerTelegram: () => send<{ ok: boolean; url: string; description: string | null }>("POST", "/api/plugins/telegram/register"),
   investments: () => get<InvestmentsDTO>("/api/investments"),
   syncInvestment: (provider: string) => send<{ provider: string; total: number; holdings: number }>("POST", `/api/investments/${provider}/sync`),
   syncInvestments: () => send<{ results: { provider: string; total: number; holdings: number }[] }>("POST", "/api/investments/sync"),

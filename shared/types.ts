@@ -171,6 +171,12 @@ export interface PluginsDTO {
     realtime: boolean;    // Pub/Sub push configured (GMAIL_PUBSUB_TOPIC set)
     watchExpiry: string | null; // when the current push watch lapses
   };
+  telegram: {
+    available: boolean;   // TELEGRAM_BOT_TOKEN/KEY + WEBHOOK_SECRET + ALLOWED_CHAT_ID set
+    connected: boolean;   // webhook registered with Telegram
+    webhookUrl: string | null;
+    receipts: number;     // receipts captured via the bot
+  };
 }
 
 // A savings pot — earmarks part of existing liquid cash toward a goal.

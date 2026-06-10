@@ -4,7 +4,7 @@ import { GoCardlessClient, GoCardlessError } from "../gocardless/client.ts";
 import { applyRules, type Rule } from "../lib/rules.ts";
 import { reconcile } from "../categorise/reconcile.ts";
 import { syncAllInvestments } from "../investments/sync.ts";
-import { syncGmail, rematchOpenOrders, ensureGmailWatch } from "../plugins/gmailSync.ts";
+import { syncGmail, rematchOpenOrders, reconcileReceiptProvisionals, ensureGmailWatch } from "../plugins/gmailSync.ts";
 import { recordSyncRun } from "../lib/syncRun.ts";
 import { detectSchedules } from "../lib/scheduleDetect.ts";
 import { currentBalance, type BalanceLike } from "../lib/balance.ts";
@@ -201,6 +201,8 @@ syncRouter.post("/sync/stream", async (_req, res) => {
       let ordersLinked = 0;
       try { ordersLinked = (await rematchOpenOrders(audit)).matched; }
       catch (err) { audit({ kind: "log", text: `order match: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
+      try { await reconcileReceiptProvisionals(audit); }
+      catch (err) { audit({ kind: "log", text: `receipt reconcile: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
       audit({ kind: "log", text: `Sync complete — ${totalNew} new transaction${totalNew === 1 ? "" : "s"}${ordersLinked ? `, ${ordersLinked} order${ordersLinked === 1 ? "" : "s"} linked` : ""}.`, tone: "green" });
       return { accounts: accounts.length, newTransactions: totalNew, investments: inv.length, ordersLinked };
     });
@@ -247,6 +249,8 @@ export async function runFullSync(stream: AuditFn = () => {}, source = "all"): P
     let ordersLinked = 0;
     try { ordersLinked = (await rematchOpenOrders(audit)).matched; }
     catch (err) { audit({ kind: "log", text: `order match: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
+    try { await reconcileReceiptProvisionals(audit); }
+    catch (err) { audit({ kind: "log", text: `receipt reconcile: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
     // Refresh recurring schedules from the latest spend patterns.
     try { const { detected } = await detectSchedules(); audit({ kind: "log", text: `${detected} recurring schedule${detected === 1 ? "" : "s"} detected`, tone: "dim" }); }
     catch (err) { audit({ kind: "log", text: `schedules: ${err instanceof Error ? err.message : err}`, tone: "red" }); }

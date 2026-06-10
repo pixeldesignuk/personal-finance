@@ -23,6 +23,16 @@ export function answerCallbackQuery(id: string, text?: string) {
   return call("answerCallbackQuery", { callback_query_id: id, text });
 }
 
+export async function getWebhookInfo(): Promise<{ url?: string; pending_update_count?: number; last_error_message?: string } | null> {
+  if (!env.TELEGRAM_BOT_TOKEN) return null;
+  const r = await call<{ ok: boolean; result?: { url?: string; pending_update_count?: number; last_error_message?: string } }>("getWebhookInfo", {});
+  return r.ok ? (r.result ?? null) : null;
+}
+
+export async function setWebhook(url: string, secret?: string): Promise<{ ok: boolean; description?: string }> {
+  return call("setWebhook", { url, secret_token: secret || undefined, allowed_updates: ["message", "callback_query"], drop_pending_updates: true });
+}
+
 // Resolve a Telegram file_id to a downloadable path.
 export async function getFilePath(fileId: string): Promise<string | null> {
   const r = await call<{ ok: boolean; result?: { file_path?: string } }>("getFile", { file_id: fileId });

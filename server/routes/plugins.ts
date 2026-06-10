@@ -6,6 +6,9 @@ import { syncGmail, ensureGmailWatch } from "../plugins/gmailSync.ts";
 import { toEmailOrderDTO, orderMatchesQuery } from "../plugins/emailOrderDTO.ts";
 import { recordSyncRun } from "../lib/syncRun.ts";
 import { storageEnabled, presignGet } from "../lib/storage.ts";
+import { getWebhookInfo, setWebhook } from "../telegram/api.ts";
+
+const telegramConfigured = () => Boolean(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_WEBHOOK_SECRET && env.TELEGRAM_ALLOWED_CHAT_ID);
 import type { AuditFn } from "../categorise/audit.ts";
 import type { PluginsDTO } from "../../shared/types.ts";
 
@@ -38,10 +41,13 @@ function scheduleGmailPushSync(): void {
 pluginsRouter.get("/plugins", async (_req, res, next) => {
   try {
     const p = await db.plugin.findUnique({ where: { id: "gmail" } });
-    const [orders, matched] = await Promise.all([
+    const [orders, matched, receipts] = await Promise.all([
       db.emailOrder.count(),
       db.emailOrder.count({ where: { matched: true } }),
+      db.emailOrder.count({ where: { source: "telegram" } }),
     ]);
+    let webhookUrl: string | null = null;
+    if (telegramConfigured()) { try { webhookUrl = (await getWebhookInfo())?.url || null; } catch { /* network */ } }
     const dto: PluginsDTO = {
       gmail: {
         available: gmail.gmailConfigured(),
@@ -53,8 +59,28 @@ pluginsRouter.get("/plugins", async (_req, res, next) => {
         realtime: Boolean(env.GMAIL_PUBSUB_TOPIC),
         watchExpiry: p?.watchExpiry?.toISOString() ?? null,
       },
+      telegram: {
+        available: telegramConfigured(),
+        connected: Boolean(webhookUrl),
+        webhookUrl,
+        receipts,
+      },
     };
     res.json(dto);
+  } catch (err) { next(err); }
+});
+
+// Register (or re-register) the Telegram webhook so the bot delivers updates here.
+pluginsRouter.post("/plugins/telegram/register", async (_req, res, next) => {
+  try {
+    if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_WEBHOOK_SECRET) {
+      res.status(400).json({ error: "Set TELEGRAM_BOT_TOKEN (or TELEGRAM_BOT_KEY) and TELEGRAM_WEBHOOK_SECRET first." });
+      return;
+    }
+    const url = `${env.APP_BASE_URL}/api/telegram/webhook`;
+    if (!url.startsWith("https://")) { res.status(400).json({ error: "APP_BASE_URL must be your public https URL." }); return; }
+    const r = await setWebhook(url, env.TELEGRAM_WEBHOOK_SECRET);
+    res.json({ ok: r.ok !== false, url, description: r.description ?? null });
   } catch (err) { next(err); }
 });
 

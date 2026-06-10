@@ -114,10 +114,14 @@ export function matchTransaction(order: { total: number; date: string | null; to
 }
 
 // Build the transaction lookup used for matching: raw token + friendly-name token.
-// `credits` flips to incoming money (for matching refunds).
-export async function loadTxnLites(credits = false): Promise<TxnLite[]> {
+// `credits` flips to incoming money (for matching refunds); `bankOnly` restricts
+// to synced bank transactions (used when reconciling provisional cash receipts).
+export async function loadTxnLites(credits = false, bankOnly = false): Promise<TxnLite[]> {
   const txnRows = await db.transaction.findMany({
-    where: credits ? { amount: { gt: 0 } } : { amount: { lt: 0 } },
+    where: {
+      ...(credits ? { amount: { gt: 0 } } : { amount: { lt: 0 } }),
+      ...(bankOnly ? { account: { source: "BANK" } } : {}),
+    },
     select: { id: true, amount: true, bookingDate: true, merchantName: true, creditorName: true, debtorName: true, remittanceInfo: true },
   });
   const named = await db.merchant.findMany({ where: { NOT: { name: null } }, select: { token: true, name: true } });
@@ -183,6 +187,34 @@ export async function rematchOpenOrders(audit?: AuditFn): Promise<{ matched: num
   }
   audit?.({ kind: "log", text: `  ${matched} linked`, tone: matched ? "green" : "dim" });
   return { matched };
+}
+
+// A Telegram cash receipt creates a provisional manual transaction so the spend
+// shows immediately. If the real bank charge later syncs, move the receipt onto
+// it and delete the provisional (so card purchases don't double-count); genuine
+// cash purchases keep their provisional transaction.
+export async function reconcileReceiptProvisionals(audit?: AuditFn): Promise<{ moved: number }> {
+  const provs = await db.transaction.findMany({ where: { raw: { path: ["telegramReceipt"], equals: true } }, select: { id: true } });
+  if (!provs.length) return { moved: 0 };
+  const bank = await loadTxnLites(false, true); // real bank debits only
+  const taken = new Set(
+    (await db.emailOrder.findMany({ where: { transactionId: { not: null } }, select: { transactionId: true } }))
+      .map((e) => e.transactionId!).filter(Boolean),
+  );
+  let moved = 0;
+  for (const p of provs) {
+    const order = await db.emailOrder.findFirst({ where: { transactionId: p.id, total: { not: null } } });
+    if (!order) continue;
+    const txn = matchTransaction({ total: Number(order.total!.toString()), date: order.emailDate?.toISOString() ?? null, token: order.merchantToken }, bank, taken);
+    if (!txn) continue;
+    taken.add(txn.id);
+    await db.emailOrder.update({ where: { id: order.id }, data: { transactionId: txn.id, matched: true } });
+    await maybeSetNote(txn.id, orderNote(order.merchantName, namesOf(order.items)));
+    await db.transaction.delete({ where: { id: p.id } });
+    moved++;
+  }
+  if (audit && moved) audit({ kind: "log", text: `  ${moved} cash receipt${moved === 1 ? "" : "s"} reconciled to a bank charge`, tone: "green" });
+  return { moved };
 }
 
 // Re-arm the Gmail push watch if it's missing or close to expiry. No-op unless a
