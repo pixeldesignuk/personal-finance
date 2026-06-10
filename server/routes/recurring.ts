@@ -93,12 +93,18 @@ recurringRouter.get("/upcoming", async (req, res, next) => {
     const next30Iso = next30.toISOString().slice(0, 10);
 
     const schedules = await db.recurringSchedule.findMany({ where: { status: { not: "ignored" } } });
+    // Income already received this month, by amount — so a salary-sized credit
+    // counts as "paid" but a small early-month inflow doesn't suppress the pay.
+    const ym = today.toISOString().slice(0, 7);
+    const incomeThisMonth = (await db.transaction.findMany({ where: { category: "income", amount: { gt: 0 }, bookingDate: { startsWith: ym } }, select: { amount: true } }))
+      .reduce((sum, t) => sum + num(t.amount), 0);
+
     const items: UpcomingItemDTO[] = [];
     for (const s of schedules) {
-      // Income is projected from its typical pay day + a "paid yet this month?"
-      // check (variable payday); bills follow their fixed schedule.
+      // Income is projected from its typical pay day + a "salary landed yet this
+      // month?" check (≥60% of expected); bills follow their fixed schedule.
       const dates = s.direction === "in"
-        ? incomeOccurrences(s.dayOfMonth ?? 28, s.lastSeen, today, days)
+        ? incomeOccurrences(s.dayOfMonth ?? 28, incomeThisMonth >= num(s.amount) * 0.6, today, days)
         : (s.nextDue ? occurrencesWithin(s.nextDue, s.cadence, today, days) : []);
       for (const d of dates) {
         items.push({

@@ -43,14 +43,16 @@ export function sameMonth(date: Date, ref: Date): boolean {
 // Income (wages) is fuzzier than bills: the exact pay day drifts and the amount
 // varies. So we project income from the *typical* pay day with a "have I been
 // paid this month?" check rather than a rigid schedule:
-//   - If no matching income has landed this month, this month's pay is still
-//     expected — and if its typical day has already slipped past, we surface it
-//     as due now (covers a late/variable payday) rather than dropping it.
-//   - If it HAS landed (lastSeen is in this month), skip to next month.
-export function incomeOccurrences(dayOfMonth: number, lastSeen: Date | null, today: Date, days: number): Date[] {
+//   - If salary hasn't landed this month, this month's pay is still expected —
+//     and if its typical day has already slipped past, we surface it as due now
+//     (covers a late/variable payday) rather than dropping it.
+//   - If it HAS landed, skip to next month.
+// `receivedThisMonth` should reflect a *salary-sized* credit, not any income, so
+// a small early-month inflow doesn't suppress the real pay projection.
+export function incomeOccurrences(dayOfMonth: number, receivedThisMonth: boolean, today: Date, days: number): Date[] {
   const start = startOfDay(today);
   const end = new Date(start); end.setDate(end.getDate() + days);
-  const received = lastSeen != null && sameMonth(lastSeen, today);
+  const received = receivedThisMonth;
   const out: Date[] = [];
   if (!received) {
     let d = onDay(start.getFullYear(), start.getMonth(), dayOfMonth);

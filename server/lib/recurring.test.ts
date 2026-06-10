@@ -62,20 +62,20 @@ test("typicalDayOfMonth: picks the modal day", () => {
 });
 
 test("incomeOccurrences: not paid yet this month → expected this month", () => {
-  const occ = incomeOccurrences(28, null, new Date(2026, 5, 10), 30); // payday 28th, today 10 Jun
+  const occ = incomeOccurrences(28, false, new Date(2026, 5, 10), 30); // payday 28th, today 10 Jun
   assert.equal(occ[0].getMonth(), 5);
   assert.equal(occ[0].getDate(), 28);
 });
 
 test("incomeOccurrences: already paid this month → skip to next month", () => {
-  const occ = incomeOccurrences(1, new Date(2026, 5, 1), new Date(2026, 5, 10), 40); // paid 1 Jun, today 10 Jun
+  const occ = incomeOccurrences(1, true, new Date(2026, 5, 10), 40); // paid this month, today 10 Jun
   assert.equal(occ.length, 1);
   assert.equal(occ[0].getMonth(), 6); // 1 Jul
   assert.equal(occ[0].getDate(), 1);
 });
 
 test("incomeOccurrences: payday passed but not received → surfaced as due now", () => {
-  const occ = incomeOccurrences(5, null, new Date(2026, 5, 10), 30); // payday 5th passed, not paid
+  const occ = incomeOccurrences(5, false, new Date(2026, 5, 10), 30); // payday 5th passed, not paid
   assert.equal(occ[0].getMonth(), 5);
   assert.equal(occ[0].getDate(), 10); // clamped to today (overdue income)
 });
