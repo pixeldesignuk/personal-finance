@@ -38,6 +38,32 @@ telegramRouter.get("/telegram/webhook-info", async (_req, res) => {
   } catch (err) { res.json({ error: String(err) }); }
 });
 
+// TEMP setup: register the Telegram webhook from the server (which holds the
+// token/secret) and report which env vars are present. Remove once working.
+telegramRouter.get("/telegram/setup", async (_req, res) => {
+  const have = {
+    token: Boolean(env.TELEGRAM_BOT_TOKEN),
+    secret: Boolean(env.TELEGRAM_WEBHOOK_SECRET),
+    allowedChat: Boolean(env.TELEGRAM_ALLOWED_CHAT_ID),
+    appBaseUrl: env.APP_BASE_URL,
+  };
+  if (!env.TELEGRAM_BOT_TOKEN) { res.json({ have, error: "TELEGRAM_BOT_TOKEN/KEY not set" }); return; }
+  const url = `${env.APP_BASE_URL}/api/telegram/webhook`;
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/setWebhook`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url,
+        secret_token: env.TELEGRAM_WEBHOOK_SECRET || undefined,
+        allowed_updates: ["message", "callback_query"],
+        drop_pending_updates: true,
+      }),
+    });
+    res.json({ have, url, result: await r.json() });
+  } catch (err) { res.json({ have, url, error: String(err) }); }
+});
+
 telegramRouter.post("/telegram/webhook", async (req, res) => {
   // Always 200 quickly so Telegram doesn't retry; do work inline but guarded.
   try {
