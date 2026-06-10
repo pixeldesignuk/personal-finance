@@ -134,13 +134,6 @@ recurringRouter.get("/upcoming", async (req, res, next) => {
       billsDueThisMonth: r2(billsDueThisMonth), incomeDueThisMonth: r2(incomeDueThisMonth),
       billsNext30: r2(billsNext30), incomeNext30: r2(incomeNext30),
     };
-    if (req.query.debug) {
-      const inc = schedules.filter((s) => s.direction === "in");
-      (dto as unknown as { _debug: unknown })._debug = {
-        today: today.toISOString(), month: ym, maxIncomeThisMonth,
-        income: inc.map((s) => ({ name: s.name, amount: num(s.amount), dayOfMonth: s.dayOfMonth, received: maxIncomeThisMonth >= num(s.amount) * 0.6, occ: incomeOccurrences(s.dayOfMonth ?? 28, maxIncomeThisMonth >= num(s.amount) * 0.6, today, days).map((d) => d.toISOString().slice(0, 10)) })),
-      };
-    }
     res.json(dto);
   } catch (err) { next(err); }
 });
