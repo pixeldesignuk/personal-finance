@@ -367,25 +367,37 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
   margin-bottom: 0;
   display: flex; flex-direction: column; gap: 14px;
   padding: 17px 18px 15px;
-  overflow: hidden;
   transition: transform 0.18s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-}
-/* a quiet jade aura that surfaces on hover, like ink warming a page */
-.acct-card::before {
-  content: ""; position: absolute; top: -45%; right: -32%;
-  width: 190px; height: 190px; border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--jade) 13%, transparent), transparent 70%);
-  opacity: 0; transition: opacity 0.28s ease; pointer-events: none;
 }
 .acct-card:hover {
   transform: translateY(-3px);
   border-color: color-mix(in srgb, var(--jade) 30%, var(--line-strong));
   box-shadow: 0 28px 52px -28px rgba(0, 0, 0, 0.9), 0 0 0 1px color-mix(in srgb, var(--jade) 9%, transparent);
 }
-.acct-card:hover::before { opacity: 1; }
 
 .acct-card-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .acct-inst-wrap { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.acct-cash-ico { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 22px; height: 22px; border-radius: 50%; color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, var(--surface-2)); border: 1px solid color-mix(in srgb, var(--gold) 26%, var(--line-strong)); }
+.acct-cash-ico.asset { color: var(--jade); background: color-mix(in srgb, var(--jade) 12%, var(--surface-2)); border-color: color-mix(in srgb, var(--jade) 26%, var(--line-strong)); }
+.acct-biz { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-3); border: 1px solid var(--line-strong); border-radius: 99px; padding: 1px 7px; flex: none; }
+
+/* kebab card menu */
+.card-menu { position: relative; flex: none; }
+.card-menu-btn { background: transparent; border: none; padding: 2px 8px; font-size: 18px; line-height: 1; color: var(--ink-3); border-radius: 7px; }
+.card-menu-btn:hover { background: var(--surface-2); color: var(--ink); transform: none; }
+.card-menu-pop {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 40; min-width: 184px;
+  display: flex; flex-direction: column; padding: 6px;
+  background: linear-gradient(180deg, var(--surface), var(--bg-2));
+  border: 1px solid var(--line-strong); border-radius: var(--r-sm);
+  box-shadow: 0 24px 50px -22px rgba(0, 0, 0, 0.8); animation: pop 0.14s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.card-menu-pop button { background: transparent; border: none; text-align: left; padding: 8px 11px; border-radius: 7px; font-size: 13px; color: var(--ink-2); }
+.card-menu-pop button:hover { background: var(--surface-2); color: var(--ink); transform: none; }
+.card-menu-pop button.sel { color: var(--jade); }
+.card-menu-pop button.danger { color: var(--coral); }
+.card-menu-pop button.danger:hover { background: color-mix(in srgb, var(--coral) 12%, transparent); }
+.card-menu-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-3); padding: 8px 11px 3px; }
 .acct-inst { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* brand avatar (real logo or deterministic monogram) */
