@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useQueryState } from "nuqs";
 import { api } from "../api.ts";
 import type { BudgetRowDTO, BudgetSummaryDTO, CategoryInfoDTO } from "../../../shared/types.ts";
 import { formatMoney } from "../format.ts";
+import { PageHeader, Stat, EmptyState, Modal, Field, Toggle, useConfirm } from "../components/ui";
 
 function nowMonth(): string {
   return new Date().toLocaleDateString("en-CA").slice(0, 7);
@@ -12,17 +14,18 @@ function barClass(percent: number): string {
 }
 
 export default function Budgets() {
-  const [month, setMonth] = useState(nowMonth());
+  const [month, setMonth] = useQueryState("month", { defaultValue: nowMonth(), history: "replace" });
   const [people, setPeople] = useState<{ key: string; name: string }[]>([]);
-  const [person, setPerson] = useState("");
+  const [person, setPerson] = useQueryState("person", { defaultValue: "", history: "replace" });
   const [rows, setRows] = useState<BudgetRowDTO[]>([]);
   const [summary, setSummary] = useState<BudgetSummaryDTO | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [hideEmpty, setHideEmpty] = useState(() => localStorage.getItem("budget.hideEmpty") === "1");
-  const toggleHideEmpty = () => setHideEmpty((v) => { localStorage.setItem("budget.hideEmpty", v ? "0" : "1"); return !v; });
+  const toggleHideEmpty = (v: boolean) => { localStorage.setItem("budget.hideEmpty", v ? "1" : "0"); setHideEmpty(v); };
+  const confirm = useConfirm();
 
-  const dialog = useRef<HTMLDialogElement>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState({ name: "", group: "", monthlyAmount: "0" });
 
@@ -45,14 +48,14 @@ export default function Budgets() {
     try { await api.patchCategory(r.id, { monthlyAmount: amount }); await load(); } catch (e) { setMsg((e as Error).message); }
   };
 
-  const wrap = async (fn: () => Promise<unknown>) => { try { await fn(); await load(); dialog.current?.close(); } catch (e) { setMsg((e as Error).message); } };
+  const wrap = async (fn: () => Promise<unknown>) => { try { await fn(); await load(); setDialogOpen(false); } catch (e) { setMsg((e as Error).message); } };
   const [info, setInfo] = useState<CategoryInfoDTO | null>(null);
-  const openNew = () => { setEditId(null); setInfo(null); setForm({ name: "", group: "", monthlyAmount: "0" }); dialog.current?.showModal(); };
+  const openNew = () => { setEditId(null); setInfo(null); setForm({ name: "", group: "", monthlyAmount: "0" }); setDialogOpen(true); };
   const openEdit = (r: BudgetRowDTO) => {
     setEditId(r.id); setForm({ name: r.name, group: r.group ?? "", monthlyAmount: String(r.budgeted) });
     setInfo(null);
     api.categoryInfo(r.key, month, person || undefined).then(setInfo).catch(() => setInfo(null));
-    dialog.current?.showModal();
+    setDialogOpen(true);
   };
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,49 +65,51 @@ export default function Budgets() {
     if (editId == null) wrap(() => api.createCategory({ name: form.name.trim(), group, monthlyAmount }));
     else wrap(() => api.patchCategory(editId, { name: form.name.trim(), group, monthlyAmount }));
   };
-  const archive = (id: number) => { if (window.confirm("Archive this category?")) wrap(() => api.patchCategory(id, { archived: true })); };
+  const archive = async (r: BudgetRowDTO) => {
+    if (await confirm({ title: `Archive ${r.name}?`, body: "It'll be hidden from the budget. Existing transactions keep their category.", confirmLabel: "Archive", danger: true })) {
+      try { await api.patchCategory(r.id, { archived: true }); await load(); } catch (e) { setMsg((e as Error).message); }
+    }
+  };
 
   return (
     <div>
-      <div className="row-between">
-        <h1>Budget</h1>
-        <div className="toolbar">
-          <select value={person} onChange={(e) => setPerson(e.target.value)}>
+      <PageHeader
+        title="Budget"
+        actions={<>
+          <select value={person} onChange={(e) => setPerson(e.target.value || null)}>
             <option value="">Everyone</option>
             <option value="none">Unassigned</option>
             {people.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
           </select>
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: "auto" }} />
-          <label className="setting-row" style={{ padding: 0, gap: 6, cursor: "pointer" }} title="Hide categories with no budget and no spend">
-            <span className="muted" style={{ fontSize: 12 }}>Hide empty</span>
-            <span className="switch"><input type="checkbox" checked={hideEmpty} onChange={toggleHideEmpty} /><span className="slider" /></span>
-          </label>
+          <Toggle checked={hideEmpty} onChange={toggleHideEmpty} label="Hide empty" title="Hide categories with no budget and no spend" />
           <button className="btn-primary" onClick={openNew}>Add category</button>
-        </div>
-      </div>
+        </>}
+      />
       {msg && <p className="muted">{msg}</p>}
       {summary && (
         <div className="grid">
-          <div className="card stat">
-            <span className="label">Available to budget</span>
-            <span className={`value ${summary.available < 0 ? "neg" : "pos"}`}>{summary.available < 0 ? "-" : ""}£{formatMoney(Math.abs(summary.available))}</span>
-          </div>
-          <div className="card stat">
-            <span className="label">Spent this month</span>
-            <span className="value">£{formatMoney(summary.spent)}</span>
-            {(() => {
+          <Stat
+            label="Available to budget"
+            value={`${summary.available < 0 ? "-" : ""}£${formatMoney(Math.abs(summary.available))}`}
+            valueTone={summary.available < 0 ? "neg" : "pos"}
+          />
+          <Stat
+            label="Spent this month"
+            value={`£${formatMoney(summary.spent)}`}
+            {...(() => {
               const d = summary.spent - summary.spentLastMonth;
-              if (Math.abs(d) < 0.005) return <span className="delta muted">— vs last month</span>;
+              if (Math.abs(d) < 0.005) return { delta: "— vs last month" as const };
               const up = d > 0;
               const pct = summary.spentLastMonth > 0 ? ` (${Math.round((Math.abs(d) / summary.spentLastMonth) * 100)}%)` : "";
-              return <span className={`delta ${up ? "neg" : "pos"}`}>{up ? "↑" : "↓"} £{formatMoney(Math.abs(d))}{pct} vs last month</span>;
+              return { delta: `${up ? "↑" : "↓"} £${formatMoney(Math.abs(d))}${pct} vs last month`, deltaTone: (up ? "neg" : "pos") as "neg" | "pos" };
             })()}
-          </div>
-          <div className="card stat"><span className="label">Budgeted this month</span><span className="value">£{formatMoney(summary.budgeted)}</span></div>
-          <div className="card stat"><span className="label">Pending transactions</span><span className="value">{summary.pendingCount}</span></div>
+          />
+          <Stat label="Budgeted this month" value={`£${formatMoney(summary.budgeted)}`} />
+          <Stat label="Pending transactions" value={summary.pendingCount} />
         </div>
       )}
-      {rows.length === 0 && <div className="card"><p className="muted">No categories yet — add one above.</p></div>}
+      {rows.length === 0 && <EmptyState>No categories yet — add one above.</EmptyState>}
       {groups.map((g) => {
         const gr = rows.filter((r) => (r.group ?? "Other") === g && (!hideEmpty || r.budgeted > 0 || r.spent > 0));
         if (gr.length === 0) return null;
@@ -114,8 +119,8 @@ export default function Budgets() {
         const gTone = gSpent > gBudget ? "neg" : gPct >= 80 ? "warn-text" : "muted";
         return (
           <div className="card" key={g}>
-            <div className="row-between" style={{ marginBottom: 12 }}>
-              <h3 style={{ margin: 0 }}>{g}</h3>
+            <div className="card-head">
+              <h3>{g}</h3>
               <span className={`num ${gTone}`} style={{ fontSize: 13 }}>£{formatMoney(gSpent)} / £{formatMoney(gBudget)} · {gPct}%</span>
             </div>
             <table className="budget-table">
@@ -147,9 +152,9 @@ export default function Budgets() {
                         : <>£{formatMoney(r.spent)}</>}
                     </td>
                     <td className={`num ${r.left < 0 ? "neg" : "pos"}`}>£{formatMoney(r.left)}</td>
-                    <td style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                    <td className="row-actions">
                       <button className="btn-sm" onClick={() => openEdit(r)}>Edit</button>
-                      <button className="btn-danger btn-sm" onClick={() => archive(r.id)}>Archive</button>
+                      <button className="btn-danger btn-sm" onClick={() => archive(r)}>Archive</button>
                     </td>
                   </tr>
                 ))}
@@ -159,15 +164,15 @@ export default function Budgets() {
         );
       })}
 
-      <dialog ref={dialog} className="modal" onClick={(e) => { if (e.target === dialog.current) dialog.current?.close(); }}>
+      <Modal open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <form className="modal-body" onSubmit={submit}>
-          <h3 style={{ marginTop: 0 }}>{editId == null ? "New category" : "Edit category"}</h3>
-          <label className="field"><span>Name</span><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoFocus /></label>
-          <label className="field"><span>Group</span>
+          <h3>{editId == null ? "New category" : "Edit category"}</h3>
+          <Field label="Name"><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoFocus /></Field>
+          <Field label="Group">
             <input list="budget-groups" value={form.group} onChange={(e) => setForm({ ...form, group: e.target.value })} placeholder="e.g. Monthly Bills" />
             <datalist id="budget-groups">{groups.filter((g) => g !== "Other").map((g) => <option key={g} value={g} />)}</datalist>
-          </label>
-          <label className="field"><span>Monthly budget (£)</span><input inputMode="decimal" value={form.monthlyAmount} onChange={(e) => setForm({ ...form, monthlyAmount: e.target.value })} /></label>
+          </Field>
+          <Field label="Monthly budget (£)"><input inputMode="decimal" value={form.monthlyAmount} onChange={(e) => setForm({ ...form, monthlyAmount: e.target.value })} /></Field>
           {editId != null && info && (
             <div className="catinfo">
               <div className="catinfo-head">Category information</div>
@@ -178,9 +183,9 @@ export default function Budgets() {
               <div className="catinfo-row"><span>Goal amount</span><span className="num muted">{info.goalAmount == null ? "N/A" : `£${formatMoney(info.goalAmount)}`}</span></div>
             </div>
           )}
-          <div className="modal-actions"><button type="button" onClick={() => dialog.current?.close()}>Cancel</button><button className="btn-primary" type="submit">Save</button></div>
+          <div className="modal-actions"><button type="button" onClick={() => setDialogOpen(false)}>Cancel</button><button className="btn-primary" type="submit">Save</button></div>
         </form>
-      </dialog>
+      </Modal>
     </div>
   );
 }

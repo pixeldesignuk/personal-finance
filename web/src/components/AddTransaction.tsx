@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../api.ts";
 import type { BankDTO, AccountDTO } from "../../../shared/types.ts";
+import { Modal, Field, FieldRow } from "./ui";
 
 export function AddTransaction({ onAdded }: { onAdded: () => void }) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [open, setOpen] = useState(false);
   const [manual, setManual] = useState<AccountDTO[]>([]);
   const [accountId, setAccountId] = useState("");
   const [date, setDate] = useState(new Date().toLocaleDateString("en-CA"));
@@ -26,8 +27,7 @@ export function AddTransaction({ onAdded }: { onAdded: () => void }) {
   useEffect(() => { if (catNames[0]) setCategory((p) => p === "uncategorised" ? catNames[0].key : p); }, [catNames]);
 
   const noAccounts = manual.length === 0;
-  const open = () => { setMsg(null); dialogRef.current?.showModal(); };
-  const close = () => dialogRef.current?.close();
+  const openDialog = () => { setMsg(null); setOpen(true); };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +37,7 @@ export function AddTransaction({ onAdded }: { onAdded: () => void }) {
     try {
       await api.createTxn({ accountId, date, amount: signed, category, note: note || undefined });
       setAmount(""); setNote(""); setMsg(null);
-      close();
+      setOpen(false);
       onAdded();
     } catch (err) { setMsg((err as Error).message); }
   };
@@ -46,63 +46,51 @@ export function AddTransaction({ onAdded }: { onAdded: () => void }) {
     <>
       <button
         className="btn-primary"
-        onClick={noAccounts ? () => { window.location.href = "/accounts"; } : open}
+        onClick={noAccounts ? () => { window.location.href = "/accounts"; } : openDialog}
         title={noAccounts ? "Create a cash / manual account first" : "Add a manual transaction"}
       >
         + Add transaction
       </button>
 
-      <dialog ref={dialogRef} className="modal" onClick={(e) => { if (e.target === dialogRef.current) close(); }}>
+      <Modal open={open} onClose={() => setOpen(false)}>
         <form className="modal-body" onSubmit={submit}>
-          <h3 style={{ marginTop: 0 }}>Add transaction</h3>
+          <h3>Add transaction</h3>
 
-          <label className="field">
-            <span>Account</span>
+          <Field label="Account">
             <select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
               {manual.map((a) => <option key={a.id} value={a.id}>{a.displayName}</option>)}
             </select>
-          </label>
+          </Field>
 
-          <div style={{ display: "flex", gap: 12 }}>
-            <label className="field" style={{ flex: 1 }}>
-              <span>Date</span>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-            </label>
-            <label className="field" style={{ flex: 1 }}>
-              <span>Direction</span>
+          <FieldRow>
+            <Field label="Date"><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+            <Field label="Direction">
               <select value={sign} onChange={(e) => setSign(e.target.value as "-" | "+")}>
                 <option value="-">Spend</option>
                 <option value="+">Income</option>
               </select>
-            </label>
-          </div>
+            </Field>
+          </FieldRow>
 
-          <div style={{ display: "flex", gap: 12 }}>
-            <label className="field" style={{ flex: 1 }}>
-              <span>Amount (£)</span>
-              <input placeholder="0.00" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus />
-            </label>
-            <label className="field" style={{ flex: 1 }}>
-              <span>Category</span>
+          <FieldRow>
+            <Field label="Amount (£)"><input placeholder="0.00" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus /></Field>
+            <Field label="Category">
               <select value={category} onChange={(e) => setCategory(e.target.value)}>
                 {catNames.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
               </select>
-            </label>
-          </div>
+            </Field>
+          </FieldRow>
 
-          <label className="field">
-            <span>Note</span>
-            <input placeholder="optional" value={note} onChange={(e) => setNote(e.target.value)} />
-          </label>
+          <Field label="Note"><input placeholder="optional" value={note} onChange={(e) => setNote(e.target.value)} /></Field>
 
-          {msg && <p className="neg" style={{ margin: 0 }}>{msg}</p>}
+          {msg && <p className="form-error">{msg}</p>}
 
           <div className="modal-actions">
-            <button type="button" onClick={close}>Cancel</button>
+            <button type="button" onClick={() => setOpen(false)}>Cancel</button>
             <button className="btn-primary" type="submit">Add transaction</button>
           </div>
         </form>
-      </dialog>
+      </Modal>
     </>
   );
 }

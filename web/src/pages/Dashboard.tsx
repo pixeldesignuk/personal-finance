@@ -10,6 +10,7 @@ import { BrandLogo } from "../components/BrandLogo.tsx";
 import { CategoryPie } from "../components/charts/CategoryPie.tsx";
 import { MonthlyBar } from "../components/charts/MonthlyBar.tsx";
 import { TopMerchants } from "../components/charts/TopMerchants.tsx";
+import { PageHeader, Stat, Toggle } from "../components/ui";
 
 export default function Dashboard() {
   const [params] = useSearchParams();
@@ -44,49 +45,42 @@ export default function Dashboard() {
   }, []);
 
   const [hideSmall, setHideSmall] = useState(() => localStorage.getItem("dash.hideSmall") === "1");
-  const toggleHideSmall = () => setHideSmall((v) => { localStorage.setItem("dash.hideSmall", v ? "0" : "1"); return !v; });
+  const toggleHideSmall = (v: boolean) => { localStorage.setItem("dash.hideSmall", v ? "1" : "0"); setHideSmall(v); };
 
-  if (!data) return <p>{msg ?? "Loading..."}</p>;
+  if (!data) return <p className="muted">{msg ?? "Loading…"}</p>;
   return (
     <div>
-      <div className="row-between">
-        <h1>Dashboard</h1>
-        <div className="toolbar">
+      <PageHeader
+        title="Dashboard"
+        actions={<>
           <AccountSelector />
           <button className="btn-primary" onClick={() => setSyncOpen(true)} disabled={syncOpen}>Sync now</button>
-        </div>
-      </div>
+        </>}
+      />
       <AuditSheet open={syncOpen} title="Sync" run={syncRun} onClose={() => setSyncOpen(false)} onDone={load} />
       {msg && <p className="muted">{msg}</p>}
       {summary && (
         <div className="grid">
-          <div className="card stat">
-            <span className="label">Net worth</span>
-            <span className="value">{formatGBP(summary.netWorth)}</span>
-            <span className="delta muted">
+          <Stat
+            label="Net worth"
+            value={formatGBP(summary.netWorth)}
+            delta={<>
               {formatGBP(summary.available)} available
-              {summary.included.assets && summary.assets > 0 && ` · ${formatGBP(summary.assets)} assets`}
-              {summary.included.debts && summary.debts > 0 && ` · ${formatGBP(summary.debts)} debt`}
-            </span>
-          </div>
-          <div className="card stat"><span className="label">Income · {summary.month}</span><span className="value pos">{formatGBP(summary.income)}</span></div>
-          <div className="card stat"><span className="label">Expenses</span><span className="value neg">{formatGBP(summary.expenses)}</span></div>
-          <div className="card stat">
-            <span className="label">Investments</span>
-            <span className="value">{formatGBP(summary.investments)}</span>
-            <span className="delta muted">{summary.savingsRate}% savings rate</span>
-          </div>
+              {summary.included.assets && summary.assets > 0 ? ` · ${formatGBP(summary.assets)} assets` : ""}
+              {summary.included.debts && summary.debts > 0 ? ` · ${formatGBP(summary.debts)} debt` : ""}
+            </>}
+          />
+          <Stat label={`Income · ${summary.month}`} value={formatGBP(summary.income)} valueTone="pos" />
+          <Stat label="Expenses" value={formatGBP(summary.expenses)} valueTone="neg" />
+          <Stat label="Investments" value={formatGBP(summary.investments)} delta={`${summary.savingsRate}% savings rate`} />
         </div>
       )}
       <div className="card">
-        <div className="row-between" style={{ marginBottom: 6 }}>
-          <h3 style={{ margin: 0 }}>Balances by account</h3>
-          <label className="setting-row" style={{ padding: 0, cursor: "pointer" }}>
-            <span className="muted" style={{ fontSize: 12 }}>Hide small (&lt;£100)</span>
-            <span className="switch"><input type="checkbox" checked={hideSmall} onChange={toggleHideSmall} /><span className="slider" /></span>
-          </label>
+        <div className="card-head">
+          <h3>Balances by account</h3>
+          <Toggle checked={hideSmall} onChange={toggleHideSmall} label={<>Hide small (&lt;£100)</>} />
         </div>
-        {banks.length === 0 && <div className="muted">No accounts yet.</div>}
+        {banks.length === 0 && <div className="empty">No accounts yet.</div>}
         {banks.map((bank) =>
           bank.accounts
             .filter((a) => {

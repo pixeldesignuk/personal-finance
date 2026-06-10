@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api.ts";
 import { formatMoney, formatGBP } from "../format.ts";
 import { useToast } from "../components/Toasts.tsx";
+import { PageHeader, Stat, EmptyState } from "../components/ui";
 
 const qty = (n: number) => n.toLocaleString("en-GB", { maximumFractionDigits: 6 });
 
@@ -31,36 +32,36 @@ export default function Investments() {
 
   return (
     <div>
-      <div className="row-between">
-        <h1>Investments</h1>
-        <div className="toolbar">
+      <PageHeader
+        title="Investments"
+        actions={
           <button className="btn-primary" disabled={!anyConfigured || syncMut.isPending} onClick={() => syncMut.mutate()}
             title={anyConfigured ? "Sync all configured providers" : "No provider API keys set"}>
             {syncMut.isPending ? "Syncing…" : "Sync all"}
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {data && (
         <div className="grid">
-          <div className="card stat"><span className="label">Total value</span><span className="value">{formatGBP(total)}</span></div>
-          <div className="card stat"><span className="label">Invested</span><span className="value">{formatGBP(invested)}</span></div>
-          <div className="card stat"><span className="label">Cash</span><span className="value">{formatGBP(cash)}</span></div>
-          <div className="card stat"><span className="label">Unrealised P/L</span><span className={`value ${pnl < 0 ? "neg" : "pos"}`}>{formatGBP(pnl)}</span></div>
+          <Stat label="Total value" value={formatGBP(total)} />
+          <Stat label="Invested" value={formatGBP(invested)} />
+          <Stat label="Cash" value={formatGBP(cash)} />
+          <Stat label="Unrealised P/L" value={formatGBP(pnl)} valueTone={pnl < 0 ? "neg" : "pos"} />
         </div>
       )}
 
       {data?.accounts.length === 0 && (
-        <div className="card"><p className="muted">
+        <EmptyState>
           No investments synced yet.{" "}
-          {data.providers.some((p) => p.configured) ? "Hit a Sync button above." : "Add a provider API key (e.g. TRADING212_API_KEY) to .env, then Sync."}
-        </p></div>
+          {data.providers.some((p) => p.configured) ? "Hit Sync above." : "Add a provider API key (e.g. TRADING212_API_KEY) to .env, then Sync."}
+        </EmptyState>
       )}
 
       {data?.accounts.map((a) => (
         <div className="card" key={a.id}>
-          <div className="row-between" style={{ marginBottom: 10 }}>
-            <h3 style={{ margin: 0 }}>{a.name}</h3>
+          <div className="card-head">
+            <h3>{a.name}</h3>
             <span className="num">{formatGBP(a.total)} <span className="muted">· {a.holdings.length} holdings</span></span>
           </div>
           <table>

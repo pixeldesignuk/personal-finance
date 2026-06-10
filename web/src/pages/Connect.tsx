@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api.ts";
 import type { InstitutionDTO } from "../../../shared/types.ts";
 import { BrandLogo } from "../components/BrandLogo.tsx";
+import { PageHeader } from "../components/ui";
 
 export default function Connect() {
   const [list, setList] = useState<InstitutionDTO[]>([]);
@@ -24,11 +25,10 @@ export default function Connect() {
   const filtered = list.filter((i) => i.name.toLowerCase().includes(q.toLowerCase()));
   return (
     <div>
-      <h1>Connect a bank</h1>
-      <p className="muted" style={{ marginTop: "-0.4em" }}>Pick your bank, authenticate, and we'll pull balances &amp; transactions.</p>
+      <PageHeader title="Connect a bank" subtitle="Pick your bank, authenticate, and we'll pull balances & transactions." />
       {error && <p className="neg">{error}</p>}
-      <input placeholder="Search banks…" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 360 }} />
-      <div className="card" style={{ marginTop: 16 }}>
+      <input className="search-input" placeholder="Search banks…" value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="card">
         {filtered.map((i) => (
           <div key={i.id} className="lrow">
             <span className="lrow-acct">
@@ -38,6 +38,7 @@ export default function Connect() {
             <button className="btn-primary btn-sm" onClick={() => choose(i.id)}>Connect</button>
           </div>
         ))}
+        {filtered.length === 0 && <p className="empty">No banks match “{q}”.</p>}
       </div>
     </div>
   );

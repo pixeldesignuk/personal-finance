@@ -918,3 +918,53 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* ============================================================================
+   Design-library utilities — shared primitives (PageHeader, Stat, Modal,
+   Field, Tabs, Toggle, EmptyState). Keep page markup declarative; no inline
+   styles needed for these patterns.
+   ========================================================================== */
+
+/* PageHeader: muted standfirst under the <h1>, pulled snug to the title. */
+.page-subtitle { margin: -4px 0 18px; color: var(--ink-3); font-size: 14px; max-width: 70ch; }
+/* Card/section headers carried in a row-between never want the h-heading's
+   default bottom margin. */
+.row-between > h1, .row-between > h3 { margin: 0; }
+
+/* EmptyState / in-card empty text. */
+.empty { margin: 0; color: var(--ink-3); }
+
+/* A header row inside a card (title + action), with consistent spacing. */
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+.card-head > h1, .card-head > h3 { margin: 0; }
+.plugin-title h3 { margin: 0; }
+
+/* Modal headers are spaced by the body's flex gap, not their own margin. */
+.modal-body h3 { margin: 0; }
+.modal-sm { max-width: 392px; }
+.modal-lg { max-width: 560px; }
+
+/* Field rows: two+ controls side by side, stacking on narrow screens. */
+.field-row { display: flex; gap: 12px; }
+.field-row > .field { flex: 1; min-width: 0; }
+.field.field-inline { width: auto; flex: none; }
+@media (max-width: 460px) { .field-row { flex-wrap: wrap; } .field-row > .field { flex: 1 1 100%; } }
+
+/* Toggle: compact label + switch for toolbars. */
+.toggle-row { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.toggle-label { font-size: 12px; color: var(--ink-3); }
+
+/* Bare tabs (nested inside a card header, e.g. the debt strategy switcher). */
+.tabs-bare { margin: 0; border-bottom: none; }
+
+/* Right-aligned action buttons in a table's last cell or a card footer. */
+.row-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+/* Tighter variant for narrow table action columns (icon buttons). */
+.cell-actions { display: flex; gap: 4px; justify-content: flex-end; }
+/* Inline form error inside a modal. */
+.form-error { margin: 0; color: var(--coral); font-size: 13px; }
+/* Standalone page search box. */
+.search-input { max-width: 340px; margin-bottom: 16px; }
+/* A centred message card (e.g. the OAuth callback screen). */
+.card-centered { text-align: center; padding: 40px 24px; max-width: 460px; margin: 40px auto; }
+.card-centered h1 { margin-bottom: 0.3em; }

@@ -4,12 +4,12 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Mail } from "lucide-react";
 import { api } from "../api.ts";
 import type { AuditEvent } from "../../../shared/types.ts";
-import { formatMoney } from "../format.ts";
+import { formatCcy } from "../format.ts";
 import { useToast } from "../components/Toasts.tsx";
 import { AuditSheet } from "../components/AuditSheet.tsx";
+import { PageHeader, MatchBadge } from "../components/ui";
 
-const money = (n: number | null, ccy: string | null) =>
-  n == null ? "" : `${ccy === "USD" ? "$" : ccy === "EUR" ? "€" : "£"}${formatMoney(n)}`;
+const money = (n: number | null, ccy: string | null) => (n == null ? "" : formatCcy(n, ccy));
 
 export default function Plugins() {
   const qc = useQueryClient();
@@ -56,15 +56,14 @@ export default function Plugins() {
 
   return (
     <div>
-      <h1>Plugins</h1>
-      <p className="muted" style={{ marginTop: -6 }}>Connect external services to enrich your finances.</p>
+      <PageHeader title="Plugins" subtitle="Connect external services to enrich your finances." />
 
       <div className="grid">
         <div className="card plugin-card">
           <div className="plugin-head">
             <span className="plugin-icon"><Mail size={20} strokeWidth={1.9} /></span>
             <div className="plugin-title">
-              <h3 style={{ margin: 0 }}>Gmail</h3>
+              <h3>Gmail</h3>
               <span className="muted">Match order &amp; receipt emails to your transactions.</span>
             </div>
             {g?.connected && <span className="badge pos plugin-status">Connected</span>}
@@ -96,11 +95,11 @@ export default function Plugins() {
 
       {g?.connected && (
         <div className="card">
-          <div className="row-between" style={{ marginBottom: 6 }}>
-            <h3 style={{ margin: 0 }}>Recent orders</h3>
+          <div className="card-head">
+            <h3>Recent orders</h3>
             <Link to="/orders" className="amount-link">View all →</Link>
           </div>
-          {orders.length === 0 && <p className="muted">No orders parsed yet — hit “Sync now”.</p>}
+          {orders.length === 0 && <p className="empty">No orders parsed yet — hit “Sync now”.</p>}
           {orders.slice(0, 6).map((o) => (
             <div key={o.id} className="lrow order-row">
               <div className="order-main">
@@ -108,7 +107,7 @@ export default function Plugins() {
                 {o.items.length > 0 && <span className="order-items muted">{o.items.slice(0, 3).map((i) => i.name).join(", ")}{o.items.length > 3 ? ` +${o.items.length - 3} more` : ""}</span>}
               </div>
               <div className="order-side">
-                <span className={`badge ${o.matched ? "pos" : ""}`}>{o.matched ? "matched" : "unmatched"}</span>
+                <MatchBadge matched={o.matched} />
                 <span className="num">{money(o.total, o.currency)}</span>
                 <span className="muted order-date">{o.emailDate ? new Date(o.emailDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""}</span>
               </div>
@@ -119,7 +118,7 @@ export default function Plugins() {
 
       <div className="card">
         <h3>Recent syncs</h3>
-        {runs.length === 0 && <p className="muted">No syncs recorded yet.</p>}
+        {runs.length === 0 && <p className="empty">No syncs recorded yet.</p>}
         {runs.slice(0, 12).map((r) => (
           <div key={r.id} className="lrow run-row">
             <span className="run-main">

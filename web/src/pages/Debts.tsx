@@ -1,9 +1,13 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryState } from "nuqs";
 import { api } from "../api.ts";
 import type { DebtsDTO, DebtDTO } from "../../../shared/types.ts";
-import { formatGBP, formatMoney, relativeDate } from "../format.ts";
+import { formatGBP, relativeDate } from "../format.ts";
 import { useToast } from "../components/Toasts.tsx";
+import { PageHeader, Stat, EmptyState, Modal, Tabs, Field, FieldRow, Toggle, useConfirm, type TabItem } from "../components/ui";
+
+const STRATEGIES: TabItem[] = [{ key: "custom", label: "Custom" }, { key: "snowball", label: "Snowball" }, { key: "avalanche", label: "Avalanche" }];
 
 function payoffDate(months: number | null): string {
   if (months == null) return "—";
@@ -19,13 +23,14 @@ export default function Debts() {
   const { data } = useQuery({ queryKey: ["debts"], queryFn: () => api.debts() });
   const accountsQuery = useQuery({ queryKey: ["accounts"], queryFn: () => api.accounts(), staleTime: 5 * 60_000 });
   const cashAccounts = useMemo(() => (accountsQuery.data ?? []).flatMap((b) => b.accounts).filter((a) => a.source === "MANUAL"), [accountsQuery.data]);
+  const confirm = useConfirm();
 
-  const [strategy, setStrategy] = useState<"custom" | "snowball" | "avalanche">("custom");
+  const [strategy, setStrategy] = useQueryState("strategy", { defaultValue: "custom", history: "replace" });
 
-  const dialog = useRef<HTMLDialogElement>(null);
+  const [editOpen, setEditOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", owed: "0", rate: "", priority: "0", target: "", excluded: false });
-  const payDialog = useRef<HTMLDialogElement>(null);
+  const [payOpen, setPayOpen] = useState(false);
   const [payFor, setPayFor] = useState<DebtDTO | null>(null);
   const [pay, setPay] = useState({ amount: "", date: new Date().toLocaleDateString("en-CA"), accountId: "" });
 
@@ -40,7 +45,7 @@ export default function Debts() {
       const { id } = await api.createManualAccount({ name: form.name.trim(), type: "PERSONAL", source: "LIABILITY", manualBalance: form.owed.trim() || "0", interestRate: rate ?? undefined });
       await api.patchAccount(id, { priority, targetPayment: target, debtExcluded: form.excluded });
     },
-    onSuccess: () => { refresh(); dialog.current?.close(); },
+    onSuccess: () => { refresh(); setEditOpen(false); },
     onError: (e: Error) => notify(e.message, { tone: "error" }),
   });
   const delDebt = useMutation({
@@ -48,6 +53,9 @@ export default function Debts() {
     onSuccess: refresh,
     onError: (e: Error) => notify(e.message, { tone: "error" }),
   });
+  const askDelDebt = async (d: DebtDTO) => {
+    if (await confirm({ title: `Delete ${d.name}?`, body: "Removes the debt and its logged repayments.", danger: true })) delDebt.mutate(d.id);
+  };
   const recordPayment = useMutation({
     mutationFn: async () => {
       if (!payFor) throw new Error("No debt");
@@ -57,13 +65,13 @@ export default function Debts() {
       const { id } = await api.createTxn({ accountId: pay.accountId, date: pay.date, amount: `-${amt}`, category: "transfer", note: `Repayment → ${payFor.name}` });
       await api.linkDebt(id, payFor.id);
     },
-    onSuccess: () => { refresh(); payDialog.current?.close(); notify("Payment recorded — debt reduced", { tone: "success" }); },
+    onSuccess: () => { refresh(); setPayOpen(false); notify("Payment recorded — debt reduced", { tone: "success" }); },
     onError: (e: Error) => notify(e.message, { tone: "error" }),
   });
 
-  const openNew = () => { setEditId(null); setForm({ name: "", owed: "0", rate: "", priority: "0", target: "", excluded: false }); dialog.current?.showModal(); };
-  const openEdit = (d: DebtDTO) => { setEditId(d.id); setForm({ name: d.name, owed: String(d.balance), rate: d.interestRate != null ? String(d.interestRate) : "", priority: String(d.priority), target: d.targetPayment != null ? String(d.targetPayment) : "", excluded: d.excluded }); dialog.current?.showModal(); };
-  const openPay = (d: DebtDTO) => { setPayFor(d); setPay({ amount: "", date: new Date().toLocaleDateString("en-CA"), accountId: cashAccounts[0]?.id ?? "" }); payDialog.current?.showModal(); };
+  const openNew = () => { setEditId(null); setForm({ name: "", owed: "0", rate: "", priority: "0", target: "", excluded: false }); setEditOpen(true); };
+  const openEdit = (d: DebtDTO) => { setEditId(d.id); setForm({ name: d.name, owed: String(d.balance), rate: d.interestRate != null ? String(d.interestRate) : "", priority: String(d.priority), target: d.targetPayment != null ? String(d.targetPayment) : "", excluded: d.excluded }); setEditOpen(true); };
+  const openPay = (d: DebtDTO) => { setPayFor(d); setPay({ amount: "", date: new Date().toLocaleDateString("en-CA"), accountId: cashAccounts[0]?.id ?? "" }); setPayOpen(true); };
 
   const mainDebts = (data?.debts ?? []).filter((d) => !d.excluded);
   const excludedDebts = (data?.debts ?? []).filter((d) => d.excluded);
@@ -80,26 +88,22 @@ export default function Debts() {
 
   return (
     <div>
-      <div className="row-between"><h1>Debt</h1><button className="btn-primary" onClick={openNew}>Add debt</button></div>
+      <PageHeader title="Debt" actions={<button className="btn-primary" onClick={openNew}>Add debt</button>} />
 
       {data && (
         <div className="grid">
-          <div className="card stat"><span className="label">Total owed</span><span className="value neg">{formatGBP(data.totalOwed)}</span></div>
-          <div className="card stat"><span className="label">Repaid to date</span><span className="value pos">{formatGBP(data.totalPaid)}</span></div>
-          <div className="card stat"><span className="label">Monthly pace</span><span className="value">{formatGBP(data.monthlyTotal)}</span></div>
-          <div className="card stat"><span className="label">Debt-free</span><span className="value">{debtFreeMonths ? payoffDate(debtFreeMonths) : "—"}</span><span className="delta muted">{debtFreeMonths ? `~${debtFreeMonths} months at current pace` : "log payments to project"}</span></div>
+          <Stat label="Total owed" value={formatGBP(data.totalOwed)} valueTone="neg" />
+          <Stat label="Repaid to date" value={formatGBP(data.totalPaid)} valueTone="pos" />
+          <Stat label="Monthly pace" value={formatGBP(data.monthlyTotal)} />
+          <Stat label="Debt-free" value={debtFreeMonths ? payoffDate(debtFreeMonths) : "—"} delta={debtFreeMonths ? `~${debtFreeMonths} months at current pace` : "log payments to project"} />
         </div>
       )}
 
       {active.length > 1 && (
         <div className="card">
-          <div className="row-between" style={{ marginBottom: 8 }}>
-            <h3 style={{ margin: 0 }}>Payment plan</h3>
-            <div className="tabs" style={{ margin: 0, border: "none" }}>
-              <button className={`tab${strategy === "custom" ? " active" : ""}`} onClick={() => setStrategy("custom")}>Custom</button>
-              <button className={`tab${strategy === "snowball" ? " active" : ""}`} onClick={() => setStrategy("snowball")}>Snowball</button>
-              <button className={`tab${strategy === "avalanche" ? " active" : ""}`} onClick={() => setStrategy("avalanche")}>Avalanche</button>
-            </div>
+          <div className="card-head">
+            <h3>Payment plan</h3>
+            <Tabs value={strategy} onChange={setStrategy} items={STRATEGIES} bare />
           </div>
           <p className="muted" style={{ marginTop: 0 }}>
             {strategy === "custom" ? "Your order — set each debt's priority and the (possibly partial) amount to put toward it next (Edit a debt)."
@@ -124,14 +128,14 @@ export default function Debts() {
         </div>
       )}
 
-      {data?.debts.length === 0 && <div className="card"><p className="muted">No debts yet. Add what you owe (e.g. family/friends, a loan) — interest-free is fine.</p></div>}
+      {data?.debts.length === 0 && <EmptyState>No debts yet. Add what you owe (e.g. family/friends, a loan) — interest-free is fine.</EmptyState>}
 
       {mainDebts.map((d) => {
         const progress = d.original > 0 ? Math.round((d.paidTotal / d.original) * 100) : 0;
         return (
           <div className="card" key={d.id}>
-            <div className="row-between" style={{ marginBottom: 8 }}>
-              <h3 style={{ margin: 0 }}>{d.name}{d.interestRate ? <span className="muted" style={{ fontSize: 13, fontWeight: 400 }}> · {d.interestRate}% APR</span> : null}</h3>
+            <div className="card-head" style={{ marginBottom: 8 }}>
+              <h3>{d.name}{d.interestRate ? <span className="muted" style={{ fontSize: 13, fontWeight: 400 }}> · {d.interestRate}% APR</span> : null}</h3>
               <span className="num neg" style={{ fontSize: 18 }}>{formatGBP(d.balance)}</span>
             </div>
             <div className="progress"><i className="ok" style={{ width: `${Math.min(progress, 100)}%` }} /></div>
@@ -144,7 +148,7 @@ export default function Debts() {
             <div className="toolbar" style={{ marginTop: 12 }}>
               <button className="btn-primary btn-sm" onClick={() => openPay(d)} disabled={cashAccounts.length === 0} title={cashAccounts.length === 0 ? "Add a cash account first (Manage)" : "Record a repayment"}>Record payment</button>
               <button className="btn-sm" onClick={() => openEdit(d)}>Edit</button>
-              <button className="btn-danger btn-sm" onClick={() => { if (window.confirm(`Delete ${d.name}?`)) delDebt.mutate(d.id); }}>Delete</button>
+              <button className="btn-danger btn-sm" onClick={() => askDelDebt(d)}>Delete</button>
             </div>
             {d.payments.length > 0 && (
               <table style={{ marginTop: 12 }}>
@@ -172,40 +176,37 @@ export default function Debts() {
         </div>
       )}
 
-      <dialog ref={dialog} className="modal" onClick={(e) => { if (e.target === dialog.current) dialog.current?.close(); }}>
+      <Modal open={editOpen} onClose={() => setEditOpen(false)}>
         <form className="modal-body" onSubmit={(e) => { e.preventDefault(); if (form.name.trim()) saveDebt.mutate(); }}>
-          <h3 style={{ marginTop: 0 }}>{editId ? "Edit debt" : "Add debt"}</h3>
-          <label className="field"><span>Who / what</span><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoFocus placeholder="e.g. Loan from Dad, Mortgage" /></label>
-          <label className="field"><span>Amount owed (£)</span><input inputMode="decimal" value={form.owed} onChange={(e) => setForm({ ...form, owed: e.target.value })} /></label>
-          <div style={{ display: "flex", gap: 12 }}>
-            <label className="field" style={{ flex: 1 }}><span>Priority (lower = first)</span><input inputMode="numeric" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} /></label>
-            <label className="field" style={{ flex: 1 }}><span>Planned payment (£)</span><input inputMode="decimal" value={form.target} onChange={(e) => setForm({ ...form, target: e.target.value })} placeholder="partial ok" /></label>
-          </div>
-          <label className="field"><span>Interest rate (% APR, optional)</span><input inputMode="decimal" value={form.rate} onChange={(e) => setForm({ ...form, rate: e.target.value })} placeholder="blank for interest-free" /></label>
-          <label className="setting-row" style={{ padding: "4px 0", cursor: "pointer" }}>
-            <span>Exclude from this screen (e.g. long-term mortgage)</span>
-            <span className="switch"><input type="checkbox" checked={form.excluded} onChange={(e) => setForm({ ...form, excluded: e.target.checked })} /><span className="slider" /></span>
-          </label>
-          <div className="modal-actions"><button type="button" onClick={() => dialog.current?.close()}>Cancel</button><button className="btn-primary" type="submit">Save</button></div>
+          <h3>{editId ? "Edit debt" : "Add debt"}</h3>
+          <Field label="Who / what"><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoFocus placeholder="e.g. Loan from Dad, Mortgage" /></Field>
+          <Field label="Amount owed (£)"><input inputMode="decimal" value={form.owed} onChange={(e) => setForm({ ...form, owed: e.target.value })} /></Field>
+          <FieldRow>
+            <Field label="Priority (lower = first)"><input inputMode="numeric" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} /></Field>
+            <Field label="Planned payment (£)"><input inputMode="decimal" value={form.target} onChange={(e) => setForm({ ...form, target: e.target.value })} placeholder="partial ok" /></Field>
+          </FieldRow>
+          <Field label="Interest rate (% APR, optional)"><input inputMode="decimal" value={form.rate} onChange={(e) => setForm({ ...form, rate: e.target.value })} placeholder="blank for interest-free" /></Field>
+          <Toggle checked={form.excluded} onChange={(v) => setForm({ ...form, excluded: v })} label="Exclude from this screen (e.g. long-term mortgage)" />
+          <div className="modal-actions"><button type="button" onClick={() => setEditOpen(false)}>Cancel</button><button className="btn-primary" type="submit">Save</button></div>
         </form>
-      </dialog>
+      </Modal>
 
-      <dialog ref={payDialog} className="modal" onClick={(e) => { if (e.target === payDialog.current) payDialog.current?.close(); }}>
+      <Modal open={payOpen} onClose={() => setPayOpen(false)}>
         <form className="modal-body" onSubmit={(e) => { e.preventDefault(); recordPayment.mutate(); }}>
-          <h3 style={{ marginTop: 0 }}>Record payment{payFor ? ` → ${payFor.name}` : ""}</h3>
-          <div style={{ display: "flex", gap: 12 }}>
-            <label className="field" style={{ flex: 1 }}><span>Amount (£)</span><input inputMode="decimal" autoFocus value={pay.amount} onChange={(e) => setPay({ ...pay, amount: e.target.value })} placeholder="0.00" /></label>
-            <label className="field" style={{ flex: 1 }}><span>Date</span><input type="date" value={pay.date} onChange={(e) => setPay({ ...pay, date: e.target.value })} /></label>
-          </div>
-          <label className="field"><span>Paid from</span>
+          <h3>Record payment{payFor ? ` → ${payFor.name}` : ""}</h3>
+          <FieldRow>
+            <Field label="Amount (£)"><input inputMode="decimal" autoFocus value={pay.amount} onChange={(e) => setPay({ ...pay, amount: e.target.value })} placeholder="0.00" /></Field>
+            <Field label="Date"><input type="date" value={pay.date} onChange={(e) => setPay({ ...pay, date: e.target.value })} /></Field>
+          </FieldRow>
+          <Field label="Paid from">
             <select value={pay.accountId} onChange={(e) => setPay({ ...pay, accountId: e.target.value })}>
               {cashAccounts.map((a) => <option key={a.id} value={a.id}>{a.displayName}</option>)}
             </select>
-          </label>
-          <p className="muted" style={{ margin: 0, fontSize: 12 }}>Creates a repayment transaction linked to this debt and reduces the balance. For bank payments, link the synced transaction on Transactions instead (⛓).</p>
-          <div className="modal-actions"><button type="button" onClick={() => payDialog.current?.close()}>Cancel</button><button className="btn-primary" type="submit">Record</button></div>
+          </Field>
+          <p className="field-hint muted">Creates a repayment transaction linked to this debt and reduces the balance. For bank payments, link the synced transaction on Transactions instead (⛓).</p>
+          <div className="modal-actions"><button type="button" onClick={() => setPayOpen(false)}>Cancel</button><button className="btn-primary" type="submit">Record</button></div>
         </form>
-      </dialog>
+      </Modal>
     </div>
   );
 }

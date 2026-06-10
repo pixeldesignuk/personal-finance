@@ -10,6 +10,8 @@ import { AccountSelector } from "../components/AccountSelector.tsx";
 import { AddTransaction } from "../components/AddTransaction.tsx";
 import { AuditSheet } from "../components/AuditSheet.tsx";
 import { BrandLogo } from "../components/BrandLogo.tsx";
+import { OrderDetail } from "../components/OrderDetail.tsx";
+import { PageHeader, Modal, useConfirm } from "../components/ui";
 import { Receipt } from "lucide-react";
 
 type PropField = "category" | "person";
@@ -22,6 +24,7 @@ export default function Transactions() {
   const accountId = params.get("account") ?? undefined;
   const qc = useQueryClient();
   const { notify, update } = useToast();
+  const confirm = useConfirm();
 
   // Filters live in the URL query string (nuqs), so they're shareable/bookmarkable.
   const [q, setQ] = useQueryState("q", { defaultValue: "", history: "replace" });
@@ -251,9 +254,15 @@ export default function Transactions() {
 
   const setCategory = (id: string, category: string) => categoryMutation.mutate({ id, category });
   const setPerson = (id: string, personKey: string | null) => personMutation.mutate({ id, personKey });
-  const del = (id: string) => {
-    if (!window.confirm("Delete this manual transaction?")) return;
-    deleteMutation.mutate(id);
+  const del = async (id: string) => {
+    if (await confirm({ title: "Delete this transaction?", body: "This manual transaction will be permanently removed.", danger: true })) {
+      deleteMutation.mutate(id);
+    }
+  };
+  const unlinkRepayment = async (id: string) => {
+    if (await confirm({ title: "Unlink this repayment?", body: "Restores the debt balance by this amount.", confirmLabel: "Unlink", danger: true })) {
+      unlinkMut.mutate(id);
+    }
   };
 
   const [linkEditId, setLinkEditId] = useState<string | null>(null);
@@ -264,9 +273,8 @@ export default function Transactions() {
   const saveNote = (id: string) => { noteMutation.mutate({ id, note: noteDraft.trim() || null }); setNoteEditId(null); };
 
   // Order-detail dialog (click the receipt tag).
-  const orderDialog = useRef<HTMLDialogElement>(null);
   const [orderView, setOrderView] = useState<{ name: string; order: NonNullable<TransactionDTO["order"]> } | null>(null);
-  const openOrder = (r: TransactionDTO) => { if (!r.order) return; setOrderView({ name: r.name ?? r.remittanceInfo ?? "Order", order: r.order }); orderDialog.current?.showModal(); };
+  const openOrder = (r: TransactionDTO) => { if (!r.order) return; setOrderView({ name: r.name ?? r.remittanceInfo ?? "Order", order: r.order }); };
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const scopedAccount = accountId && accountId !== "all" ? accountId : undefined;
@@ -297,13 +305,13 @@ export default function Transactions() {
 
   return (
     <div className="txn-page">
-      <div className="row-between">
-        <h1>Transactions <select value={personFilter} onChange={(e) => setPersonFilter(e.target.value)} style={{ fontSize: 13, marginLeft: 8 }}>
+      <PageHeader
+        title={<>Transactions <select value={personFilter} onChange={(e) => setPersonFilter(e.target.value)} style={{ fontSize: 13, marginLeft: 8 }}>
           <option value="">Everyone</option>
           <option value="none">Unassigned</option>
           {people.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
-        </select></h1>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        </select></>}
+        actions={<>
           <button className={showingUnreconciled ? "btn-primary" : undefined} onClick={() => setCatFilter(showingUnreconciled ? "" : "uncategorised")}>
             {showingUnreconciled ? "Show all" : `Unreconciled (${unreconciledCount})`}
           </button>
@@ -312,8 +320,8 @@ export default function Transactions() {
           </button>
           <button className="btn-primary" onClick={() => setSheetOpen(true)} disabled={sheetOpen}>Reconcile</button>
           <AccountSelector />
-        </div>
-      </div>
+        </>}
+      />
       <AuditSheet open={sheetOpen} title="Reconcile" run={reconcileRun} onClose={() => setSheetOpen(false)} onDone={invalidateTxns} />
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <input placeholder="Search transactions…" value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: "1 1 220px", maxWidth: 320 }} />
@@ -415,12 +423,12 @@ export default function Transactions() {
                   </select>
                 </td>
                 <td className={`num td-amount ${Number(r.amount) < 0 ? "neg" : "pos"}`}>{r.currency} {formatMoney(r.amount)}</td>
-                <td style={{ display: "flex", gap: 4, justifyContent: "flex-end" }}>
+                <td className="cell-actions">
                   <button className={`btn-sm flag-btn${r.flag ? ` flag-${r.flag}` : ""}`} title={r.flag ? `Reduction flag: ${r.flag} (click to change)` : "Flag for reduction"} onClick={() => cycleFlag(r)}>⚑</button>
                   {(liabilities.length > 0 || r.debtAccountId) && (
                     <button className={`btn-sm${r.debtAccountId ? " flag-orange" : ""}`}
                       title={r.debtAccountId ? `Repayment → ${debtName(r.debtAccountId)} (click to unlink)` : "Link as debt repayment"}
-                      onClick={() => { if (r.debtAccountId) { if (window.confirm("Unlink this repayment? Restores the debt balance.")) unlinkMut.mutate(r.id); } else setLinkEditId(linkEditId === r.id ? null : r.id); }}>⛓</button>
+                      onClick={() => { if (r.debtAccountId) unlinkRepayment(r.id); else setLinkEditId(linkEditId === r.id ? null : r.id); }}>⛓</button>
                   )}
                   {noteEditId !== r.id && <button className="btn-sm" title={r.note ? "Edit note" : "Add note"} onClick={() => startNote(r)}>✎</button>}
                   {r.source === "MANUAL" && <button className="btn-danger btn-sm" onClick={() => del(r.id)}>✕</button>}
@@ -432,38 +440,19 @@ export default function Transactions() {
         </table>
       </div>
 
-      <dialog ref={orderDialog} className="modal" onClick={(e) => { if (e.target === orderDialog.current) orderDialog.current?.close(); }}>
-        {orderView && (() => {
-          const o = orderView.order;
-          const sym = o.currency === "USD" ? "$" : o.currency === "EUR" ? "€" : "£";
-          return (
-            <div className="modal-body">
-              <div className="order-detail-head">
-                <span className="plugin-icon"><Receipt size={18} strokeWidth={1.9} /></span>
-                <div className="plugin-title">
-                  <h3 style={{ margin: 0 }}>{o.merchant ?? orderView.name}</h3>
-                  <span className="muted">
-                    {o.orderNumber ? `Order ${o.orderNumber}` : "Order"}
-                    {o.date ? ` · ${new Date(o.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : ""}
-                  </span>
-                </div>
-                {o.total != null && <span className="num order-detail-total">{sym}{formatMoney(o.total)}</span>}
-              </div>
-              {o.items.length > 0 ? (
-                <ul className="order-items-list">
-                  {o.items.map((it, i) => (
-                    <li key={i}>
-                      <span className="order-item-name">{it.qty && it.qty > 1 ? `${it.qty}× ` : ""}{it.name}</span>
-                      {it.price != null && <span className="num muted">{sym}{formatMoney(it.price)}</span>}
-                    </li>
-                  ))}
-                </ul>
-              ) : <p className="muted">No line items captured.</p>}
-              <div className="modal-actions"><button type="button" onClick={() => orderDialog.current?.close()}>Close</button></div>
-            </div>
-          );
-        })()}
-      </dialog>
+      <Modal open={orderView != null} onClose={() => setOrderView(null)}>
+        {orderView && (
+          <OrderDetail
+            merchant={orderView.order.merchant ?? orderView.name}
+            orderNumber={orderView.order.orderNumber}
+            dateISO={orderView.order.date}
+            total={orderView.order.total}
+            currency={orderView.order.currency}
+            items={orderView.order.items}
+            onClose={() => setOrderView(null)}
+          />
+        )}
+      </Modal>
     </div>
   );
 }

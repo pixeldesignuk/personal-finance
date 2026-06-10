@@ -5,7 +5,7 @@ import { api } from "../api.ts";
 export default function Callback() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const [status, setStatus] = useState("Finalising connection...");
+  const [status, setStatus] = useState("Finalising connection…");
 
   useEffect(() => {
     const ref = params.get("ref");
@@ -18,8 +18,8 @@ export default function Callback() {
   }, [params, navigate]);
 
   return (
-    <div className="card" style={{ textAlign: "center", padding: "40px 24px" }}>
-      <h1 style={{ marginBottom: "0.3em" }}>Bank connection</h1>
+    <div className="card card-centered">
+      <h1>Bank connection</h1>
       <p className="muted">{status}</p>
     </div>
   );

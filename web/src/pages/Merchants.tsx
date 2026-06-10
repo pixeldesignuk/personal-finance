@@ -1,18 +1,17 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQueryState } from "nuqs";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Receipt } from "lucide-react";
 import { api } from "../api.ts";
 import type { MerchantDTO } from "../../../shared/types.ts";
-import { formatGBP, formatMoney, relativeDate } from "../format.ts";
+import { formatGBP, formatMoney, ccySymbol } from "../format.ts";
 import { Combobox } from "../components/Combobox.tsx";
 import { BrandLogo } from "../components/BrandLogo.tsx";
 import { merchantLogo } from "../brand.ts";
+import { PageHeader, Stat, Modal, Field, Tabs, type TabItem } from "../components/ui";
 
-const ccySym = (c: string | null) => (c === "USD" ? "$" : c === "EUR" ? "€" : "£");
-
-const TABS: [string, string][] = [["all", "All"], ["fixed", "Recurring"], ["variable", "Variable"]];
+const TABS: TabItem[] = [{ key: "all", label: "All" }, { key: "fixed", label: "Recurring" }, { key: "variable", label: "Variable" }];
 const TYPE_LABEL: Record<string, string> = { fixed: "Recurring", variable: "Variable", oneoff: "One-off", ignore: "Ignored", auto: "Auto" };
 
 export default function Merchants() {
@@ -39,15 +38,15 @@ export default function Merchants() {
   const set = (token: string, patch: Parameters<typeof api.patchMerchant>[1]) => patchM.mutate({ token, patch });
 
   // Full-edit dialog (name + priority + everything).
-  const dialog = useRef<HTMLDialogElement>(null);
+  const [editOpen, setEditOpen] = useState(false);
   const [edit, setEdit] = useState<MerchantDTO | null>(null);
   const editOrders = useQuery({ queryKey: ["merchantOrders", edit?.token], queryFn: () => api.merchantOrders(edit!.token), enabled: Boolean(edit && edit.orderCount > 0) });
   const [form, setForm] = useState({ name: "", domain: "", priority: "0" });
-  const openEdit = (m: MerchantDTO) => { setEdit(m); setForm({ name: m.name ?? "", domain: m.domain ?? "", priority: String(m.priority) }); dialog.current?.showModal(); };
+  const openEdit = (m: MerchantDTO) => { setEdit(m); setForm({ name: m.name ?? "", domain: m.domain ?? "", priority: String(m.priority) }); setEditOpen(true); };
   const saveEdit = () => {
     if (!edit) return;
     set(edit.token, { name: form.name.trim() || null, domain: form.domain.trim() || null, priority: Number(form.priority) || 0 });
-    dialog.current?.close();
+    setEditOpen(false);
   };
 
   const confirmDetected = useMutation({
@@ -60,19 +59,19 @@ export default function Merchants() {
 
   return (
     <div>
-      <div className="row-between">
-        <h1>Merchants</h1>
-        {detectedCount > 0 && <button onClick={() => confirmDetected.mutate()} disabled={confirmDetected.isPending} title="Save auto-detected categories as rules">Confirm {detectedCount} detected {detectedCount === 1 ? "category" : "categories"}</button>}
-      </div>
+      <PageHeader
+        title="Merchants"
+        actions={detectedCount > 0 ? <button onClick={() => confirmDetected.mutate()} disabled={confirmDetected.isPending} title="Save auto-detected categories as rules">Confirm {detectedCount} detected {detectedCount === 1 ? "category" : "categories"}</button> : undefined}
+      />
       {data && (
         <div className="grid">
-          <div className="card stat"><span className="label">Monthly outgoings</span><span className="value">{formatGBP(data.monthlyOutgoings)}</span><span className="delta muted">committed / recurring</span></div>
-          <div className="card stat"><span className="label">Variable / month</span><span className="value">{formatGBP(data.variableMonthly)}</span><span className="delta muted">avg flexible spend</span></div>
-          <div className="card stat"><span className="label">Merchants</span><span className="value">{data.merchants.length}</span></div>
+          <Stat label="Monthly outgoings" value={formatGBP(data.monthlyOutgoings)} delta="committed / recurring" />
+          <Stat label="Variable / month" value={formatGBP(data.variableMonthly)} delta="avg flexible spend" />
+          <Stat label="Merchants" value={data.merchants.length} />
         </div>
       )}
 
-      <div className="tabs">{TABS.map(([k, l]) => <button key={k} className={`tab${tab === k ? " active" : ""}`} onClick={() => setTab(k)}>{l}</button>)}</div>
+      <Tabs value={tab} onChange={setTab} items={TABS} />
 
       <div className="card">
         <table className="txn-table">
@@ -113,35 +112,35 @@ export default function Merchants() {
         {shown.length === 0 && <p className="muted">No merchants{tab !== "all" ? " in this view" : " yet — sync some transactions"}.</p>}
       </div>
 
-      <dialog ref={dialog} className="modal" onClick={(e) => { if (e.target === dialog.current) dialog.current?.close(); }}>
+      <Modal open={editOpen} onClose={() => setEditOpen(false)}>
         {edit && (
           <form className="modal-body" onSubmit={(e) => { e.preventDefault(); saveEdit(); }}>
-            <h3 style={{ marginTop: 0 }}>Edit merchant</h3>
-            <label className="field"><span>Statement line (from your bank — read-only)</span><input value={edit.statement} readOnly className="readonly" /></label>
-            <label className="field"><span>Human-readable name</span><input value={form.name} autoFocus placeholder="e.g. Tesco" onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-            <label className="field"><span>Brand domain (logo)</span>
+            <h3>Edit merchant</h3>
+            <Field label="Statement line (from your bank — read-only)"><input value={edit.statement} readOnly className="readonly" /></Field>
+            <Field label="Human-readable name"><input value={form.name} autoFocus placeholder="e.g. Tesco" onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+            <Field label="Brand domain (logo)">
               <span className="domain-field">
                 <BrandLogo name={form.name || edit.statement} src={merchantLogo(form.name || null, form.domain || null)} size={26} />
                 <input value={form.domain} placeholder="e.g. tesco.com" onChange={(e) => setForm({ ...form, domain: e.target.value })} />
               </span>
-            </label>
-            <label className="field"><span>Category</span>
+            </Field>
+            <Field label="Category">
               <select value={edit.categoryKey ?? ""} onChange={(e) => { const v = e.target.value || null; set(edit.token, { categoryKey: v }); setEdit({ ...edit, categoryKey: v }); }}>
                 <option value="">—</option>
                 {catNames.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
               </select>
-            </label>
-            <label className="field"><span>Person</span>
+            </Field>
+            <Field label="Person">
               <select value={edit.personKey ?? ""} onChange={(e) => { const v = e.target.value || null; set(edit.token, { personKey: v }); setEdit({ ...edit, personKey: v }); }}>
                 <option value="">—</option>
                 {people.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
               </select>
-            </label>
-            <label className="field"><span>Priority (higher wins) · {Number(form.priority) || 0}</span>
+            </Field>
+            <Field label={`Priority (higher wins) · ${Number(form.priority) || 0}`}>
               <input type="range" min={0} max={100} value={Number(form.priority) || 0} className="prio-range"
                 style={{ background: `linear-gradient(to right, var(--jade) ${Number(form.priority) || 0}%, var(--surface-2) ${Number(form.priority) || 0}%)` }}
                 onChange={(e) => setForm({ ...form, priority: e.target.value })} />
-            </label>
+            </Field>
             {edit.orderCount > 0 && (
               <div className="field">
                 <span>Recent orders · {edit.orderCount}</span>
@@ -150,7 +149,7 @@ export default function Merchants() {
                     <div key={o.id} className="mo-row">
                       <span className="mo-main">{o.items.length ? o.items.slice(0, 3).map((i) => i.name).join(", ") + (o.items.length > 3 ? ` +${o.items.length - 3}` : "") : (o.subject ?? "Order")}</span>
                       <span className="mo-side">
-                        <span className="num">{ccySym(o.currency)}{formatMoney(o.total ?? 0)}</span>
+                        <span className="num">{ccySymbol(o.currency)}{formatMoney(o.total ?? 0)}</span>
                         <span className="muted">{o.emailDate ? new Date(o.emailDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""}</span>
                       </span>
                     </div>
@@ -160,13 +159,13 @@ export default function Merchants() {
               </div>
             )}
             <div className="modal-actions">
-              {(edit.categoryKey || edit.personKey) && <button type="button" className="btn-danger" style={{ marginRight: "auto" }} onClick={() => { set(edit.token, { categoryKey: null, personKey: null }); dialog.current?.close(); }}>Remove rule</button>}
-              <button type="button" onClick={() => dialog.current?.close()}>Cancel</button>
+              {(edit.categoryKey || edit.personKey) && <button type="button" className="btn-danger" style={{ marginRight: "auto" }} onClick={() => { set(edit.token, { categoryKey: null, personKey: null }); setEditOpen(false); }}>Remove rule</button>}
+              <button type="button" onClick={() => setEditOpen(false)}>Cancel</button>
               <button className="btn-primary" type="submit">Save</button>
             </div>
           </form>
         )}
-      </dialog>
+      </Modal>
     </div>
   );
 }

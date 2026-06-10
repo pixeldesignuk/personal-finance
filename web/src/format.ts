@@ -37,3 +37,21 @@ export function formatGBP(value: number | string): string {
   if (!Number.isFinite(n)) return `£${value}`;
   return n < 0 ? `-£${formatMoney(-n)}` : `£${formatMoney(n)}`;
 }
+
+// The symbol for a currency code (defaults to £). Single source of truth — the
+// pages used to each redefine this inline.
+export function ccySymbol(currency: string | null | undefined): string {
+  switch (currency) {
+    case "USD": return "$";
+    case "EUR": return "€";
+    default: return "£";
+  }
+}
+
+// Like formatGBP but honouring the given currency, e.g. ("12.5","USD") -> "$12.50".
+export function formatCcy(value: number | string, currency?: string | null): string {
+  const n = typeof value === "string" ? Number(value) : value;
+  const sym = ccySymbol(currency);
+  if (!Number.isFinite(n)) return `${sym}${value}`;
+  return n < 0 ? `-${sym}${formatMoney(-n)}` : `${sym}${formatMoney(n)}`;
+}

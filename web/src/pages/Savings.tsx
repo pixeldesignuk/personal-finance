@@ -1,14 +1,16 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api.ts";
 import type { PotDTO } from "../../../shared/types.ts";
 import { formatGBP } from "../format.ts";
 import { IconPicker, PotIcon } from "../components/IconPicker.tsx";
+import { PageHeader, Stat, EmptyState, Modal, Field, FieldRow, useConfirm } from "../components/ui";
 
 const num = (s: string) => { const n = Number(s.replace(/[, £]/g, "")); return Number.isFinite(n) ? n : NaN; };
 
 export default function Savings() {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const { data } = useQuery({ queryKey: ["pots"], queryFn: () => api.pots() });
   const invalidate = () => qc.invalidateQueries({ queryKey: ["pots"] });
 
@@ -18,11 +20,11 @@ export default function Savings() {
   const remove = useMutation({ mutationFn: (id: number) => api.deletePot(id), onSuccess: invalidate });
 
   // create / edit dialog
-  const dialog = useRef<HTMLDialogElement>(null);
+  const [potOpen, setPotOpen] = useState(false);
   const [editing, setEditing] = useState<PotDTO | null>(null);
   const [form, setForm] = useState({ emoji: "", name: "", target: "", balance: "" });
-  const openNew = () => { setEditing(null); setForm({ emoji: "", name: "", target: "", balance: "" }); dialog.current?.showModal(); };
-  const openEdit = (p: PotDTO) => { setEditing(p); setForm({ emoji: p.emoji ?? "", name: p.name, target: p.target != null ? String(p.target) : "", balance: "" }); dialog.current?.showModal(); };
+  const openNew = () => { setEditing(null); setForm({ emoji: "", name: "", target: "", balance: "" }); setPotOpen(true); };
+  const openEdit = (p: PotDTO) => { setEditing(p); setForm({ emoji: p.emoji ?? "", name: p.name, target: p.target != null ? String(p.target) : "", balance: "" }); setPotOpen(true); };
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) return;
@@ -34,47 +36,46 @@ export default function Savings() {
       const balance = form.balance.trim() ? Math.max(0, num(form.balance)) : 0;
       create.mutate({ name: form.name.trim(), target: Number.isNaN(target as number) ? null : target, emoji, balance: Number.isNaN(balance) ? 0 : balance });
     }
-    dialog.current?.close();
+    setPotOpen(false);
   };
 
   // Move (add / take) dialog.
-  const moveDialog = useRef<HTMLDialogElement>(null);
   const [moveState, setMoveState] = useState<{ pot: PotDTO; sign: 1 | -1 } | null>(null);
   const [moveAmt, setMoveAmt] = useState("");
-  const openMove = (pot: PotDTO, sign: 1 | -1) => { setMoveState({ pot, sign }); setMoveAmt(""); moveDialog.current?.showModal(); };
+  const openMove = (pot: PotDTO, sign: 1 | -1) => { setMoveState({ pot, sign }); setMoveAmt(""); };
   const submitMove = (e: React.FormEvent) => {
     e.preventDefault();
     if (!moveState) return;
     const amt = num(moveAmt);
     if (!Number.isFinite(amt) || amt <= 0) return;
     move.mutate({ id: moveState.pot.id, amount: moveState.sign * amt });
-    moveDialog.current?.close();
+    setMoveState(null);
   };
 
-  // Delete confirmation dialog.
-  const delDialog = useRef<HTMLDialogElement>(null);
-  const [delTarget, setDelTarget] = useState<PotDTO | null>(null);
-  const openDel = (pot: PotDTO) => { setDelTarget(pot); delDialog.current?.showModal(); };
-  const confirmDel = () => { if (delTarget) remove.mutate(delTarget.id); delDialog.current?.close(); };
+  const askDel = async (pot: PotDTO) => {
+    if (await confirm({ title: `Delete “${pot.name}”?`, body: `The ${formatGBP(pot.balance)} earmarked here returns to unallocated. This can't be undone.`, confirmLabel: "Delete pot", danger: true })) {
+      remove.mutate(pot.id);
+    }
+  };
 
-  if (!data) return <p>Loading…</p>;
+  if (!data) return <p className="muted">Loading…</p>;
   const over = data.available < 0;
 
   return (
     <div>
-      <div className="row-between">
-        <h1>Savings</h1>
-        <button className="btn-primary" onClick={openNew}>New pot</button>
-      </div>
-      <p className="muted" style={{ marginTop: -6 }}>Pots earmark cash you already hold — they don't change your net worth.</p>
+      <PageHeader
+        title="Savings"
+        subtitle="Pots earmark cash you already hold — they don't change your net worth."
+        actions={<button className="btn-primary" onClick={openNew}>New pot</button>}
+      />
 
       <div className="grid">
-        <div className="card stat"><span className="label">Liquid cash</span><span className="value">{formatGBP(data.liquid)}</span><span className="delta muted">{formatGBP(data.budgeted)} budgeted · {formatGBP(data.allocated)} in pots</span></div>
-        <div className="card stat"><span className="label">In pots</span><span className="value">{formatGBP(data.allocated)}</span><span className="delta muted">{data.pots.length} pot{data.pots.length === 1 ? "" : "s"}</span></div>
-        <div className="card stat"><span className="label">Available to assign</span><span className={`value ${over ? "neg" : "pos"}`}>{formatGBP(data.available)}</span><span className="delta muted">{over ? "over-allocated" : "after budgets & pots"}</span></div>
+        <Stat label="Liquid cash" value={formatGBP(data.liquid)} delta={`${formatGBP(data.budgeted)} budgeted · ${formatGBP(data.allocated)} in pots`} />
+        <Stat label="In pots" value={formatGBP(data.allocated)} delta={`${data.pots.length} pot${data.pots.length === 1 ? "" : "s"}`} />
+        <Stat label="Available to assign" value={formatGBP(data.available)} valueTone={over ? "neg" : "pos"} delta={over ? "over-allocated" : "after budgets & pots"} />
       </div>
 
-      {data.pots.length === 0 && <div className="card"><p className="muted">No pots yet. Create one to set money aside toward a goal.</p></div>}
+      {data.pots.length === 0 && <EmptyState>No pots yet. Create one to set money aside toward a goal.</EmptyState>}
 
       <div className="grid pot-cards">
         {data.pots.map((p) => {
@@ -104,64 +105,52 @@ export default function Savings() {
               <div className="pot-actions">
                 <button className="btn-sm" onClick={() => openMove(p, 1)}>＋ Add</button>
                 <button className="btn-sm" disabled={p.balance <= 0} onClick={() => openMove(p, -1)}>－ Take</button>
-                <button className="btn-danger btn-sm" onClick={() => openDel(p)}>Delete</button>
+                <button className="btn-danger btn-sm" onClick={() => askDel(p)}>Delete</button>
               </div>
             </div>
           );
         })}
       </div>
 
-      <dialog ref={dialog} className="modal" onClick={(e) => { if (e.target === dialog.current) dialog.current?.close(); }}>
+      <Modal open={potOpen} onClose={() => setPotOpen(false)}>
         <form className="modal-body" onSubmit={submit}>
-          <h3 style={{ marginTop: 0 }}>{editing ? "Edit pot" : "New pot"}</h3>
-          <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
-            <label className="field" style={{ width: "auto" }}><span>Icon</span><IconPicker value={form.emoji || null} onChange={(k) => setForm({ ...form, emoji: k })} /></label>
-            <label className="field" style={{ flex: 1 }}><span>Name</span><input value={form.name} autoFocus placeholder="e.g. Emergency fund" onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-          </div>
-          <label className="field"><span>Target (£, optional)</span><input inputMode="decimal" value={form.target} placeholder="10000" onChange={(e) => setForm({ ...form, target: e.target.value })} /></label>
-          {!editing && <label className="field"><span>Starting amount (£, optional)</span><input inputMode="decimal" value={form.balance} placeholder="0" onChange={(e) => setForm({ ...form, balance: e.target.value })} /></label>}
-          <div className="modal-actions"><button type="button" onClick={() => dialog.current?.close()}>Cancel</button><button className="btn-primary" type="submit">{editing ? "Save" : "Create"}</button></div>
+          <h3>{editing ? "Edit pot" : "New pot"}</h3>
+          <FieldRow>
+            <Field label="Icon" inline><IconPicker value={form.emoji || null} onChange={(k) => setForm({ ...form, emoji: k })} /></Field>
+            <Field label="Name"><input value={form.name} autoFocus placeholder="e.g. Emergency fund" onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+          </FieldRow>
+          <Field label="Target (£, optional)"><input inputMode="decimal" value={form.target} placeholder="10000" onChange={(e) => setForm({ ...form, target: e.target.value })} /></Field>
+          {!editing && <Field label="Starting amount (£, optional)"><input inputMode="decimal" value={form.balance} placeholder="0" onChange={(e) => setForm({ ...form, balance: e.target.value })} /></Field>}
+          <div className="modal-actions"><button type="button" onClick={() => setPotOpen(false)}>Cancel</button><button className="btn-primary" type="submit">{editing ? "Save" : "Create"}</button></div>
         </form>
-      </dialog>
+      </Modal>
 
-      <dialog ref={moveDialog} className="modal" onClick={(e) => { if (e.target === moveDialog.current) moveDialog.current?.close(); }}>
+      <Modal open={moveState != null} onClose={() => setMoveState(null)} size="sm">
         {moveState && (() => {
           const isAdd = moveState.sign > 0;
           const max = isAdd ? Math.max(0, data.available) : moveState.pot.balance;
-          const over = isAdd ? num(moveAmt) > data.available : num(moveAmt) > moveState.pot.balance;
+          const isOver = isAdd ? num(moveAmt) > data.available : num(moveAmt) > moveState.pot.balance;
           return (
-          <form className="modal-body" onSubmit={submitMove}>
-            <h3 style={{ marginTop: 0 }}>{isAdd ? "Add to" : "Take from"} {moveState.pot.name}</h3>
-            <div className="pot-move-info">
-              <div><span className="eyebrow">In this pot</span><span className="pot-move-val">{formatGBP(moveState.pot.balance)}</span></div>
-              {isAdd && <div><span className="eyebrow">Available</span><span className={`pot-move-val ${data.available < 0 ? "neg" : ""}`}>{formatGBP(Math.max(0, data.available))}</span></div>}
-            </div>
-            <label className="field">
-              <span>Amount</span>
-              <div className="amount-input">
-                <span className="amount-prefix" aria-hidden>£</span>
-                <input inputMode="decimal" autoFocus value={moveAmt} placeholder="0.00" onChange={(e) => setMoveAmt(e.target.value)} />
-                {max > 0 && <button type="button" className="amount-max" onClick={() => setMoveAmt(String(max))}>Max</button>}
+            <form className="modal-body" onSubmit={submitMove}>
+              <h3>{isAdd ? "Add to" : "Take from"} {moveState.pot.name}</h3>
+              <div className="pot-move-info">
+                <div><span className="eyebrow">In this pot</span><span className="pot-move-val">{formatGBP(moveState.pot.balance)}</span></div>
+                {isAdd && <div><span className="eyebrow">Available</span><span className={`pot-move-val ${data.available < 0 ? "neg" : ""}`}>{formatGBP(Math.max(0, data.available))}</span></div>}
               </div>
-            </label>
-            {over
-              ? <p className="field-hint neg">{isAdd ? "More than your available cash — you'd be over-allocating." : "More than the pot holds — it'll be emptied to £0."}</p>
-              : isAdd && <p className="field-hint muted">Available is what's left after budgets &amp; other pots.</p>}
-            <div className="modal-actions"><button type="button" onClick={() => moveDialog.current?.close()}>Cancel</button><button className="btn-primary" type="submit" disabled={!(num(moveAmt) > 0)}>{isAdd ? "Add" : "Take"}</button></div>
-          </form>
+              <Field label="Amount" hint={isOver
+                ? <span className="neg">{isAdd ? "More than your available cash — you'd be over-allocating." : "More than the pot holds — it'll be emptied to £0."}</span>
+                : isAdd ? "Available is what's left after budgets & other pots." : undefined}>
+                <div className="amount-input">
+                  <span className="amount-prefix" aria-hidden>£</span>
+                  <input inputMode="decimal" autoFocus value={moveAmt} placeholder="0.00" onChange={(e) => setMoveAmt(e.target.value)} />
+                  {max > 0 && <button type="button" className="amount-max" onClick={() => setMoveAmt(String(max))}>Max</button>}
+                </div>
+              </Field>
+              <div className="modal-actions"><button type="button" onClick={() => setMoveState(null)}>Cancel</button><button className="btn-primary" type="submit" disabled={!(num(moveAmt) > 0)}>{isAdd ? "Add" : "Take"}</button></div>
+            </form>
           );
         })()}
-      </dialog>
-
-      <dialog ref={delDialog} className="modal" onClick={(e) => { if (e.target === delDialog.current) delDialog.current?.close(); }}>
-        {delTarget && (
-          <div className="modal-body">
-            <h3 style={{ marginTop: 0 }}>Delete “{delTarget.name}”?</h3>
-            <p className="muted">The {formatGBP(delTarget.balance)} earmarked here returns to unallocated. This can't be undone.</p>
-            <div className="modal-actions"><button type="button" onClick={() => delDialog.current?.close()}>Cancel</button><button className="btn-danger" onClick={confirmDel}>Delete pot</button></div>
-          </div>
-        )}
-      </dialog>
+      </Modal>
     </div>
   );
 }

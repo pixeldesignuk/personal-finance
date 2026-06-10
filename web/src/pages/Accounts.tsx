@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Wallet } from "lucide-react";
 import { api } from "../api.ts";
@@ -6,6 +6,7 @@ import type { BankDTO, AccountDTO, AccountRecurringDTO } from "../../../shared/t
 import { formatMoney } from "../format.ts";
 import { BrandLogo } from "../components/BrandLogo.tsx";
 import { CardMenu } from "../components/CardMenu.tsx";
+import { PageHeader, EmptyState, Modal, Field, useConfirm } from "../components/ui";
 
 const numOk = (s: string) => /^-?\d+(\.\d+)?$/.test(s.trim());
 
@@ -14,6 +15,7 @@ export default function Accounts() {
   const [recurring, setRecurring] = useState<Record<string, AccountRecurringDTO>>({});
   const [msg, setMsg] = useState<string | null>(null);
   const navigate = useNavigate();
+  const confirm = useConfirm();
 
   const load = () => api.accounts().then(setBanks).catch((e) => setMsg(e.message));
   useEffect(() => { load(); }, []);
@@ -23,39 +25,38 @@ export default function Accounts() {
   const wrap = async (fn: () => Promise<unknown>) => { try { await fn(); await load(); } catch (e) { setMsg((e as Error).message); } };
 
   // Add-cash dialog.
-  const addDialog = useRef<HTMLDialogElement>(null);
+  const [addOpen, setAddOpen] = useState(false);
   const [addForm, setAddForm] = useState<{ name: string; type: "PERSONAL" | "BUSINESS"; value: string }>({ name: "", type: "PERSONAL", value: "0" });
-  const openAdd = () => { setAddForm({ name: "", type: "PERSONAL", value: "0" }); addDialog.current?.showModal(); };
+  const openAdd = () => { setAddForm({ name: "", type: "PERSONAL", value: "0" }); setAddOpen(true); };
   const submitAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!addForm.name.trim()) { setMsg("Enter a name"); return; }
     const value = numOk(addForm.value) ? addForm.value.trim() : "0";
-    wrap(async () => { await api.createManualAccount({ name: addForm.name.trim(), type: addForm.type, source: "MANUAL", manualBalance: value }); addDialog.current?.close(); });
+    wrap(async () => { await api.createManualAccount({ name: addForm.name.trim(), type: addForm.type, source: "MANUAL", manualBalance: value }); setAddOpen(false); });
   };
 
   // Edit-value dialog (rename / set balance).
-  const editDialog = useRef<HTMLDialogElement>(null);
   const [edit, setEdit] = useState<{ kind: "rename" | "balance"; id: string; label: string } | null>(null);
   const [editVal, setEditVal] = useState("");
-  const openRename = (a: AccountDTO) => { setEdit({ kind: "rename", id: a.id, label: a.displayName }); setEditVal(a.nickname ?? ""); editDialog.current?.showModal(); };
-  const openBalance = (a: AccountDTO) => { setEdit({ kind: "balance", id: a.id, label: a.displayName }); setEditVal(String(a.currentBalance)); editDialog.current?.showModal(); };
+  const openRename = (a: AccountDTO) => { setEdit({ kind: "rename", id: a.id, label: a.displayName }); setEditVal(a.nickname ?? ""); };
+  const openBalance = (a: AccountDTO) => { setEdit({ kind: "balance", id: a.id, label: a.displayName }); setEditVal(String(a.currentBalance)); };
   const submitEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!edit) return;
     if (edit.kind === "rename") wrap(() => api.patchAccount(edit.id, { nickname: editVal.trim() || null }));
     else wrap(() => api.patchAccount(edit.id, { manualBalance: numOk(editVal) ? editVal.trim() : "0" }));
-    editDialog.current?.close();
+    setEdit(null);
   };
-
-  // Confirm dialog (delete / remove bank).
-  const confirmDialog = useRef<HTMLDialogElement>(null);
-  const [confirm, setConfirm] = useState<{ title: string; body: string; action: () => void } | null>(null);
-  const ask = (c: { title: string; body: string; action: () => void }) => { setConfirm(c); confirmDialog.current?.showModal(); };
-  const runConfirm = () => { confirm?.action(); confirmDialog.current?.close(); };
 
   const toggleType = (a: AccountDTO) => wrap(() => api.patchAccount(a.id, { type: a.type === "PERSONAL" ? "BUSINESS" : "PERSONAL" }));
   const setBalanceType = (id: string, value: string) => wrap(() => api.patchAccount(id, { balanceType: value || null }));
   const reconnect = (institutionId: string) => api.connect(institutionId).then(({ link }) => { window.location.href = link; }).catch((e) => setMsg(e.message));
+  const deleteCash = async (a: AccountDTO) => {
+    if (await confirm({ title: `Delete ${a.displayName}?`, body: "This removes the cash account and its manual transactions.", danger: true })) wrap(() => api.deleteManualAccount(a.id));
+  };
+  const removeBank = async (bank: BankDTO) => {
+    if (await confirm({ title: `Remove ${bank.institutionName}?`, body: "Deletes its stored transactions & balances.", confirmLabel: "Remove bank", danger: true })) wrap(() => api.removeBank(bank.requisitionId));
+  };
 
   // Banks + cash only — investments, assets and debts have their own spaces.
   const cards = useMemo(
@@ -65,17 +66,17 @@ export default function Accounts() {
 
   return (
     <div>
-      <div className="row-between">
-        <h1>Accounts</h1>
-        <div className="toolbar">
+      <PageHeader
+        title="Accounts"
+        subtitle="Your bank & cash accounts. Investments, assets and debts live under Wealth."
+        actions={<>
           <button onClick={openAdd}>Add cash</button>
           <button className="btn-primary" onClick={() => navigate("/connect")}>Add bank</button>
-        </div>
-      </div>
-      <p className="muted" style={{ marginTop: -6 }}>Your bank &amp; cash accounts. Investments, assets and debts live under Wealth.</p>
+        </>}
+      />
       {msg && <p className="muted">{msg}</p>}
 
-      {cards.length === 0 && <div className="card"><p className="muted">No accounts yet — connect a bank or add cash.</p></div>}
+      {cards.length === 0 && <EmptyState>No accounts yet — connect a bank or add cash.</EmptyState>}
       <div className="grid acct-cards">
         {cards.map(({ bank, a }) => {
           const isCash = a.source === "MANUAL";
@@ -101,8 +102,8 @@ export default function Accounts() {
                     </>
                   )}
                   {a.source === "BANK" && <button type="button" onClick={() => reconnect(bank.institutionId)}>Reconnect</button>}
-                  {isCash && <button type="button" className="danger" onClick={() => ask({ title: `Delete ${a.displayName}?`, body: "This removes the cash account and its manual transactions.", action: () => wrap(() => api.deleteManualAccount(a.id)) })}>Delete</button>}
-                  {a.source === "BANK" && <button type="button" className="danger" onClick={() => ask({ title: `Remove ${bank.institutionName}?`, body: "Deletes its stored transactions & balances.", action: () => wrap(() => api.removeBank(bank.requisitionId)) })}>Remove bank</button>}
+                  {isCash && <button type="button" className="danger" onClick={() => deleteCash(a)}>Delete</button>}
+                  {a.source === "BANK" && <button type="button" className="danger" onClick={() => removeBank(bank)}>Remove bank</button>}
                 </CardMenu>
               </div>
               <div className="acct-card-head">
@@ -122,42 +123,31 @@ export default function Accounts() {
         })}
       </div>
 
-      <dialog ref={addDialog} className="modal" onClick={(e) => { if (e.target === addDialog.current) addDialog.current?.close(); }}>
+      <Modal open={addOpen} onClose={() => setAddOpen(false)}>
         <form className="modal-body" onSubmit={submitAdd}>
-          <h3 style={{ marginTop: 0 }}>Add cash account</h3>
-          <label className="field"><span>Name</span><input value={addForm.name} onChange={(e) => setAddForm({ ...addForm, name: e.target.value })} autoFocus placeholder="e.g. Wallet, Savings jar" /></label>
-          <label className="field"><span>Current balance (£)</span><input inputMode="decimal" value={addForm.value} onChange={(e) => setAddForm({ ...addForm, value: e.target.value })} /></label>
-          <label className="field"><span>Type</span>
+          <h3>Add cash account</h3>
+          <Field label="Name"><input value={addForm.name} onChange={(e) => setAddForm({ ...addForm, name: e.target.value })} autoFocus placeholder="e.g. Wallet, Savings jar" /></Field>
+          <Field label="Current balance (£)"><input inputMode="decimal" value={addForm.value} onChange={(e) => setAddForm({ ...addForm, value: e.target.value })} /></Field>
+          <Field label="Type">
             <select value={addForm.type} onChange={(e) => setAddForm({ ...addForm, type: e.target.value as "PERSONAL" | "BUSINESS" })}>
               <option value="PERSONAL">Personal</option><option value="BUSINESS">Business</option>
             </select>
-          </label>
-          <div className="modal-actions"><button type="button" onClick={() => addDialog.current?.close()}>Cancel</button><button className="btn-primary" type="submit">Add</button></div>
+          </Field>
+          <div className="modal-actions"><button type="button" onClick={() => setAddOpen(false)}>Cancel</button><button className="btn-primary" type="submit">Add</button></div>
         </form>
-      </dialog>
+      </Modal>
 
-      <dialog ref={editDialog} className="modal" onClick={(e) => { if (e.target === editDialog.current) editDialog.current?.close(); }}>
+      <Modal open={edit != null} onClose={() => setEdit(null)} size="sm">
         {edit && (
           <form className="modal-body" onSubmit={submitEdit}>
-            <h3 style={{ marginTop: 0 }}>{edit.kind === "rename" ? "Rename" : "Set balance"} · {edit.label}</h3>
-            <label className="field">
-              <span>{edit.kind === "rename" ? "Nickname (blank to clear)" : "Balance (£)"}</span>
+            <h3>{edit.kind === "rename" ? "Rename" : "Set balance"} · {edit.label}</h3>
+            <Field label={edit.kind === "rename" ? "Nickname (blank to clear)" : "Balance (£)"}>
               <input value={editVal} autoFocus inputMode={edit.kind === "balance" ? "decimal" : undefined} onChange={(e) => setEditVal(e.target.value)} />
-            </label>
-            <div className="modal-actions"><button type="button" onClick={() => editDialog.current?.close()}>Cancel</button><button className="btn-primary" type="submit">Save</button></div>
+            </Field>
+            <div className="modal-actions"><button type="button" onClick={() => setEdit(null)}>Cancel</button><button className="btn-primary" type="submit">Save</button></div>
           </form>
         )}
-      </dialog>
-
-      <dialog ref={confirmDialog} className="modal" onClick={(e) => { if (e.target === confirmDialog.current) confirmDialog.current?.close(); }}>
-        {confirm && (
-          <div className="modal-body">
-            <h3 style={{ marginTop: 0 }}>{confirm.title}</h3>
-            <p className="muted">{confirm.body}</p>
-            <div className="modal-actions"><button type="button" onClick={() => confirmDialog.current?.close()}>Cancel</button><button className="btn-danger" onClick={runConfirm}>Delete</button></div>
-          </div>
-        )}
-      </dialog>
+      </Modal>
     </div>
   );
 }

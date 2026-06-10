@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { useQueryState } from "nuqs";
 import { api } from "../api.ts";
 import type { ReportDTO } from "../../../shared/types.ts";
 import { formatGBP, formatMoney } from "../format.ts";
 import { BarList } from "../components/BarList.tsx";
+import { PageHeader, Stat } from "../components/ui";
 
 function nowMonth(): string {
   return new Date().toLocaleDateString("en-CA").slice(0, 7);
@@ -11,7 +13,7 @@ const cell = (v: number | undefined) => (v ? `£${formatMoney(v)}` : "—");
 const PERSON_COLORS = ["#6FE3B0", "#E2C08D", "#7FB2FF", "#C79BFF", "#F2B14C", "#FF7E6B"];
 
 export default function Reports() {
-  const [month, setMonth] = useState(nowMonth());
+  const [month, setMonth] = useQueryState("month", { defaultValue: nowMonth(), history: "replace" });
   const [data, setData] = useState<ReportDTO | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -27,16 +29,16 @@ export default function Reports() {
 
   return (
     <div>
-      <div className="row-between">
-        <h1>Reports</h1>
-        <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: "auto" }} />
-      </div>
+      <PageHeader
+        title="Reports"
+        actions={<input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: "auto" }} />}
+      />
 
       <div className="grid">
-        <div className="card stat"><span className="label">Income</span><span className="value pos">{formatGBP(data.summary.income)}</span></div>
-        <div className="card stat"><span className="label">Expenses</span><span className="value neg">{formatGBP(data.summary.expenses)}</span></div>
-        <div className="card stat"><span className="label">Net</span><span className="value">{formatGBP(data.summary.net)}</span><span className="delta muted">{data.summary.savingsRate}% saved</span></div>
-        <div className="card stat"><span className="label">Categories</span><span className="value">{data.rows.length}</span><span className="delta muted">with spend</span></div>
+        <Stat label="Income" value={formatGBP(data.summary.income)} valueTone="pos" />
+        <Stat label="Expenses" value={formatGBP(data.summary.expenses)} valueTone="neg" />
+        <Stat label="Net" value={formatGBP(data.summary.net)} delta={`${data.summary.savingsRate}% saved`} />
+        <Stat label="Categories" value={data.rows.length} delta="with spend" />
       </div>
 
       <div className="grid">
