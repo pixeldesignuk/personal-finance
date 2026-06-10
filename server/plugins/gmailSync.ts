@@ -82,28 +82,42 @@ function tokensRelated(a: string | null, b: string | null): boolean {
   return a.includes(b) || b.includes(a);
 }
 
-interface TxnLite { id: string; abs: number; date: string | null; token: string | null }
+interface TxnLite { id: string; abs: number; date: string | null; token: string | null; friendly: string | null }
 
-// Best transaction for an order: amount close, date within window, merchant
-// token related. Returns null if nothing reasonable matches.
-function matchTransaction(order: { total: number; date: string | null; token: string | null }, txns: TxnLite[], taken: Set<string>): TxnLite | null {
+// Best transaction for an order. The merchant MUST match (raw statement token or
+// the friendly name) — amount+date alone is not enough, or unrelated purchases of
+// the same value would mis-match. Among merchant matches, pick closest amount/date.
+export function matchTransaction(order: { total: number; date: string | null; token: string | null }, txns: TxnLite[], taken: Set<string>): TxnLite | null {
   const emailMs = order.date ? new Date(order.date).getTime() : null;
   let best: { t: TxnLite; score: number } | null = null;
   for (const t of txns) {
     if (taken.has(t.id)) continue;
+    if (!tokensRelated(order.token, t.token) && !tokensRelated(order.token, t.friendly)) continue; // merchant must match
     const amtDiff = Math.abs(t.abs - order.total);
-    if (amtDiff > 1.0) continue; // amount must essentially equal the order total
+    if (amtDiff > 0.75) continue; // amount must essentially equal the order total
     let dayDiff = 0;
     if (emailMs && t.date) {
       dayDiff = Math.abs(new Date(`${t.date}T00:00:00`).getTime() - emailMs) / 86_400_000;
       if (dayDiff > 14) continue; // charged within a fortnight of the email
     }
-    const related = tokensRelated(order.token, t.token);
-    // Lower is better. Strongly favour a merchant-token match.
-    const score = amtDiff * 4 + dayDiff * 0.3 + (related ? 0 : 6);
+    const score = amtDiff * 4 + dayDiff * 0.3;
     if (!best || score < best.score) best = { t, score };
   }
   return best?.t ?? null;
+}
+
+// Build the transaction lookup used for matching: raw token + friendly-name token.
+export async function loadTxnLites(): Promise<TxnLite[]> {
+  const txnRows = await db.transaction.findMany({
+    where: { amount: { lt: 0 } },
+    select: { id: true, amount: true, bookingDate: true, merchantName: true, creditorName: true, debtorName: true, remittanceInfo: true },
+  });
+  const named = await db.merchant.findMany({ where: { NOT: { name: null } }, select: { token: true, name: true } });
+  const friendlyByToken = new Map(named.map((m) => [m.token, merchantToken(m.name)]));
+  return txnRows.map((t) => {
+    const token = tokenOf(t);
+    return { id: t.id, abs: Math.abs(Number(t.amount)), date: t.bookingDate, token, friendly: token ? friendlyByToken.get(token) ?? null : null };
+  });
 }
 
 export interface GmailSyncResult { scanned: number; parsed: number; matched: number }
@@ -131,12 +145,8 @@ export async function syncGmail(audit: AuditFn): Promise<GmailSyncResult> {
     catch (err) { audit({ kind: "log", text: `  ✗ ${id}: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
   }
 
-  // Matching context: known merchants + recent spending transactions.
-  const txnRows = await db.transaction.findMany({
-    where: { amount: { lt: 0 } },
-    select: { id: true, amount: true, bookingDate: true, merchantName: true, creditorName: true, debtorName: true, remittanceInfo: true },
-  });
-  const txns: TxnLite[] = txnRows.map((t) => ({ id: t.id, abs: Math.abs(Number(t.amount)), date: t.bookingDate, token: tokenOf(t) }));
+  // Matching context: recent spending transactions (raw + friendly tokens).
+  const txns = await loadTxnLites();
   const taken = new Set((await db.emailOrder.findMany({ where: { transactionId: { not: null } }, select: { transactionId: true } })).map((e) => e.transactionId!).filter(Boolean));
 
   // Dedupe repeat emails for one purchase (order confirmation + dispatch/receipt).
@@ -199,9 +209,27 @@ export async function syncGmail(audit: AuditFn): Promise<GmailSyncResult> {
     }
   }
 
+  // Re-match previously-parsed orders that never linked (the transaction may have
+  // landed later, or matching has since tightened/improved).
+  const open = await db.emailOrder.findMany({ where: { total: { not: null }, transactionId: null } });
+  let rematched = 0;
+  if (open.length) {
+    audit({ kind: "log", text: "● Re-matching open orders", tone: "bold" });
+    for (const o of open) {
+      const txn = matchTransaction({ total: Number(o.total!.toString()), date: o.emailDate?.toISOString() ?? null, token: o.merchantToken }, txns, taken);
+      if (!txn) continue;
+      taken.add(txn.id);
+      await db.emailOrder.update({ where: { id: o.id }, data: { transactionId: txn.id, matched: true } });
+      rematched++;
+      audit({ kind: "assign", id: o.id, name: `${o.merchantName ?? "?"} · ${o.currency ?? ""}${o.total}`, to: `txn ${txn.date ?? ""}`, via: "llm" });
+    }
+    audit({ kind: "log", text: `  ${rematched} re-matched`, tone: rematched ? "green" : "dim" });
+  }
+
+  const totalMatched = matched + rematched;
   await db.plugin.update({ where: { id: "gmail" }, data: { lastSyncAt: new Date() } });
   audit({ kind: "log", text: "● Summary", tone: "bold" });
-  audit({ kind: "log", text: `  ${parsed} orders parsed · ${matched} matched · ${parsed - matched} unmatched${dupes ? ` · ${dupes} duplicates skipped` : ""}`, tone: matched ? "green" : "dim" });
+  audit({ kind: "log", text: `  ${parsed} new orders · ${totalMatched} matched${rematched ? ` (${rematched} re-matched)` : ""}${dupes ? ` · ${dupes} duplicates skipped` : ""}`, tone: totalMatched ? "green" : "dim" });
   audit({ kind: "log", text: "Sync complete.", tone: "green" });
-  return { scanned: ids.length, parsed, matched };
+  return { scanned: ids.length, parsed, matched: totalMatched };
 }

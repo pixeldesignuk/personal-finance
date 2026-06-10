@@ -4,7 +4,7 @@ Running todo of planned features. Newest ideas at the bottom; check off when shi
 
 ## Open
 
-_(nothing queued — add new ideas here)_
+- [ ] **Unified sync-log table** — one table tracking every sync (plugin/Gmail, account/bank, investments): timestamps, scope, counts, status, and the audit inputs/responses (e.g. Gemini prompts + raw replies). Use it to optimise future syncs (incremental cursors, skip-unchanged, rate-limit awareness) and to review past runs. Replaces the per-feature `SyncLog`/`lastSyncAt` bits with a shared audit log.
 
 ## Done
 
