@@ -116,6 +116,8 @@ export const api = {
   deletePot: (id: number) => send<{ deleted: boolean }>("DELETE", `/api/pots/${id}`),
   recurring: () => get<RecurringScheduleDTO[]>("/api/recurring"),
   detectRecurring: () => send<{ detected: number }>("POST", "/api/recurring/detect"),
+  createRecurring: (input: { name: string; direction: "out" | "in"; amount: number; dayOfMonth: number; cadence?: string }) =>
+    send<RecurringScheduleDTO>("POST", "/api/recurring", input),
   patchRecurring: (token: string, patch: { status?: "auto" | "confirmed" | "ignored"; amount?: number; dayOfMonth?: number; cadence?: string; direction?: "out" | "in"; accountId?: string | null }) =>
     send<RecurringScheduleDTO>("PATCH", `/api/recurring/${encodeURIComponent(token)}`, patch),
   upcoming: (days = 30) => get<UpcomingDTO>(`/api/upcoming?days=${days}`),

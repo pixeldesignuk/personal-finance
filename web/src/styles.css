@@ -925,8 +925,12 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
    styles needed for these patterns.
    ========================================================================== */
 
-/* PageHeader: muted standfirst under the <h1>, pulled snug to the title. */
-.page-subtitle { margin: -4px 0 18px; color: var(--ink-3); font-size: 14px; max-width: 70ch; }
+/* PageHeader: the title row + actions, with a consistent gap to the content
+   below (snug when a subtitle follows; the subtitle then provides the gap). */
+.page-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+.page-head > h1 { margin: 0; }
+.page-head:has(+ .page-subtitle) { margin-bottom: 6px; }
+.page-subtitle { margin: 0 0 18px; color: var(--ink-3); font-size: 14px; max-width: 70ch; }
 /* Card/section headers carried in a row-between never want the h-heading's
    default bottom margin. */
 .row-between > h1, .row-between > h3 { margin: 0; }

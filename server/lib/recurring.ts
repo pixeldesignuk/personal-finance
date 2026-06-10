@@ -40,6 +40,35 @@ export function sameMonth(date: Date, ref: Date): boolean {
   return date.getFullYear() === ref.getFullYear() && date.getMonth() === ref.getMonth();
 }
 
+// Income (wages) is fuzzier than bills: the exact pay day drifts and the amount
+// varies. So we project income from the *typical* pay day with a "have I been
+// paid this month?" check rather than a rigid schedule:
+//   - If no matching income has landed this month, this month's pay is still
+//     expected — and if its typical day has already slipped past, we surface it
+//     as due now (covers a late/variable payday) rather than dropping it.
+//   - If it HAS landed (lastSeen is in this month), skip to next month.
+export function incomeOccurrences(dayOfMonth: number, lastSeen: Date | null, today: Date, days: number): Date[] {
+  const start = startOfDay(today);
+  const end = new Date(start); end.setDate(end.getDate() + days);
+  const received = lastSeen != null && sameMonth(lastSeen, today);
+  const out: Date[] = [];
+  if (!received) {
+    let d = onDay(start.getFullYear(), start.getMonth(), dayOfMonth);
+    if (d < start) d = start; // expected day passed but not yet received → due now
+    if (d <= end) out.push(d);
+  }
+  let m = start.getMonth() + 1;
+  for (let i = 0; i < 4; i++, m++) {
+    const d = onDay(start.getFullYear() + Math.floor(m / 12), ((m % 12) + 12) % 12, dayOfMonth);
+    if (d > end) break;
+    if (d >= start) out.push(d);
+  }
+  const seen = new Set<string>();
+  return out
+    .filter((d) => { const k = d.toISOString().slice(0, 10); if (seen.has(k)) return false; seen.add(k); return true; })
+    .sort((a, b) => a.getTime() - b.getTime());
+}
+
 // The most common day-of-month across a set of transaction dates (the typical
 // charge day), or null if none.
 export function typicalDayOfMonth(isoDates: (string | null)[]): number | null {

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { inferNextDue, occurrencesWithin, sameMonth, typicalDayOfMonth } from "./recurring.ts";
+import { inferNextDue, occurrencesWithin, sameMonth, typicalDayOfMonth, incomeOccurrences } from "./recurring.ts";
 
 test("inferNextDue: this month when the day hasn't passed", () => {
   const due = inferNextDue(15, new Date(2026, 5, 10)); // 10 Jun
@@ -59,4 +59,23 @@ test("typicalDayOfMonth: picks the modal day", () => {
   assert.equal(typicalDayOfMonth(["2026-04-15", "2026-05-15", "2026-06-16"]), 15);
   assert.equal(typicalDayOfMonth([null, "2026-06-03"]), 3);
   assert.equal(typicalDayOfMonth([]), null);
+});
+
+test("incomeOccurrences: not paid yet this month → expected this month", () => {
+  const occ = incomeOccurrences(28, null, new Date(2026, 5, 10), 30); // payday 28th, today 10 Jun
+  assert.equal(occ[0].getMonth(), 5);
+  assert.equal(occ[0].getDate(), 28);
+});
+
+test("incomeOccurrences: already paid this month → skip to next month", () => {
+  const occ = incomeOccurrences(1, new Date(2026, 5, 1), new Date(2026, 5, 10), 40); // paid 1 Jun, today 10 Jun
+  assert.equal(occ.length, 1);
+  assert.equal(occ[0].getMonth(), 6); // 1 Jul
+  assert.equal(occ[0].getDate(), 1);
+});
+
+test("incomeOccurrences: payday passed but not received → surfaced as due now", () => {
+  const occ = incomeOccurrences(5, null, new Date(2026, 5, 10), 30); // payday 5th passed, not paid
+  assert.equal(occ[0].getMonth(), 5);
+  assert.equal(occ[0].getDate(), 10); // clamped to today (overdue income)
 });

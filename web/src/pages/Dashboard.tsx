@@ -234,8 +234,8 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* ── Upcoming bills + income ─────────────────────────────────────── */}
-      {upcoming && <Upcoming data={upcoming} />}
+      {/* ── Upcoming bills + income (rest of this month) ────────────────── */}
+      {upcoming && <Upcoming data={upcoming} monthOnly />}
 
       {/* ── Where the money went (this month) + budget by group ─────────── */}
       <div className="grid">

@@ -41,11 +41,14 @@ export async function detectSchedules(today: Date = new Date()): Promise<{ detec
     const monthsActive = g.months.size;
     const perMonth = g.amounts.length / Math.max(1, monthsActive);
     const cv = coefficientOfVariation(g.amounts.map(Math.abs));
+    const med = median(g.amounts);
     const isFixed = override === "fixed" || (override === "auto" && classifyMerchant(monthsActive, perMonth, cv) === "fixed");
-    if (!isFixed) continue;
+    // Income (wages) gets a wider net: a roughly-monthly inflow counts even if the
+    // amount drifts more than a "fixed" bill would (overtime, tax, variable pay).
+    const isIncome = med > 0 && monthsActive >= 3 && perMonth <= 1.6 && cv < 0.45;
+    if (!isFixed && !isIncome) continue;
 
     qualifying.add(token);
-    const med = median(g.amounts);
     const day = typicalDayOfMonth(g.dates) ?? 1;
     const topAccount = [...g.accounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
     const existing = await db.recurringSchedule.findUnique({ where: { merchantToken: token } });

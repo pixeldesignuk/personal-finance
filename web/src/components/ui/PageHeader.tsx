@@ -11,7 +11,7 @@ export function PageHeader({ title, subtitle, actions }: {
 }) {
   return (
     <>
-      <div className="row-between">
+      <div className="page-head">
         <h1>{title}</h1>
         {actions != null && <div className="toolbar">{actions}</div>}
       </div>

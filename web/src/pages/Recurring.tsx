@@ -9,7 +9,7 @@ import { useToast } from "../components/Toasts.tsx";
 import { Upcoming } from "../components/Upcoming.tsx";
 import { PageHeader, Stat, EmptyState, Tabs, Modal, Field, FieldRow, type TabItem } from "../components/ui";
 
-const TABS: TabItem[] = [{ key: "all", label: "All" }, { key: "bills", label: "Bills" }, { key: "income", label: "Income" }, { key: "ignored", label: "Ignored" }];
+const TABS: TabItem[] = [{ key: "all", label: "All" }, { key: "bills", label: "Bills" }, { key: "income", label: "Income" }, { key: "ignored", label: "Stopped" }];
 const dueLabel = (iso: string | null) => (iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—");
 
 export default function Recurring() {
@@ -30,6 +30,22 @@ export default function Recurring() {
     onSuccess: (r) => { invalidate(); notify(`Detected ${r.detected} recurring payment${r.detected === 1 ? "" : "s"}`, { tone: "success" }); },
     onError: (e: Error) => notify(e.message, { tone: "error" }),
   });
+  const create = useMutation({
+    mutationFn: (input: Parameters<typeof api.createRecurring>[0]) => api.createRecurring(input),
+    onSuccess: () => { invalidate(); notify("Added", { tone: "success" }); },
+    onError: (e: Error) => notify(e.message, { tone: "error" }),
+  });
+
+  // Add-manual dialog (e.g. a salary detection missed).
+  const [addOpen, setAddOpen] = useState(false);
+  const [add, setAdd] = useState({ name: "", direction: "in" as "out" | "in", amount: "", dayOfMonth: "28" });
+  const openAdd = () => { setAdd({ name: "", direction: "in", amount: "", dayOfMonth: "28" }); setAddOpen(true); };
+  const submitAdd = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!add.name.trim() || !(Number(add.amount) > 0)) return;
+    create.mutate({ name: add.name.trim(), direction: add.direction, amount: Number(add.amount), dayOfMonth: Math.min(31, Math.max(1, Number(add.dayOfMonth) || 1)) });
+    setAddOpen(false);
+  };
 
   const rows = schedules ?? [];
   const bills = useMemo(() => rows.filter((s) => s.direction === "out" && s.status !== "ignored"), [rows]);
@@ -60,7 +76,10 @@ export default function Recurring() {
       <PageHeader
         title="Recurring"
         subtitle="Bills and income detected from your spending. Confirm the ones that are real so your safe-to-spend and Upcoming are accurate."
-        actions={<button onClick={() => detect.mutate()} disabled={detect.isPending}>{detect.isPending ? "Detecting…" : "Re-detect"}</button>}
+        actions={<>
+          <button onClick={openAdd}>+ Add</button>
+          <button className="btn-primary" onClick={() => detect.mutate()} disabled={detect.isPending}>{detect.isPending ? "Detecting…" : "Re-detect"}</button>
+        </>}
       />
 
       <div className="grid">
@@ -89,19 +108,39 @@ export default function Recurring() {
                   </span>
                 </span>
                 <span className="recur-actions">
-                  {s.status === "auto" && <span className="badge warn" title="Auto-detected">unconfirmed</span>}
+                  {s.status === "auto" && <span className="badge warn" title="Auto-detected — confirm if real">unconfirmed</span>}
                   {s.status === "confirmed" && <span className="badge pos">confirmed</span>}
-                  {s.status !== "ignored" && s.status === "auto" && <button className="btn-sm btn-primary" onClick={() => patch.mutate({ token: s.token, p: { status: "confirmed" } })}>Confirm</button>}
+                  {s.status === "ignored" && <span className="badge" title="Hidden from Upcoming &amp; safe-to-spend">stopped</span>}
+                  {s.status === "auto" && <button className="btn-sm btn-primary" onClick={() => patch.mutate({ token: s.token, p: { status: "confirmed" } })}>Confirm</button>}
                   <button className="btn-sm" onClick={() => openEdit(s)}>Edit</button>
                   {s.status === "ignored"
-                    ? <button className="btn-sm" onClick={() => patch.mutate({ token: s.token, p: { status: "auto" } })}>Restore</button>
-                    : <button className="btn-danger btn-sm" onClick={() => patch.mutate({ token: s.token, p: { status: "ignored" } })}>Ignore</button>}
+                    ? <button className="btn-sm" onClick={() => patch.mutate({ token: s.token, p: { status: "auto" } })}>Track again</button>
+                    : <button className="btn-danger btn-sm" title="Cancelled or not recurring — hide from Upcoming &amp; safe-to-spend" onClick={() => patch.mutate({ token: s.token, p: { status: "ignored" } })}>Stop tracking</button>}
                 </span>
               </div>
             );
           })}
         </div>
       )}
+
+      <Modal open={addOpen} onClose={() => setAddOpen(false)} size="sm">
+        <form className="modal-body" onSubmit={submitAdd}>
+          <h3>Add recurring</h3>
+          <Field label="Name"><input value={add.name} autoFocus placeholder="e.g. Salary, Rent" onChange={(e) => setAdd({ ...add, name: e.target.value })} /></Field>
+          <FieldRow>
+            <Field label="Type">
+              <select value={add.direction} onChange={(e) => setAdd({ ...add, direction: e.target.value as "out" | "in" })}>
+                <option value="in">Income (in)</option><option value="out">Bill (out)</option>
+              </select>
+            </Field>
+            <Field label="Amount (£)"><input inputMode="decimal" value={add.amount} placeholder="0.00" onChange={(e) => setAdd({ ...add, amount: e.target.value })} /></Field>
+          </FieldRow>
+          <Field label="Day of month" hint="Roughly when it lands — income tolerates a variable payday.">
+            <input inputMode="numeric" value={add.dayOfMonth} onChange={(e) => setAdd({ ...add, dayOfMonth: e.target.value })} />
+          </Field>
+          <div className="modal-actions"><button type="button" onClick={() => setAddOpen(false)}>Cancel</button><button className="btn-primary" type="submit">Add</button></div>
+        </form>
+      </Modal>
 
       <Modal open={edit != null} onClose={() => setEdit(null)} size="sm">
         {edit && (

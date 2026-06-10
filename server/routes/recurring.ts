@@ -2,7 +2,9 @@ import { Router } from "express";
 import { z } from "zod";
 import { db } from "../lib/db.ts";
 import { detectSchedules } from "../lib/scheduleDetect.ts";
-import { inferNextDue, occurrencesWithin } from "../lib/recurring.ts";
+import { inferNextDue, occurrencesWithin, incomeOccurrences } from "../lib/recurring.ts";
+
+const slug = (s: string) => s.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "item";
 import type { RecurringScheduleDTO, UpcomingDTO, UpcomingItemDTO } from "../../shared/types.ts";
 
 export const recurringRouter = Router();
@@ -40,6 +42,25 @@ recurringRouter.post("/recurring/detect", async (_req, res, next) => {
   catch (err) { next(err); }
 });
 
+// Manually add a recurring bill or income (e.g. a salary detection missed).
+// Stored as a confirmed schedule under a "manual:" token so re-detection won't
+// touch it.
+recurringRouter.post("/recurring", async (req, res, next) => {
+  try {
+    const b = z.object({
+      name: z.string().min(1),
+      direction: z.enum(["out", "in"]),
+      amount: z.number().nonnegative(),
+      dayOfMonth: z.number().int().min(1).max(31),
+      cadence: z.enum(["monthly", "weekly", "yearly", "irregular"]).default("monthly"),
+    }).parse(req.body ?? {});
+    const token = `manual:${slug(b.name)}`;
+    const fields = { name: b.name.trim(), direction: b.direction, amount: b.amount, dayOfMonth: b.dayOfMonth, cadence: b.cadence, nextDue: inferNextDue(b.dayOfMonth, new Date()), status: "confirmed", accountId: null };
+    const row = await db.recurringSchedule.upsert({ where: { merchantToken: token }, create: { merchantToken: token, ...fields }, update: fields });
+    res.json(toDTO(row));
+  } catch (err) { next(err); }
+});
+
 // Confirm / ignore / edit a schedule.
 recurringRouter.patch("/recurring/:token", async (req, res, next) => {
   try {
@@ -71,10 +92,15 @@ recurringRouter.get("/upcoming", async (req, res, next) => {
     const next30 = new Date(today); next30.setDate(next30.getDate() + 30);
     const next30Iso = next30.toISOString().slice(0, 10);
 
-    const schedules = await db.recurringSchedule.findMany({ where: { status: { not: "ignored" }, nextDue: { not: null } } });
+    const schedules = await db.recurringSchedule.findMany({ where: { status: { not: "ignored" } } });
     const items: UpcomingItemDTO[] = [];
     for (const s of schedules) {
-      for (const d of occurrencesWithin(s.nextDue!, s.cadence, today, days)) {
+      // Income is projected from its typical pay day + a "paid yet this month?"
+      // check (variable payday); bills follow their fixed schedule.
+      const dates = s.direction === "in"
+        ? incomeOccurrences(s.dayOfMonth ?? 28, s.lastSeen, today, days)
+        : (s.nextDue ? occurrencesWithin(s.nextDue, s.cadence, today, days) : []);
+      for (const d of dates) {
         items.push({
           token: s.merchantToken,
           name: s.name ?? s.merchantToken,
