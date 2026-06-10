@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "../lib/db.ts";
 import { detectSchedules } from "../lib/scheduleDetect.ts";
 import { inferNextDue, occurrencesWithin, incomeOccurrences } from "../lib/recurring.ts";
+import { effectiveCategory } from "../lib/effectiveCategory.ts";
 
 const slug = (s: string) => s.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "item";
 import type { RecurringScheduleDTO, UpcomingDTO, UpcomingItemDTO } from "../../shared/types.ts";
@@ -97,7 +98,8 @@ recurringRouter.get("/upcoming", async (req, res, next) => {
     // amount (not the SUM of income — refunds/transfers default to income too and
     // would otherwise falsely mark the wage as paid).
     const ym = today.toISOString().slice(0, 7);
-    const maxIncomeThisMonth = (await db.transaction.findMany({ where: { category: "income", amount: { gt: 0 }, bookingDate: { startsWith: ym } }, select: { amount: true } }))
+    const maxIncomeThisMonth = (await db.transaction.findMany({ where: { amount: { gt: 0 }, bookingDate: { startsWith: ym } }, select: { amount: true, category: true, categoryOverride: true } }))
+      .filter((t) => effectiveCategory(t) === "income")
       .reduce((mx, t) => Math.max(mx, num(t.amount)), 0);
 
     const items: UpcomingItemDTO[] = [];

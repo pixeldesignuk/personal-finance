@@ -16,7 +16,7 @@ interface Group { name: string | null; amounts: number[]; dates: string[]; month
 // status is preserved across re-detection; stale auto schedules are pruned.
 export async function detectSchedules(today: Date = new Date()): Promise<{ detected: number }> {
   const txns = await db.transaction.findMany({
-    select: { amount: true, bookingDate: true, merchantName: true, creditorName: true, debtorName: true, remittanceInfo: true, accountId: true, category: true },
+    select: { amount: true, bookingDate: true, merchantName: true, creditorName: true, debtorName: true, remittanceInfo: true, accountId: true, category: true, categoryOverride: true },
   });
   const overrides = new Map((await db.merchant.findMany()).map((m) => [m.token, m] as const));
   const named = new Map((await db.merchant.findMany({ where: { NOT: { name: null } } })).map((m) => [m.token, m.name] as const));
