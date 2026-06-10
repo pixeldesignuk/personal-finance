@@ -6,9 +6,28 @@ import { effectiveCategory } from "../lib/effectiveCategory.ts";
 import { monthOf } from "../lib/budget.ts";
 import { classifyMerchant, coefficientOfVariation, median, type RecurType } from "../lib/merchants.ts";
 import { toEmailOrderDTO } from "../plugins/emailOrderDTO.ts";
+import { recordSyncRun } from "../lib/syncRun.ts";
+import { cleanseData } from "../lib/cleanse.ts";
+import type { AuditFn } from "../categorise/audit.ts";
 import type { MerchantsDTO, MerchantDTO } from "../../shared/types.ts";
 
 export const merchantsRouter = Router();
+
+// Streamed AI data cleanse: merchant names, logo domains, categorisation.
+merchantsRouter.post("/cleanse/stream", async (_req, res) => {
+  res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders?.();
+  const stream: AuditFn = (e) => res.write(`${JSON.stringify(e)}\n`);
+  try {
+    await recordSyncRun("cleanse", stream, (audit) => cleanseData(audit));
+  } catch {
+    // already streamed (fatal) + recorded
+  } finally {
+    res.end();
+  }
+});
 
 const tokenOf = (t: { merchantName: string | null; creditorName: string | null; debtorName: string | null; remittanceInfo: string | null }) =>
   merchantToken(t.merchantName ?? t.creditorName ?? t.debtorName ?? t.remittanceInfo ?? null);

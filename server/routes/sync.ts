@@ -9,6 +9,7 @@ import { ensureReceiptTransactions } from "../lib/receiptTxn.ts";
 import { recordSyncRun } from "../lib/syncRun.ts";
 import { detectSchedules } from "../lib/scheduleDetect.ts";
 import { autoNameMerchants } from "../lib/merchantNaming.ts";
+import { autoMerchantDomains } from "../lib/merchantDomains.ts";
 import { currentBalance, type BalanceLike } from "../lib/balance.ts";
 import { displayName } from "../../shared/displayName.ts";
 import type { AuditFn } from "../categorise/audit.ts";
@@ -207,7 +208,7 @@ syncRouter.post("/sync/stream", async (_req, res) => {
       catch (err) { audit({ kind: "log", text: `receipt reconcile: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
       try { await ensureReceiptTransactions(); }
       catch (err) { audit({ kind: "log", text: `receipt backfill: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
-      try { await autoNameMerchants(audit); }
+      try { await autoNameMerchants(audit); await autoMerchantDomains(audit); }
       catch (err) { audit({ kind: "log", text: `merchant naming: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
       audit({ kind: "log", text: `Sync complete — ${totalNew} new transaction${totalNew === 1 ? "" : "s"}${ordersLinked ? `, ${ordersLinked} order${ordersLinked === 1 ? "" : "s"} linked` : ""}.`, tone: "green" });
       return { accounts: accounts.length, newTransactions: totalNew, investments: inv.length, ordersLinked };

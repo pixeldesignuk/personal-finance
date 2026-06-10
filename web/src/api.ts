@@ -95,6 +95,7 @@ export const api = {
   reconcileStream: (onEvent: (e: AuditEvent) => void, accountId?: string) =>
     streamNdjson("/api/reconcile/stream", { accountId }, onEvent),
   syncStream: (onEvent: (e: AuditEvent) => void) => streamNdjson("/api/sync/stream", {}, onEvent),
+  cleanseStream: (onEvent: (e: AuditEvent) => void) => streamNdjson("/api/cleanse/stream", {}, onEvent),
   createCategory: (input: { name: string; group?: string | null; monthlyAmount?: number }) =>
     send<{ id: number }>("POST", "/api/categories", input),
   patchCategory: (id: number, patch: { name?: string; group?: string | null; monthlyAmount?: number; sortOrder?: number; archived?: boolean }) =>

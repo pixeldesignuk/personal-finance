@@ -1,13 +1,14 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQueryState } from "nuqs";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Receipt } from "lucide-react";
 import { api } from "../api.ts";
-import type { MerchantDTO } from "../../../shared/types.ts";
+import type { MerchantDTO, AuditEvent } from "../../../shared/types.ts";
 import { formatGBP, formatMoney, ccySymbol } from "../format.ts";
 import { Combobox } from "../components/Combobox.tsx";
 import { BrandLogo } from "../components/BrandLogo.tsx";
+import { AuditSheet } from "../components/AuditSheet.tsx";
 import { merchantLogo } from "../brand.ts";
 import { PageHeader, Stat, Modal, Field, Tabs, type TabItem } from "../components/ui";
 
@@ -57,12 +58,25 @@ export default function Merchants() {
 
   const shown = useMemo(() => (data?.merchants ?? []).filter((m) => tab === "all" || m.effective === tab), [data, tab]);
 
+  // AI data cleanse: clean names, logo domains, categorisation (streamed).
+  const [cleanseOpen, setCleanseOpen] = useState(false);
+  const cleanseRun = useCallback((onEvent: (e: AuditEvent) => void) => api.cleanseStream(onEvent), []);
+  const onCleanseDone = () => {
+    qc.invalidateQueries({ queryKey: ["merchants"] });
+    qc.invalidateQueries({ queryKey: ["transactions"] });
+    qc.invalidateQueries({ queryKey: ["categoryNames"] });
+  };
+
   return (
     <div>
       <PageHeader
         title="Merchants"
-        actions={detectedCount > 0 ? <button onClick={() => confirmDetected.mutate()} disabled={confirmDetected.isPending} title="Save auto-detected categories as rules">Confirm {detectedCount} detected {detectedCount === 1 ? "category" : "categories"}</button> : undefined}
+        actions={<>
+          {detectedCount > 0 && <button onClick={() => confirmDetected.mutate()} disabled={confirmDetected.isPending} title="Save auto-detected categories as rules">Confirm {detectedCount} detected {detectedCount === 1 ? "category" : "categories"}</button>}
+          <button className="btn-primary" disabled={cleanseOpen} onClick={() => setCleanseOpen(true)} title="Clean names, logos & categories with AI">AI cleanse</button>
+        </>}
       />
+      <AuditSheet open={cleanseOpen} title="AI cleanse" run={cleanseRun} onClose={() => setCleanseOpen(false)} onDone={onCleanseDone} />
       {data && (
         <div className="grid">
           <Stat label="Monthly outgoings" value={formatGBP(data.monthlyOutgoings)} delta="committed / recurring" />
