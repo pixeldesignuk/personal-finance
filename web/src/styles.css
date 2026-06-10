@@ -963,6 +963,74 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 .cell-actions { display: flex; gap: 4px; justify-content: flex-end; }
 /* Inline form error inside a modal. */
 .form-error { margin: 0; color: var(--coral); font-size: 13px; }
+
+/* ---- dashboard: safe-to-spend hero -------------------------------------- */
+.hero {
+  display: flex; gap: clamp(18px, 4vw, 40px); align-items: stretch; flex-wrap: wrap;
+  padding: 22px clamp(18px, 3vw, 26px);
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--jade) 12%, transparent), transparent 55%),
+    linear-gradient(180deg, var(--surface), var(--bg-2));
+}
+.hero.hero-over { background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--coral) 13%, transparent), transparent 55%),
+    linear-gradient(180deg, var(--surface), var(--bg-2)); }
+.hero-main { display: flex; flex-direction: column; gap: 6px; flex: 1 1 280px; min-width: 0; justify-content: center; }
+.hero-eyebrow { display: flex; align-items: center; gap: 10px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--ink-3); font-weight: 600; }
+.hero-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px 2px 7px; border-radius: 99px; text-transform: none; letter-spacing: 0; font-weight: 640; font-size: 11px; }
+.hero-chip.ok { color: var(--jade); background: color-mix(in srgb, var(--jade) 14%, transparent); border: 1px solid color-mix(in srgb, var(--jade) 32%, transparent); }
+.hero-chip.over { color: var(--coral); background: color-mix(in srgb, var(--coral) 14%, transparent); border: 1px solid color-mix(in srgb, var(--coral) 32%, transparent); }
+.hero-figure { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: clamp(38px, 7vw, 54px); letter-spacing: -0.04em; line-height: 1; color: var(--ink); margin: 2px 0; }
+.hero-figure.neg { color: var(--coral); }
+.hero-breakdown { font-size: 13.5px; color: var(--ink-2); }
+.hero-breakdown .neg { color: var(--coral); }
+.hero-income { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 12.5px; color: var(--jade); }
+.hero-income strong { color: var(--ink); font-weight: 640; }
+.hero-side { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 8px; border-left: 1px solid var(--line); padding-left: clamp(18px, 4vw, 40px); }
+.hero-bar-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 13px; }
+.hero-pace { font-size: 12px; }
+@media (max-width: 680px) {
+  .hero-side { border-left: none; border-top: 1px solid var(--line); padding-left: 0; padding-top: 16px; }
+}
+
+/* ---- dashboard: goal cards (debt / savings) ----------------------------- */
+.goal-card { display: flex; flex-direction: column; gap: 10px; margin-bottom: 0; text-decoration: none; color: inherit; transition: transform 0.18s ease, border-color 0.2s ease; }
+.goal-card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--jade) 28%, var(--line-strong)); }
+.goal-head { display: flex; align-items: center; gap: 10px; }
+.goal-head h3 { margin: 0; flex: 1; }
+.goal-head .num { font-size: 16px; }
+.goal-ico { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 30px; height: 30px; border-radius: 9px; }
+.goal-ico.debt { color: var(--coral); background: color-mix(in srgb, var(--coral) 12%, var(--surface-2)); border: 1px solid color-mix(in srgb, var(--coral) 24%, var(--line-strong)); }
+.goal-ico.save { color: var(--jade); background: color-mix(in srgb, var(--jade) 12%, var(--surface-2)); border: 1px solid color-mix(in srgb, var(--jade) 24%, var(--line-strong)); }
+.goal-sub { font-size: 12.5px; }
+
+/* ---- dashboard: upcoming list ------------------------------------------- */
+.upcoming-totals { display: flex; gap: 18px; font-size: 13px; margin-bottom: 8px; }
+.upcoming-list { display: flex; flex-direction: column; }
+.upcoming-row { display: flex; align-items: center; gap: 11px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+.upcoming-row:last-child { border-bottom: none; }
+.upcoming-ico { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 24px; height: 24px; border-radius: 50%; }
+.upcoming-ico.out { color: var(--coral); background: color-mix(in srgb, var(--coral) 12%, transparent); }
+.upcoming-ico.in { color: var(--jade); background: color-mix(in srgb, var(--jade) 12%, transparent); }
+.upcoming-date { font-size: 12px; color: var(--ink-3); flex: none; width: 52px; }
+.upcoming-name { flex: 1; min-width: 0; color: var(--ink); display: flex; align-items: center; gap: 6px; }
+.upcoming-auto { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 50%; font-size: 10px; font-weight: 700; color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent); flex: none; }
+.upcoming-amt { flex: none; font-size: 13px; }
+.upcoming-more { display: inline-block; margin-top: 10px; font-size: 12px; text-decoration: none; }
+
+/* ---- dashboard: compact budget-by-group bars ---------------------------- */
+.budget-mini { display: flex; flex-direction: column; gap: 12px; }
+.budget-mini-row { display: flex; flex-direction: column; gap: 6px; }
+.budget-mini-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 13.5px; }
+.budget-mini-head .num { font-size: 12.5px; }
+
+/* ---- recurring schedules management ------------------------------------- */
+.recur-row { gap: 12px; }
+.recur-main { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.recur-name { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.recur-name .td-clip { color: var(--ink); }
+.recur-meta { font-size: 12px; }
+.recur-actions { display: flex; align-items: center; gap: 7px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
 /* Standalone page search box. */
 .search-input { max-width: 340px; margin-bottom: 16px; }
 /* A centred message card (e.g. the OAuth callback screen). */

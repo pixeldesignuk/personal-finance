@@ -20,9 +20,10 @@ Full analysis (parity matrix vs YNAB / Monarch / Copilot / Actual / Lunch Money 
 
 - [ ] **Month-specific budget allocations** — add `BudgetAllocation(categoryId, month, amount)`, migrate `Category.monthlyAmount` into the current month; read the selected month in `/api/budget`, `/api/budget/category/:key`, `Budgets.tsx`, `Pots.tsx`. Foundation for rollover.
 - [ ] **Category rollover balances** — `available = prior balance + allocated − spent`, persist/derive month opening balances, show rollover/overspend explicitly in `Budgets.tsx`. (Quick win: derive from history before manual money-moves.)
-- [ ] **Recurring schedules from merchant detection** — `RecurringSchedule` (merchant token, accountId, expected amount, cadence, next due, confidence, ignored) seeded from fixed merchants; confirm/edit/ignore in `Merchants.tsx`.
-- [ ] **Wire scheduled sync + visible health** — cron/Trigger.dev → `POST /api/sync/all`; show "last full / next sync" on Plugins or Dashboard. *(dupes the open item above — same work.)*
-- [ ] **Upcoming panel** — `/api/upcoming` from confirmed schedules (+ paydays); next-30-days expected bills/income on Dashboard.
+- [x] **Recurring schedules from merchant detection** — `RecurringSchedule` model + `detectSchedules()` (bills + income, refund-aware) + `/recurring` page (confirm/ignore/edit/re-detect). Re-detected on every full sync.
+- [x] **Wire scheduled sync** — in-process scheduler (`SYNC_INTERVAL_MINUTES`); also renews Gmail watch.
+- [x] **Upcoming panel** — `/api/upcoming` (next-30-days bills + income, this-month totals) + reusable `Upcoming` component on Dashboard and `/recurring`.
+- [x] **Dashboard redesign (safe-to-spend)** — month-scoped; safe-to-spend hero (`in bank − bills due − pots`), projected income + payday + projected month-end balance, stat row, debt/savings goal cards, month-scoped category bar list (donut + top-merchants removed), budget-by-group, cash-flow trend, balances.
 
 ### P1
 

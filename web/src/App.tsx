@@ -13,6 +13,7 @@ import Assets from "./pages/Assets.tsx";
 import Plugins from "./pages/Plugins.tsx";
 import Orders from "./pages/Orders.tsx";
 import Merchants from "./pages/Merchants.tsx";
+import Recurring from "./pages/Recurring.tsx";
 import People from "./pages/People.tsx";
 import { NavMenu } from "./components/NavMenu.tsx";
 import { SettingsDrawer } from "./components/SettingsDrawer.tsx";
@@ -28,6 +29,7 @@ export default function App() {
           <NavMenu label="Budget" to="/budgets" items={[
             { to: "/transactions", label: "Transactions" },
             { to: "/reports", label: "Reports" },
+            { to: "/recurring", label: "Recurring" },
             { to: "/merchants", label: "Merchants" },
             { to: "/orders", label: "Orders" },
             { to: "/accounts", label: "Accounts" },
@@ -56,6 +58,7 @@ export default function App() {
           <Route path="/plugins" element={<Plugins />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="/merchants" element={<Merchants />} />
+          <Route path="/recurring" element={<Recurring />} />
           {/* Rules are managed per-merchant on the Merchants page */}
           <Route path="/people" element={<People />} />
           <Route path="/accounts" element={<Accounts />} />

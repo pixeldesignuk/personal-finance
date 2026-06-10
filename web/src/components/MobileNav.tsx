@@ -6,8 +6,9 @@ const GROUPS: { title: string; items: { to: string; label: string; end?: boolean
   { title: "", items: [{ to: "/", label: "Dashboard", end: true }] },
   { title: "Budget", items: [
     { to: "/budgets", label: "Budget" }, { to: "/transactions", label: "Transactions" },
-    { to: "/reports", label: "Reports" }, { to: "/merchants", label: "Merchants" },
-    { to: "/orders", label: "Orders" }, { to: "/accounts", label: "Accounts" },
+    { to: "/reports", label: "Reports" }, { to: "/recurring", label: "Recurring" },
+    { to: "/merchants", label: "Merchants" }, { to: "/orders", label: "Orders" },
+    { to: "/accounts", label: "Accounts" },
   ] },
   { title: "Wealth", items: [
     { to: "/investments", label: "Investments" }, { to: "/savings", label: "Savings" },
