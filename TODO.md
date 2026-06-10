@@ -1,5 +1,7 @@
 # Ledger — backlog
 
+> **Goal / north-star:** Ledger is a **budgeting app to save money and clear debts**, and to reassure me I'm **not spending more than I have**. Every screen should help answer: *What's my balance? What's my budget? What's going out? Am I on track this month?* Judge features against this — historical curiosities that don't drive saving, debt payoff, or spend-safety are low value.
+
 Running todo of planned features. Newest ideas at the bottom; check off when shipped.
 
 ## Open

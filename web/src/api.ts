@@ -5,6 +5,7 @@ import type {
   SummaryDTO, ManualAccountInput, ManualTxnInput,
   CategoryDTO, BudgetResponseDTO, CategoryInfoDTO, ReportDTO,
   PersonDTO, RuleDTO, CategoryNameDTO, ReconcileResult, AuditEvent, InvestmentsDTO, SettingsDTO, DebtsDTO, MerchantsDTO, AccountRecurringDTO, PotsDTO, PluginsDTO, EmailOrderDTO,
+  RecurringScheduleDTO, UpcomingDTO,
 } from "../../shared/types.ts";
 
 async function get<T>(url: string): Promise<T> {
@@ -113,6 +114,11 @@ export const api = {
   patchPot: (id: number, patch: { name?: string; target?: number | null; balance?: number; emoji?: string | null; note?: string | null; archived?: boolean }) => send<{ id: number }>("PATCH", `/api/pots/${id}`, patch),
   movePot: (id: number, amount: number) => send<{ id: number; balance: number }>("POST", `/api/pots/${id}/move`, { amount }),
   deletePot: (id: number) => send<{ deleted: boolean }>("DELETE", `/api/pots/${id}`),
+  recurring: () => get<RecurringScheduleDTO[]>("/api/recurring"),
+  detectRecurring: () => send<{ detected: number }>("POST", "/api/recurring/detect"),
+  patchRecurring: (token: string, patch: { status?: "auto" | "confirmed" | "ignored"; amount?: number; dayOfMonth?: number; cadence?: string; direction?: "out" | "in"; accountId?: string | null }) =>
+    send<RecurringScheduleDTO>("PATCH", `/api/recurring/${encodeURIComponent(token)}`, patch),
+  upcoming: (days = 30) => get<UpcomingDTO>(`/api/upcoming?days=${days}`),
   plugins: () => get<PluginsDTO>("/api/plugins"),
   gmailOrders: (q = "", filter = "all") => get<EmailOrderDTO[]>(`/api/plugins/gmail/orders?q=${encodeURIComponent(q)}&filter=${encodeURIComponent(filter)}`),
   gmailSyncStream: (onEvent: (e: AuditEvent) => void) => streamNdjson("/api/plugins/gmail/sync/stream", {}, onEvent),

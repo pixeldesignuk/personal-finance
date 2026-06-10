@@ -12,8 +12,8 @@ export const dashboardRouter = Router();
 
 dashboardRouter.get("/dashboard", async (req, res, next) => {
   try {
-    const { accountId, person } = z
-      .object({ accountId: z.string().optional(), person: z.string().optional() })
+    const { accountId, person, month } = z
+      .object({ accountId: z.string().optional(), person: z.string().optional(), month: z.string().regex(/^\d{4}-\d{2}$/).optional() })
       .parse(req.query);
     const scope = accountScope(accountId);
     const txns = await db.transaction.findMany({ where: { ...scope, ...(person && person !== "all" ? { personKey: person === "none" ? null : person } : {}) } });
@@ -25,6 +25,9 @@ dashboardRouter.get("/dashboard", async (req, res, next) => {
         bookingDate: t.bookingDate,
       }))
       .filter((t) => t.category !== "transfer");
+    // Category breakdown is scoped to the selected month (the dashboard is a
+    // "this month" view); the monthly trend always spans the full history.
+    const monthAgg = month ? agg.filter((t) => t.bookingDate?.slice(0, 7) === month) : agg;
     const balances = await db.balance.findMany({ where: scope });
     const dto: DashboardDTO = {
       balances: balances.map((b) => ({
@@ -33,9 +36,9 @@ dashboardRouter.get("/dashboard", async (req, res, next) => {
         amount: b.amount.toString(),
         currency: b.currency,
       })),
-      byCategory: spendingByCategory(agg),
+      byCategory: spendingByCategory(monthAgg),
       monthly: monthlyTotals(agg),
-      topMerchants: topMerchants(agg, 10),
+      topMerchants: topMerchants(monthAgg, 10),
     };
     res.json(dto);
   } catch (err) {

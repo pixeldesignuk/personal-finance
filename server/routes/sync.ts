@@ -6,6 +6,7 @@ import { reconcile } from "../categorise/reconcile.ts";
 import { syncAllInvestments } from "../investments/sync.ts";
 import { syncGmail, rematchOpenOrders, ensureGmailWatch } from "../plugins/gmailSync.ts";
 import { recordSyncRun } from "../lib/syncRun.ts";
+import { detectSchedules } from "../lib/scheduleDetect.ts";
 import { currentBalance, type BalanceLike } from "../lib/balance.ts";
 import { displayName } from "../../shared/displayName.ts";
 import type { AuditFn } from "../categorise/audit.ts";
@@ -246,6 +247,9 @@ export async function runFullSync(stream: AuditFn = () => {}, source = "all"): P
     let ordersLinked = 0;
     try { ordersLinked = (await rematchOpenOrders(audit)).matched; }
     catch (err) { audit({ kind: "log", text: `order match: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
+    // Refresh recurring schedules from the latest spend patterns.
+    try { const { detected } = await detectSchedules(); audit({ kind: "log", text: `${detected} recurring schedule${detected === 1 ? "" : "s"} detected`, tone: "dim" }); }
+    catch (err) { audit({ kind: "log", text: `schedules: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
     // Re-arm the realtime Gmail watch before it lapses (~7-day lifetime).
     try { const w = await ensureGmailWatch(); if (w.armed) audit({ kind: "log", text: "Gmail watch renewed.", tone: "dim" }); }
     catch (err) { audit({ kind: "log", text: `gmail watch: ${err instanceof Error ? err.message : err}`, tone: "red" }); }

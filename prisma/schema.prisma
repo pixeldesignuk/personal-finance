@@ -83,6 +83,23 @@ model SyncRun {
   log        Json?
 }
 
+// A recurring payment (bill) or income, detected from a merchant's spend pattern.
+// One per merchant token; `status` keeps the user's confirm/ignore across re-detection.
+model RecurringSchedule {
+  id            String    @id @default(cuid())
+  merchantToken String    @unique
+  name          String?
+  accountId     String?
+  direction     String    @default("out")     // out (bill) | in (income)
+  amount        Decimal   @default(0)
+  cadence       String    @default("monthly")  // monthly | weekly | yearly | irregular
+  dayOfMonth    Int?
+  lastSeen      DateTime?
+  nextDue       DateTime?
+  status        String    @default("auto")     // auto | confirmed | ignored
+  createdAt     DateTime  @default(now())
+}
+
 model Requisition {
   id              String    @id
   institutionId   String

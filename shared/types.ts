@@ -197,6 +197,39 @@ export interface AccountRecurringDTO {
   items: { name: string; monthly: number }[];  // the recurring merchants, biggest first
 }
 
+// A detected recurring payment (bill) or income.
+export interface RecurringScheduleDTO {
+  token: string;            // merchant token (stable id)
+  name: string;
+  accountId: string | null;
+  direction: "out" | "in";  // out = bill, in = income
+  amount: number;
+  cadence: string;          // monthly | weekly | yearly | irregular
+  dayOfMonth: number | null;
+  lastSeen: string | null;  // ISO date of the last matching transaction
+  nextDue: string | null;   // ISO date of the next expected occurrence
+  status: "auto" | "confirmed" | "ignored";
+}
+
+// A single expected occurrence within the upcoming window.
+export interface UpcomingItemDTO {
+  token: string;
+  name: string;
+  amount: number;
+  direction: "out" | "in";
+  date: string;             // ISO date of this occurrence
+  status: "auto" | "confirmed" | "ignored";
+}
+
+export interface UpcomingDTO {
+  items: UpcomingItemDTO[]; // sorted by date, within the window
+  windowDays: number;
+  billsDueThisMonth: number;   // remaining "out" from today to month-end
+  incomeDueThisMonth: number;  // remaining "in" from today to month-end
+  billsNext30: number;
+  incomeNext30: number;
+}
+
 export interface DebtPaymentDTO {
   id: string;
   date: string | null;
