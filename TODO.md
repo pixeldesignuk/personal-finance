@@ -30,6 +30,8 @@ Full analysis (parity matrix vs YNAB / Monarch / Copilot / Actual / Lunch Money 
 - [ ] **Variable spend in Upcoming (learned estimates)** — beyond fixed bills, project *variable* recurring spend (groceries, fuel, eating out) as **estimates** learned from the trailing monthly average per merchant/category. Model each as `estimated remaining this month = max(0, avgMonthly − spentSoFarThisMonth)`, dated ~month-end. Add an `estimated` flag on schedules + upcoming items; show with a "~" / distinct style; **include by default with a toggle to exclude estimated projections** from Upcoming + safe-to-spend. (Extends RecurringSchedule + `/api/upcoming`.)
 - [x] **Receipts (Telegram + Gemini vision)** — snap a receipt to the Telegram bot → Gemini vision extracts it → stored as `EmailOrder` (`source:"telegram"`) → `rematchOpenOrders`. Orders space renamed **Receipts** (camera icon for snapped ones).
 - [x] **Document storage (Railway bucket)** — original receipt photos/PDFs uploaded to S3-compatible object storage (`lib/storage.ts`); `EmailOrder.attachmentKey`; `GET /api/orders/:id/file` → signed URL; "View receipt ↗" in the detail. *(Next: also store statements/invoices; a general Documents space.)*
+- [x] **Receipt → transaction (cash)** — a scanned receipt with no matching bank charge creates a provisional cash transaction so the spend shows now; `reconcileReceiptProvisionals` moves it onto the real bank charge (and deletes the provisional) when it syncs, so card purchases don't double-count.
+- [x] **Telegram as a plugin** — Plugins page Telegram card (webhook status, receipts captured, Register-webhook action); `POST /api/plugins/telegram/register`. Code reads `TELEGRAM_BOT_KEY` as an alias for `TELEGRAM_BOT_TOKEN`.
 
 ### P1
 
