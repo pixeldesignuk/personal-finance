@@ -28,7 +28,8 @@ Full analysis (parity matrix vs YNAB / Monarch / Copilot / Actual / Lunch Money 
 ### Next up (requested 2026-06-10)
 
 - [ ] **Variable spend in Upcoming (learned estimates)** — beyond fixed bills, project *variable* recurring spend (groceries, fuel, eating out) as **estimates** learned from the trailing monthly average per merchant/category. Model each as `estimated remaining this month = max(0, avgMonthly − spentSoFarThisMonth)`, dated ~month-end. Add an `estimated` flag on schedules + upcoming items; show with a "~" / distinct style; **include by default with a toggle to exclude estimated projections** from Upcoming + safe-to-spend. (Extends RecurringSchedule + `/api/upcoming`.)
-- [ ] **Receipts (Telegram + Gemini vision)** — expand "Orders" → "Receipts": snap a receipt to the Telegram bot → download the photo (Telegram getFile) → Gemini *vision* extracts merchant/total/items/date (same schema as the Gmail order extractor) → store as an `EmailOrder` with `source:"telegram"` → run the same `rematchOpenOrders` matching. Reuses the Orders UI + matching engine; new work = Telegram media handling + Gemini image input. Rename the Orders space to Receipts.
+- [x] **Receipts (Telegram + Gemini vision)** — snap a receipt to the Telegram bot → Gemini vision extracts it → stored as `EmailOrder` (`source:"telegram"`) → `rematchOpenOrders`. Orders space renamed **Receipts** (camera icon for snapped ones).
+- [x] **Document storage (Railway bucket)** — original receipt photos/PDFs uploaded to S3-compatible object storage (`lib/storage.ts`); `EmailOrder.attachmentKey`; `GET /api/orders/:id/file` → signed URL; "View receipt ↗" in the detail. *(Next: also store statements/invoices; a general Documents space.)*
 
 ### P1
 
