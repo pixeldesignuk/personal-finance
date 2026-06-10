@@ -63,6 +63,7 @@ model EmailOrder {
   orderNumber   String?
   items         Json?
   subject       String?
+  summary       String?               // short AI summary, used as the transaction note
   tags          Json?
   isRefund      Boolean  @default(false)
   transactionId String?

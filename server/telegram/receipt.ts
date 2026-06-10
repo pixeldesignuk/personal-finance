@@ -25,7 +25,7 @@ export async function handleReceiptPhoto(fileId: string, fileUniqueId: string): 
   if (!raw) return "Receipt scanning needs GEMINI_API_KEY set.";
   // Defensive: strip ```json fences the model sometimes adds.
   const clean = raw.replace(/^\s*```(?:json)?/i, "").replace(/```\s*$/i, "").trim();
-  let o: { merchant?: string | null; total?: number | null; currency?: string | null; orderNumber?: string | null; date?: string | null; items?: unknown; tags?: unknown };
+  let o: { merchant?: string | null; total?: number | null; currency?: string | null; orderNumber?: string | null; date?: string | null; items?: unknown; tags?: unknown; summary?: string | null };
   try { o = JSON.parse(clean); } catch { return `⚠️ Couldn't parse the scan output: ${clean.slice(0, 180) || "(empty)"}`; }
   if (Array.isArray(o)) o = o[0] ?? {};
   if (!o || o.total == null || !o.merchant) return `⚠️ Not recognised as a receipt — model returned: ${JSON.stringify(o).slice(0, 180)}`;
@@ -41,6 +41,7 @@ export async function handleReceiptPhoto(fileId: string, fileUniqueId: string): 
       })).filter((it) => it.name)
     : [];
   const tags = Array.isArray(o.tags) ? (o.tags as unknown[]).map((t) => String(t).toLowerCase().trim()).filter(Boolean).slice(0, 4) : [];
+  const summary = typeof o.summary === "string" && o.summary.trim() ? o.summary.trim() : null;
   const emailDate = o.date ? new Date(`${o.date}T12:00:00`) : new Date();
 
   // Keep the original document in object storage (best-effort).
@@ -58,7 +59,7 @@ export async function handleReceiptPhoto(fileId: string, fileUniqueId: string): 
       messageId, source: "telegram", emailDate,
       merchantName: o.merchant, merchantToken: merchantToken(o.merchant),
       total: o.total, currency: o.currency ?? "GBP", orderNumber: o.orderNumber ?? null,
-      items: items as unknown as object, tags: tags as unknown as object,
+      items: items as unknown as object, tags: tags as unknown as object, summary,
       subject: `Receipt — ${o.merchant}`, isRefund: false, matched: false, attachmentKey,
     },
   });
@@ -71,7 +72,7 @@ export async function handleReceiptPhoto(fileId: string, fileUniqueId: string): 
   // (it moves to the bank charge later if one syncs — see reconcileReceiptProvisionals).
   let createdTxn = false;
   if (saved && !saved.matched) {
-    await createReceiptTransaction({ id: saved.id, merchantName: o.merchant ?? null, total: o.total, currency: o.currency ?? "GBP", emailDate, items });
+    await createReceiptTransaction({ id: saved.id, merchantName: o.merchant ?? null, total: o.total, currency: o.currency ?? "GBP", emailDate, items, summary });
     createdTxn = true;
   }
 

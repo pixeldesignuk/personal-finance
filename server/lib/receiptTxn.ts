@@ -10,6 +10,7 @@ interface OrderLike {
   currency: string | null;
   emailDate: Date | null;
   items: unknown;
+  summary?: string | null;
 }
 
 // Create a provisional cash transaction for a receipt with no bank charge yet,
@@ -19,8 +20,8 @@ export async function createReceiptTransaction(o: OrderLike): Promise<string> {
   const accountId = await getOrCreateCashAccount();
   const rules = (await db.rule.findMany()).map((r) => ({ matchText: r.matchText, categoryKey: r.categoryKey, personKey: r.personKey, priority: r.priority }) as Rule);
   const ruled = applyRules(o.merchantName ?? "", rules);
-  const names = Array.isArray(o.items) ? (o.items as { name?: string }[]).map((i) => i?.name).filter((n): n is string => Boolean(n)) : [];
-  const note = names.length ? `${names.slice(0, 3).join(", ")}${names.length > 3 ? ` +${names.length - 3} more` : ""}`.slice(0, 140) : null;
+  // Short AI summary as the note (plain text, no item list / emojis).
+  const note = (o.summary?.trim() || o.merchantName || null)?.slice(0, 140) ?? null;
   const txnId = `receipt-${randomUUID()}`;
   await db.transaction.create({
     data: {

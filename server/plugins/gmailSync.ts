@@ -25,6 +25,7 @@ interface ExtractedOrder {
   orderNumber: string | null;
   items: { name: string; qty: number | null; price: number | null }[];
   tags: string[];
+  summary: string | null;
 }
 
 // Ask Gemini to extract structured order data from a batch of emails.
@@ -44,6 +45,7 @@ For each email return an object:
 - "orderNumber": string or null
 - "items": array of {"name": string, "qty": number|null, "price": number|null}
 - "tags": 1-4 short lowercase category tags describing it for search (e.g. ["groceries","household"], ["electronics"], ["takeaway"], ["clothing"])
+- "summary": a short 3-6 word plain-text description of the purchase (e.g. "weekly grocery shop", "phone case", "takeaway dinner") — no emojis
 
 Emails:
 ${block}
@@ -72,6 +74,7 @@ Respond with ONLY a JSON array, one object per email, nothing else.`;
           })).filter((it: { name: string }) => it.name)
         : [],
       tags: Array.isArray(o.tags) ? (o.tags as unknown[]).map((t) => String(t).toLowerCase().trim()).filter(Boolean).slice(0, 4) : [],
+      summary: typeof o.summary === "string" && o.summary.trim() ? o.summary.trim() : null,
     }));
   } catch (err) {
     audit({ kind: "log", text: `  ✗ extraction batch failed: ${err instanceof Error ? err.message : err}`, tone: "red" });
@@ -132,15 +135,10 @@ export async function loadTxnLites(credits = false, bankOnly = false): Promise<T
   });
 }
 
-const namesOf = (items: unknown): string[] =>
-  Array.isArray(items) ? (items as { name?: string }[]).map((i) => i?.name).filter((n): n is string => Boolean(n)) : [];
-
 // A short "what was bought" note, e.g. "🧾 Drill Brush, Sponges +2 more".
-function orderNote(merchant: string | null, itemNames: string[]): string {
-  const head = itemNames.slice(0, 3).join(", ");
-  const more = itemNames.length > 3 ? ` +${itemNames.length - 3} more` : "";
-  const body = head ? `${head}${more}` : merchant ?? "order";
-  return body.slice(0, 140);
+// A short plain-text note: the AI summary, falling back to the merchant name.
+function orderNote(merchant: string | null, summary: string | null): string {
+  return (summary?.trim() || merchant || "order").slice(0, 140);
 }
 const refundNote = (merchant: string | null) => `refund — ${merchant ?? "order"}`.slice(0, 140);
 
@@ -181,7 +179,7 @@ export async function rematchOpenOrders(audit?: AuditFn): Promise<{ matched: num
     if (!txn) continue;
     taken.add(txn.id);
     await db.emailOrder.update({ where: { id: o.id }, data: { transactionId: txn.id, matched: true } });
-    await maybeSetNote(txn.id, o.isRefund ? refundNote(o.merchantName) : orderNote(o.merchantName, namesOf(o.items)));
+    await maybeSetNote(txn.id, o.isRefund ? refundNote(o.merchantName) : orderNote(o.merchantName, o.summary));
     matched++;
     audit?.({ kind: "assign", id: o.id, name: `${o.isRefund ? "↩ " : ""}${o.merchantName ?? "?"} · ${o.currency ?? ""}${o.total}`, to: `txn ${txn.date ?? ""}`, via: "llm" });
   }
@@ -209,7 +207,7 @@ export async function reconcileReceiptProvisionals(audit?: AuditFn): Promise<{ m
     if (!txn) continue;
     taken.add(txn.id);
     await db.emailOrder.update({ where: { id: order.id }, data: { transactionId: txn.id, matched: true } });
-    await maybeSetNote(txn.id, orderNote(order.merchantName, namesOf(order.items)));
+    await maybeSetNote(txn.id, orderNote(order.merchantName, order.summary));
     await db.transaction.delete({ where: { id: p.id } });
     moved++;
   }
@@ -303,7 +301,7 @@ export async function syncGmail(audit: AuditFn): Promise<GmailSyncResult> {
       } else if (record) {
         parsed++;
         txn = matchTransaction({ total: o!.total!, date: email.date, token: oToken }, txns, taken);
-        if (txn) { taken.add(txn.id); matched++; await maybeSetNote(txn.id, orderNote(o!.merchant, o!.items.map((it) => it.name))); }
+        if (txn) { taken.add(txn.id); matched++; await maybeSetNote(txn.id, orderNote(o!.merchant, o!.summary)); }
       }
       if (dup) dupes++;
       await db.emailOrder.create({
@@ -317,6 +315,7 @@ export async function syncGmail(audit: AuditFn): Promise<GmailSyncResult> {
           orderNumber: o?.orderNumber ?? null,
           items: record && !isRefund ? (o!.items as unknown as object) : undefined,
           tags: record ? (o!.tags as unknown as object) : undefined,
+          summary: record ? o!.summary : null,
           isRefund,
           subject: email.subject || null,
           transactionId: txn?.id ?? null,
