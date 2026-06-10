@@ -23,6 +23,7 @@ import { debtsRouter } from "./routes/debts.ts";
 import { merchantsRouter } from "./routes/merchants.ts";
 import { potsRouter } from "./routes/pots.ts";
 import { pluginsRouter } from "./routes/plugins.ts";
+import { startSyncScheduler } from "./lib/scheduler.ts";
 
 const app = express();
 app.use(express.json());
@@ -65,4 +66,5 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 
 app.listen(Number(env.PORT), () => {
   console.log(`Finance app listening on :${env.PORT}`);
+  startSyncScheduler();
 });

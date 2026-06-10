@@ -18,6 +18,9 @@ const schema = z.object({
   // (projects/<id>/topics/<name>); the token is a shared secret in the push URL.
   GMAIL_PUBSUB_TOPIC: z.string().optional(),
   GMAIL_PUSH_TOKEN: z.string().optional(),
+  // Background full-sync cadence (minutes). 0 disables the in-process scheduler.
+  // Also what keeps the Gmail push watch renewed (it lapses after ~7 days).
+  SYNC_INTERVAL_MINUTES: z.string().default("60"),
   TRADING_212_KEY_ID: z.string().optional(),
   TRADING_212_SECRET: z.string().optional(),
   TRADING212_BASE_URL: z.string().optional(),

@@ -225,29 +225,36 @@ syncRouter.get("/sync/runs", async (_req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// Headless "sync everything" for cron / Trigger.dev — records one SyncRun ("all").
+// Sync everything (banks + investments + Gmail), re-match open orders, and renew
+// the Gmail watch. Records one SyncRun. Shared by the HTTP route and the
+// in-process scheduler. `source` tags the run ("all" = manual, "cron" = scheduled).
+export async function runFullSync(stream: AuditFn = () => {}, source = "all"): Promise<{
+  newTransactions: number; investments: number; gmailMatched: number; ordersLinked: number;
+}> {
+  return recordSyncRun(source, stream, async (audit) => {
+    const accounts = await db.account.findMany({ where: { source: "BANK" } });
+    let totalNew = 0;
+    for (const a of accounts) {
+      try { const r = await syncAccount(a.id, audit); totalNew += r.newCount ?? 0; }
+      catch (err) { audit({ kind: "log", text: `bank ${a.id}: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
+    }
+    const inv = await syncAllInvestments(audit);
+    let gmailMatched = 0;
+    try { gmailMatched = (await syncGmail(audit)).matched; }
+    catch (err) { audit({ kind: "log", text: `gmail: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
+    // Belt-and-braces: link any orders the gmail pass didn't (e.g. gmail errored).
+    let ordersLinked = 0;
+    try { ordersLinked = (await rematchOpenOrders(audit)).matched; }
+    catch (err) { audit({ kind: "log", text: `order match: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
+    // Re-arm the realtime Gmail watch before it lapses (~7-day lifetime).
+    try { const w = await ensureGmailWatch(); if (w.armed) audit({ kind: "log", text: "Gmail watch renewed.", tone: "dim" }); }
+    catch (err) { audit({ kind: "log", text: `gmail watch: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
+    return { newTransactions: totalNew, investments: inv.length, gmailMatched, ordersLinked };
+  });
+}
+
+// Headless "sync everything" for cron / external callers.
 syncRouter.post("/sync/all", async (_req, res, next) => {
-  try {
-    const summary = await recordSyncRun("all", () => {}, async (audit) => {
-      const accounts = await db.account.findMany({ where: { source: "BANK" } });
-      let totalNew = 0;
-      for (const a of accounts) {
-        try { const r = await syncAccount(a.id, audit); totalNew += r.newCount ?? 0; }
-        catch (err) { audit({ kind: "log", text: `bank ${a.id}: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
-      }
-      const inv = await syncAllInvestments(audit);
-      let gmailMatched = 0;
-      try { gmailMatched = (await syncGmail(audit)).matched; }
-      catch (err) { audit({ kind: "log", text: `gmail: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
-      // Belt-and-braces: link any orders the gmail pass didn't (e.g. gmail errored).
-      let ordersLinked = 0;
-      try { ordersLinked = (await rematchOpenOrders(audit)).matched; }
-      catch (err) { audit({ kind: "log", text: `order match: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
-      // Re-arm the realtime Gmail watch before it lapses (~7-day lifetime).
-      try { const w = await ensureGmailWatch(); if (w.armed) audit({ kind: "log", text: "Gmail watch renewed.", tone: "dim" }); }
-      catch (err) { audit({ kind: "log", text: `gmail watch: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
-      return { newTransactions: totalNew, investments: inv.length, gmailMatched, ordersLinked };
-    });
-    res.json(summary);
-  } catch (err) { next(err); }
+  try { res.json(await runFullSync()); }
+  catch (err) { next(err); }
 });
