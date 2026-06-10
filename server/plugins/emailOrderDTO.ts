@@ -14,6 +14,7 @@ interface Row {
   subject: string | null;
   transactionId: string | null;
   matched: boolean;
+  attachmentKey?: string | null;
 }
 
 export function toEmailOrderDTO(o: Row): EmailOrderDTO {
@@ -31,6 +32,7 @@ export function toEmailOrderDTO(o: Row): EmailOrderDTO {
     subject: o.subject,
     transactionId: o.transactionId,
     matched: o.matched,
+    hasAttachment: Boolean(o.attachmentKey),
   };
 }
 

@@ -5,6 +5,7 @@ import * as gmail from "../plugins/gmail.ts";
 import { syncGmail, ensureGmailWatch } from "../plugins/gmailSync.ts";
 import { toEmailOrderDTO, orderMatchesQuery } from "../plugins/emailOrderDTO.ts";
 import { recordSyncRun } from "../lib/syncRun.ts";
+import { storageEnabled, presignGet } from "../lib/storage.ts";
 import type { AuditFn } from "../categorise/audit.ts";
 import type { PluginsDTO } from "../../shared/types.ts";
 
@@ -124,6 +125,17 @@ pluginsRouter.get("/plugins/gmail/orders", async (req, res, next) => {
     let orders = rows.map(toEmailOrderDTO);
     if (q) orders = orders.filter((o) => orderMatchesQuery(o, q));
     res.json(orders.slice(0, 400));
+  } catch (err) { next(err); }
+});
+
+// View the original stored document for an order/receipt (redirects to a
+// short-lived signed URL).
+pluginsRouter.get("/orders/:id/file", async (req, res, next) => {
+  try {
+    if (!storageEnabled()) { res.status(404).send("Object storage not configured."); return; }
+    const o = await db.emailOrder.findUnique({ where: { id: req.params.id }, select: { attachmentKey: true } });
+    if (!o?.attachmentKey) { res.status(404).send("No document for this order."); return; }
+    res.redirect(await presignGet(o.attachmentKey));
   } catch (err) { next(err); }
 });
 

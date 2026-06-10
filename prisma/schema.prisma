@@ -67,6 +67,7 @@ model EmailOrder {
   isRefund      Boolean  @default(false)
   transactionId String?
   matched       Boolean  @default(false)
+  attachmentKey String?               // object-storage key for the original document
   createdAt     DateTime @default(now())
 }
 

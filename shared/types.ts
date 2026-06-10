@@ -147,6 +147,7 @@ export interface EmailOrderDTO {
   subject: string | null;
   transactionId: string | null;
   matched: boolean;
+  hasAttachment: boolean;   // an original document is stored (view via /api/orders/:id/file)
 }
 
 export interface SyncRunDTO {

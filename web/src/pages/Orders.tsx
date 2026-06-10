@@ -67,6 +67,7 @@ export default function Orders() {
             isRefund={view.isRefund}
             tags={view.tags}
             items={view.items}
+            attachmentHref={view.hasAttachment ? `/api/orders/${view.id}/file` : null}
             onClose={() => setView(null)}
           />
         )}

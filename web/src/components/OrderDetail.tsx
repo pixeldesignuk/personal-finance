@@ -6,7 +6,7 @@ export interface OrderItem { name: string; qty?: number | null; price?: number |
 // The shared body of an order-detail modal — used both on the Orders page
 // (from a parsed email) and on Transactions (from a matched transaction's
 // order). Render inside a `<Modal>`.
-export function OrderDetail({ merchant, orderNumber, dateISO, total, currency, isRefund, tags, items, onClose }: {
+export function OrderDetail({ merchant, orderNumber, dateISO, total, currency, isRefund, tags, items, attachmentHref, onClose }: {
   merchant: string;
   orderNumber?: string | null;
   dateISO?: string | null;
@@ -15,6 +15,7 @@ export function OrderDetail({ merchant, orderNumber, dateISO, total, currency, i
   isRefund?: boolean;
   tags?: string[];
   items: OrderItem[];
+  attachmentHref?: string | null;
   onClose: () => void;
 }) {
   const sym = ccySymbol(currency);
@@ -40,7 +41,10 @@ export function OrderDetail({ merchant, orderNumber, dateISO, total, currency, i
           ))}
         </ul>
       ) : <p className="empty">No line items captured.</p>}
-      <div className="modal-actions"><button type="button" onClick={onClose}>Close</button></div>
+      <div className="modal-actions">
+        {attachmentHref && <a className="amount-link" href={attachmentHref} target="_blank" rel="noreferrer" style={{ marginRight: "auto" }}>View receipt ↗</a>}
+        <button type="button" onClick={onClose}>Close</button>
+      </div>
     </div>
   );
 }

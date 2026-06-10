@@ -2,7 +2,10 @@ import { db } from "../lib/db.ts";
 import { merchantToken } from "../categorise/helpers.ts";
 import { geminiExtractReceiptImage } from "../categorise/gemini.ts";
 import { rematchOpenOrders } from "../plugins/gmailSync.ts";
+import { storageEnabled, putObject } from "../lib/storage.ts";
 import { getFilePath, downloadFile } from "./api.ts";
+
+const extFor = (mime: string) => (mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : mime.includes("pdf") ? "pdf" : "jpg");
 
 interface ExtractedItem { name: string; qty: number | null; price: number | null }
 const sym = (c: string | null) => (c === "USD" ? "$" : c === "EUR" ? "€" : "£");
@@ -34,13 +37,23 @@ export async function handleReceiptPhoto(fileId: string, fileUniqueId: string): 
   const tags = Array.isArray(o.tags) ? (o.tags as unknown[]).map((t) => String(t).toLowerCase().trim()).filter(Boolean).slice(0, 4) : [];
   const emailDate = o.date ? new Date(`${o.date}T12:00:00`) : new Date();
 
+  // Keep the original document in object storage (best-effort).
+  let attachmentKey: string | null = null;
+  if (storageEnabled()) {
+    try {
+      const key = `receipts/${messageId}.${extFor(mimeType)}`;
+      await putObject(key, Buffer.from(base64, "base64"), mimeType);
+      attachmentKey = key;
+    } catch (err) { console.error("receipt upload failed:", err instanceof Error ? err.message : err); }
+  }
+
   await db.emailOrder.create({
     data: {
       messageId, source: "telegram", emailDate,
       merchantName: o.merchant, merchantToken: merchantToken(o.merchant),
       total: o.total, currency: o.currency ?? "GBP", orderNumber: o.orderNumber ?? null,
       items: items as unknown as object, tags: tags as unknown as object,
-      subject: `Receipt — ${o.merchant}`, isRefund: false, matched: false,
+      subject: `Receipt — ${o.merchant}`, isRefund: false, matched: false, attachmentKey,
     },
   });
 
