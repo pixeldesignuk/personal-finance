@@ -94,30 +94,29 @@ recurringRouter.get("/upcoming", async (req, res, next) => {
     const next30Iso = next30.toISOString().slice(0, 10);
 
     const schedules = await db.recurringSchedule.findMany({ where: { status: { not: "ignored" } } });
-    // "Salary landed this month?" = a single income credit ≥60% of the expected
-    // amount (not the SUM of income — refunds/transfers default to income too and
-    // would otherwise falsely mark the wage as paid).
+    // Total income already received this month (all income-categorised credits,
+    // i.e. every income source summed) — so the projection is the *remaining*
+    // expected income, regardless of pay date.
     const ym = today.toISOString().slice(0, 7);
-    const maxIncomeThisMonth = (await db.transaction.findMany({ where: { amount: { gt: 0 }, bookingDate: { startsWith: ym } }, select: { amount: true, category: true, categoryOverride: true } }))
+    const incomeThisMonth = (await db.transaction.findMany({ where: { amount: { gt: 0 }, bookingDate: { startsWith: ym } }, select: { amount: true, category: true, categoryOverride: true } }))
       .filter((t) => effectiveCategory(t) === "income")
-      .reduce((mx, t) => Math.max(mx, num(t.amount)), 0);
+      .reduce((sum, t) => sum + num(t.amount), 0);
 
     const items: UpcomingItemDTO[] = [];
     for (const s of schedules) {
-      // Income is projected from its typical pay day + the "salary landed yet?"
-      // check; bills follow their fixed schedule.
-      const dates = s.direction === "in"
-        ? incomeOccurrences(s.dayOfMonth ?? 28, maxIncomeThisMonth >= num(s.amount) * 0.6, today, days)
-        : (s.nextDue ? occurrencesWithin(s.nextDue, s.cadence, today, days) : []);
-      for (const d of dates) {
-        items.push({
-          token: s.merchantToken,
-          name: s.name ?? s.merchantToken,
-          amount: num(s.amount),
-          direction: s.direction === "in" ? "in" : "out",
-          date: d.toISOString().slice(0, 10),
-          status: (s.status as UpcomingItemDTO["status"]) ?? "auto",
-        });
+      const status = (s.status as UpcomingItemDTO["status"]) ?? "auto";
+      if (s.direction === "in") {
+        // For each expected occurrence: this-month = remaining (typical total −
+        // received so far), future months = the full typical amount.
+        for (const d of incomeOccurrences(s.dayOfMonth ?? 28, false, today, days)) {
+          const date = d.toISOString().slice(0, 10);
+          const amount = date.slice(0, 7) === ym ? Math.max(0, num(s.amount) - incomeThisMonth) : num(s.amount);
+          if (amount >= 1) items.push({ token: s.merchantToken, name: s.name ?? s.merchantToken, amount, direction: "in", date, status });
+        }
+      } else if (s.nextDue) {
+        for (const d of occurrencesWithin(s.nextDue, s.cadence, today, days)) {
+          items.push({ token: s.merchantToken, name: s.name ?? s.merchantToken, amount: num(s.amount), direction: "out", date: d.toISOString().slice(0, 10), status });
+        }
       }
     }
     items.sort((a, b) => a.date.localeCompare(b.date));

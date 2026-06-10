@@ -91,11 +91,12 @@ export async function detectSchedules(today: Date = new Date()): Promise<{ detec
       else { e.sum += amt; if (amt > e.main.amount) e.main = { amount: amt, date: t.bookingDate! }; }
     }
     if (byMonth.size >= 2) {
-      // Salary ≈ the typical *largest* monthly inflow (median across months), not
-      // the sum of every income-tagged credit (which sweeps in refunds/transfers).
+      // Typical TOTAL monthly income = median of each month's summed income
+      // (captures multiple sources, e.g. your wage + a partner's transfer). The
+      // pay day is taken from the largest inflow, for display only.
       const mains = [...byMonth.values()].map((v) => v.main);
       const day = typicalDayOfMonth(mains.map((m) => m.date)) ?? 28;
-      const amount = median(mains.map((m) => m.amount));
+      const amount = median([...byMonth.values()].map((v) => v.sum));
       const lastSeenIso = incomeCredits.map((t) => t.bookingDate!).sort().slice(-1)[0] ?? null;
       const lastSeen = lastSeenIso ? new Date(`${lastSeenIso}T00:00:00`) : null;
       const existing = await db.recurringSchedule.findUnique({ where: { merchantToken: incomeToken } });
