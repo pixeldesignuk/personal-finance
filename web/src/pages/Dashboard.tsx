@@ -198,7 +198,13 @@ export default function Dashboard() {
       {/* ── Headline figures (with month-over-month reference) ──────────── */}
       {summary && (
         <div className="grid">
-          <Stat label="Income" value={formatGBP(income)} valueTone="pos" delta={incomeMom.node} deltaTone={incomeMom.tone} />
+          <Stat
+            label="Income"
+            value={formatGBP(income)}
+            valueTone="pos"
+            delta={isThisMonth && incomeDue > 0 ? `+${formatGBP(incomeDue)} expected${nextPay ? ` ~${dayShort(nextPay.date)}` : ""}` : incomeMom.node}
+            deltaTone={isThisMonth && incomeDue > 0 ? "pos" : incomeMom.tone}
+          />
           <Stat label={`Spent · ${isThisMonth ? "this month" : monthLabel}`} value={formatGBP(spent)} valueTone="neg" delta={spentMom.node} deltaTone={spentMom.tone} />
           <Stat
             label="Upcoming · rest of month"
