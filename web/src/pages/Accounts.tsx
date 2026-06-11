@@ -50,7 +50,15 @@ export default function Accounts() {
 
   const toggleType = (a: AccountDTO) => wrap(() => api.patchAccount(a.id, { type: a.type === "PERSONAL" ? "BUSINESS" : "PERSONAL" }));
   const setBalanceType = (id: string, value: string) => wrap(() => api.patchAccount(id, { balanceType: value || null }));
-  const reconnect = (institutionId: string) => api.connect(institutionId).then(({ link }) => { window.location.href = link; }).catch((e) => setMsg(e.message));
+  const reconnect = async (institutionId: string) => {
+    if (!(await confirm({
+      title: "Reconnect for more history?",
+      body: "You'll re-approve access at your bank. We'll request the longest history your bank allows (up to 2 years) and pull it in — your existing transactions, categories and budgets are kept.",
+      confirmLabel: "Reconnect",
+    }))) return;
+    try { const { link } = await api.connect(institutionId); window.location.href = link; }
+    catch (e) { setMsg((e as Error).message); }
+  };
   const deleteCash = async (a: AccountDTO) => {
     if (await confirm({ title: `Delete ${a.displayName}?`, body: "This removes the cash account and its manual transactions.", danger: true })) wrap(() => api.deleteManualAccount(a.id));
   };
@@ -101,7 +109,7 @@ export default function Accounts() {
                       {a.balances.map((b) => <button type="button" key={b.type} className={a.balanceType === b.type ? "sel" : ""} onClick={() => setBalanceType(a.id, b.type)}>{b.type} · {b.amount}</button>)}
                     </>
                   )}
-                  {a.source === "BANK" && <button type="button" onClick={() => reconnect(bank.institutionId)}>Reconnect</button>}
+                  {a.source === "BANK" && <button type="button" title="Re-approve at your bank and pull the longest history available" onClick={() => reconnect(bank.institutionId)}>Reconnect for more history</button>}
                   {isCash && <button type="button" className="danger" onClick={() => deleteCash(a)}>Delete</button>}
                   {a.source === "BANK" && <button type="button" className="danger" onClick={() => removeBank(bank)}>Remove bank</button>}
                 </CardMenu>

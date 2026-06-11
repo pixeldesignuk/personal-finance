@@ -65,7 +65,12 @@ connectRouter.post("/connect/:id/finalize", async (req, res, next) => {
       res.status(409).json({ status: requisition.status, message: "Bank link not completed yet." });
       return;
     }
+    // Track requisitions these accounts previously belonged to, so a reconnect
+    // (same bank, new consent) can clean up the now-orphaned old requisition.
+    const movedFromReqs = new Set<string>();
     for (const accountId of requisition.accounts) {
+      const existing = await db.account.findUnique({ where: { id: accountId }, select: { requisitionId: true } });
+      if (existing?.requisitionId && existing.requisitionId !== id) movedFromReqs.add(existing.requisitionId);
       const details = await gc.getAccountDetails(accountId);
       await db.account.upsert({
         where: { id: accountId },
@@ -78,13 +83,22 @@ connectRouter.post("/connect/:id/finalize", async (req, res, next) => {
           ownerName: details.account?.ownerName,
         },
         update: {
+          requisitionId: id, // move the account onto the freshest consent
           iban: details.account?.iban,
           name: details.account?.name,
           currency: details.account?.currency,
           ownerName: details.account?.ownerName,
         },
       });
-      await syncAccount(accountId);
+      // Reconnect intent is "give me more history", so always pull the full window.
+      await syncAccount(accountId, undefined, { fullHistory: true });
+    }
+    // Remove old requisitions left with no accounts after a reconnect, so the
+    // bank doesn't appear twice on the accounts screen.
+    for (const oldReq of movedFromReqs) {
+      if ((await db.account.count({ where: { requisitionId: oldReq } })) > 0) continue;
+      try { await gc.deleteRequisition(oldReq); } catch (e) { console.error("Old requisition delete (GoCardless) failed", e); }
+      await db.requisition.delete({ where: { id: oldReq } }).catch(() => {});
     }
     res.json({ accounts: requisition.accounts.length });
   } catch (err) {

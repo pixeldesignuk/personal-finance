@@ -23,7 +23,7 @@ const SYNC_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 // pending→booked transactions aren't missed (banks backdate; pending settle late).
 const SYNC_OVERLAP_DAYS = 7;
 
-export async function syncAccount(accountId: string, audit?: AuditFn): Promise<SyncResult> {
+export async function syncAccount(accountId: string, audit?: AuditFn, opts: { fullHistory?: boolean } = {}): Promise<SyncResult> {
   // Manual/cash accounts aren't backed by GoCardless — nothing to fetch.
   const account = await db.account.findUnique({ where: { id: accountId }, include: { balances: true } });
   if (!account || account.source !== "BANK") {
@@ -44,7 +44,7 @@ export async function syncAccount(accountId: string, audit?: AuditFn): Promise<S
     where: { accountId, status: "ok" },
     orderBy: { ranAt: "desc" },
   });
-  if (last && Date.now() - last.ranAt.getTime() < SYNC_COOLDOWN_MS) {
+  if (last && !opts.fullHistory && Date.now() - last.ranAt.getTime() < SYNC_COOLDOWN_MS) {
     audit?.({ kind: "log", text: "  skipped — synced within the last 6h (rate limit)", tone: "yellow" });
     return { accountId, added: 0, skipped: true, message: "Synced recently; try later (rate limit)." };
   }
@@ -80,11 +80,13 @@ export async function syncAccount(accountId: string, audit?: AuditFn): Promise<S
     currency: freshBalances[0]?.currency ?? account.currency ?? "GBP",
   });
 
-  // Only pull transactions since (last sync − overlap). First sync pulls full history.
-  const dateFrom = last
+  // Only pull transactions since (last sync − overlap). First sync — and an
+  // explicit full-history sync (e.g. after reconnecting for a longer window) —
+  // pull everything the bank exposes.
+  const dateFrom = last && !opts.fullHistory
     ? new Date(last.ranAt.getTime() - SYNC_OVERLAP_DAYS * 86_400_000).toISOString().slice(0, 10)
     : undefined;
-  audit?.({ kind: "log", text: dateFrom ? `  fetching transactions since ${dateFrom}` : "  fetching full history (first sync)", tone: "dim" });
+  audit?.({ kind: "log", text: dateFrom ? `  fetching transactions since ${dateFrom}` : "  fetching full history", tone: "dim" });
   const txns = await gc.getTransactions(accountId, dateFrom);
   const booked = txns.transactions.booked ?? [];
   const pending = txns.transactions.pending ?? [];
