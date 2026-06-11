@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useQueryState } from "nuqs";
+import { Link } from "react-router-dom";
 import { ArrowUpRight, ArrowDownLeft } from "lucide-react";
 import { api } from "../api.ts";
 import type { RecurringScheduleDTO } from "../../../shared/types.ts";
@@ -109,7 +110,9 @@ export default function Recurring() {
                   <span className={`upcoming-ico ${out ? "out" : "in"}`}>{out ? <ArrowUpRight size={14} strokeWidth={2.2} /> : <ArrowDownLeft size={14} strokeWidth={2.2} />}</span>
                   <span className="recur-name">
                     <span className="td-clip">
-                      {s.name}
+                      {s.token.startsWith("income:") || s.token.startsWith("manual:")
+                        ? s.name
+                        : <Link className="amount-link" to={`/transactions?merchant=${encodeURIComponent(s.token)}`} title="View transactions">{s.name}</Link>}
                       {out && s.kind === "variable" && <span className="recur-tag" title="Amount varies month to month">variable</span>}
                       {s.prevAmount != null && (
                         <span className="recur-up" title={`Increased from ${formatGBP(s.prevAmount)}`}>↑ up from {formatGBP(s.prevAmount)}</span>

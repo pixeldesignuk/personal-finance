@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { classifyMerchant, coefficientOfVariation, median, analyzeRecurringAmounts } from "./merchants.ts";
+import { classifyMerchant, coefficientOfVariation, median, analyzeRecurringAmounts, derivePayerName } from "./merchants.ts";
 
 test("median", () => {
   assert.equal(median([]), 0);
@@ -55,4 +55,29 @@ test("analyzeRecurringAmounts: old rise (stable for many months) is not flagged"
 test("analyzeRecurringAmounts: tiny rise below threshold is not flagged", () => {
   const r = analyzeRecurringAmounts([9.99, 10.0, 10.0]);
   assert.equal(r.prevAmount, null);
+});
+
+test("derivePayerName: extracts employer from varying payroll refs", () => {
+  assert.equal(derivePayerName([
+    "PIXEL DESIGN HOUSEMAY WAGE",
+    "PIXEL DESIGN HOUSEMARCH WAGE",
+    "PIXEL DESIGN HOUSEDIRECTORS LOAN",
+    "PIXEL DESIGN HOUSEMARCH WAGE",
+  ]), "Pixel Design");
+});
+
+test("derivePayerName: keeps a complete trailing word when refs break at a boundary", () => {
+  assert.equal(derivePayerName(["ACME LTD PAYROLL 123", "ACME LTD PAYROLL 456"]), "Acme Ltd Payroll");
+});
+
+test("derivePayerName: rejects noisy bank-transfer refs with account numbers", () => {
+  assert.equal(derivePayerName([
+    "From A/C 36475858 KHATUN H Via Mobile Xfer",
+    "From A/C 36475858 KHATUN H Via Mobile Xfer",
+    "KHAN M BILLS AND EXPENSES",
+  ]), null);
+});
+
+test("derivePayerName: null when fewer than two references", () => {
+  assert.equal(derivePayerName(["SOLO WAGE"]), null);
 });

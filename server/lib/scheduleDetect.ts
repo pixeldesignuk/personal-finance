@@ -1,7 +1,7 @@
 import { db } from "./db.ts";
 import { merchantToken } from "../categorise/helpers.ts";
 import { effectiveCategory } from "./effectiveCategory.ts";
-import { analyzeRecurringAmounts, median } from "./merchants.ts";
+import { analyzeRecurringAmounts, derivePayerName, median } from "./merchants.ts";
 import { inferNextDue, typicalDayOfMonth } from "./recurring.ts";
 import { displayName } from "../../shared/displayName.ts";
 import { rawMerchantName } from "../../shared/merchantName.ts";
@@ -106,18 +106,18 @@ export async function detectSchedules(today: Date = new Date()): Promise<{ detec
     const windowed = complete.filter((t) => t.bookingDate! >= cutoff);
     const incomeCredits = windowed.length ? windowed : complete;
 
-    // account -> { month -> deposit amounts, dates, payer-label counts }
-    interface Acc { months: Map<string, number[]>; dates: string[]; labels: Map<string, number> }
+    // account -> { month -> deposit amounts, dates, payer references }
+    interface Acc { months: Map<string, number[]>; dates: string[]; labels: string[] }
     const perAccount = new Map<string, Acc>();
     for (const t of incomeCredits) {
       const m = t.bookingDate!.slice(0, 7);
-      const e = perAccount.get(t.accountId) ?? { months: new Map<string, number[]>(), dates: [], labels: new Map<string, number>() };
+      const e = perAccount.get(t.accountId) ?? { months: new Map<string, number[]>(), dates: [], labels: [] };
       const arr = e.months.get(m) ?? [];
       arr.push(Number(t.amount));
       e.months.set(m, arr);
       e.dates.push(t.bookingDate!);
       const label = rawMerchantName(t);
-      if (label) e.labels.set(label, (e.labels.get(label) ?? 0) + 1);
+      if (label) e.labels.push(label);
       perAccount.set(t.accountId, e);
     }
 
@@ -138,14 +138,12 @@ export async function detectSchedules(today: Date = new Date()): Promise<{ detec
       const day = typicalDayOfMonth(e.dates) ?? 28;
       const lastSeenIso = [...e.dates].sort().slice(-1)[0] ?? null;
       const lastSeen = lastSeenIso ? new Date(`${lastSeenIso}T00:00:00`) : null;
-      // Name the stream after its dominant payer label when one covers most
-      // deposits AND is a clean name (short, no long digit runs — i.e. not a raw
-      // bank-transfer reference like "From A/C 36475858 … Via Mobile Xfer"); else
-      // fall back to the account name.
-      const top = [...e.labels.entries()].sort((a, b) => b[1] - a[1])[0];
+      // Name the stream after the payer/employer shared across its references
+      // (e.g. "PIXEL DESIGN HOUSE…MAY WAGE" -> "Pixel Design"); fall back to the
+      // account name when the references are noise (e.g. bank-transfer refs with
+      // account numbers).
       const acc = accountsById.get(accountId);
-      const cleanLabel = top && top[1] / deposits.length >= 0.5 && top[0].length <= 24 && !/\d{4,}/.test(top[0]) ? top[0] : null;
-      const name = cleanLabel ?? (acc ? displayName(acc) : "Income");
+      const name = derivePayerName(e.labels) ?? (acc ? displayName(acc) : "Income");
       const token = `${incomePrefix}${accountId}`;
       const fields = { name, accountId, direction: "in", amount, cadence: "monthly", dayOfMonth: day, lastSeen, nextDue: inferNextDue(day, today), status: "auto" };
       await db.recurringSchedule.upsert({

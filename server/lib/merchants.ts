@@ -29,6 +29,49 @@ export function classifyMerchant(monthsActive: number, perMonthCount: number, am
   return "variable";
 }
 
+// Derive a human payer/employer name shared across a set of statement
+// references — e.g. ["PIXEL DESIGN HOUSEMAY WAGE", "PIXEL DESIGN HOUSEMARCH
+// WAGE", "PIXEL DESIGN HOUSEDIRECTORS LOAN"] -> "Pixel Design". Used to name an
+// income stream after its source rather than the bank account. Returns null when
+// the references share no meaningful leading name (e.g. noisy transfer refs with
+// account numbers), so the caller can fall back to the account name.
+export function derivePayerName(labels: string[]): string | null {
+  const norm = labels.map((l) => l.replace(/\s+/g, " ").trim()).filter((l) => l.length > 1);
+  if (norm.length < 2) return null;
+  // Largest cluster of references sharing the same (non-numeric) first word.
+  const byFirst = new Map<string, string[]>();
+  for (const l of norm) {
+    const w = l.split(" ")[0].toLowerCase();
+    if (/^\d+$/.test(w)) continue;
+    const arr = byFirst.get(w) ?? [];
+    arr.push(l);
+    byFirst.set(w, arr);
+  }
+  const cluster = [...byFirst.values()].sort((a, b) => b.length - a.length)[0];
+  if (!cluster || cluster.length < 2 || cluster.length < Math.ceil(norm.length / 2)) return null;
+  // Longest common character prefix across the cluster (case-insensitive).
+  let prefix = cluster[0];
+  for (const s of cluster.slice(1)) {
+    let i = 0;
+    while (i < prefix.length && i < s.length && prefix[i].toLowerCase() === s[i].toLowerCase()) i++;
+    prefix = prefix.slice(0, i);
+  }
+  const end = prefix.replace(/\s+$/, "").length;
+  const words = prefix.trim().split(" ").filter(Boolean);
+  if (!words.length) return null;
+  // If the prefix was cut mid-word (the originals continue without a space),
+  // drop that trailing partial word.
+  const lastComplete = cluster.every((s) => s.length === end || s[end] === " ");
+  const finalWords = lastComplete ? words : words.slice(0, -1);
+  const name = finalWords.join(" ");
+  // Reject noise: too short/long, embedded account numbers, or generic
+  // transfer/reference prefixes that aren't a real name.
+  if (name.length < 3 || name.length > 24) return null;
+  if (/\d{4,}/.test(name)) return null;
+  if (/^(from|to|via|ref|fp|bgc|faster|payment|transfer|bank|credit)\b/i.test(name)) return null;
+  return /[a-z]/.test(name) ? name : name.toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase());
+}
+
 export interface RecurAmount {
   amount: number;                  // the expected/current amount (positive)
   kind: "fixed" | "variable";      // is the amount stable or does it vary?
