@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQueryState } from "nuqs";
-import { ShieldCheck, AlertTriangle, PiggyBank, Landmark, ArrowDownLeft } from "lucide-react";
+import { ShieldCheck, AlertTriangle, PiggyBank, Landmark, ArrowDownLeft, Wallet } from "lucide-react";
 import { api } from "../api.ts";
 import type { BankDTO, AuditEvent } from "../../../shared/types.ts";
 import { formatGBP, formatMoney } from "../format.ts";
@@ -88,10 +88,12 @@ export default function Dashboard() {
   }, [catNames]);
 
   // ── The reassurance maths ────────────────────────────────────────────────
-  const inBank = summary?.available ?? 0;
+  const netWorth = summary?.netWorth ?? 0;
+  const liquid = summary?.liquid ?? 0;           // bank + cash toward net worth
+  const available = summary?.available ?? 0;     // spendable (excludes not-budgeted)
   const billsDue = upcoming?.billsDueThisMonth ?? 0;
   const earmarked = pots?.allocated ?? 0;
-  const safeToSpend = inBank - billsDue - earmarked;
+  const safeToSpend = available - billsDue - earmarked;
   const billsDueCount = useMemo(() => {
     if (!upcoming) return 0;
     const monthEnd = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0, 10);
@@ -101,7 +103,7 @@ export default function Dashboard() {
   // Pay-date reassurance: income still expected this month + projected month-end balance.
   const incomeDue = upcoming?.incomeDueThisMonth ?? 0;
   const nextPay = upcoming?.items.find((i) => i.direction === "in") ?? null;
-  const projectedEom = inBank - billsDue + incomeDue;
+  const projectedEom = available - billsDue + incomeDue;
   const dayShort = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 
   const spent = budget?.summary.spent ?? 0;
@@ -160,28 +162,36 @@ export default function Dashboard() {
       />
       <AuditSheet open={syncOpen} title="Sync" run={syncRun} onClose={() => setSyncOpen(false)} onDone={reload} />
 
-      {/* ── Reassurance hero: safe to spend ─────────────────────────────── */}
+      {/* ── Hero: net worth (what you're worth) + safe-to-spend / budget ──── */}
       {summary && (
-        <div className={`card hero ${safe ? "hero-safe" : "hero-over"}`}>
+        <div className="card hero">
           <div className="hero-main">
             <span className="hero-eyebrow">
-              <span className={`hero-chip ${safe ? "ok" : "over"}`}>{safe ? <ShieldCheck size={13} strokeWidth={2.2} /> : <AlertTriangle size={13} strokeWidth={2.2} />}{safe ? "On track" : "Over"}</span>
-              Safe to spend now
+              <span className="hero-chip ok"><Wallet size={13} strokeWidth={2.2} />Net worth</span>
+              Everything you're worth
             </span>
-            <span className={`hero-figure num ${safe ? "" : "neg"}`}>{formatGBP(safeToSpend)}</span>
+            <span className="hero-figure num">{formatGBP(netWorth)}</span>
             <span className="hero-breakdown">
-              {formatGBP(inBank)} in the bank
-              {billsDue > 0 && <> − <span className="neg">{formatGBP(billsDue)}</span> bills still due</>}
-              {earmarked > 0 && <> − {formatGBP(earmarked)} in pots</>}
+              {formatGBP(liquid)} in the bank
+              {summary.included.investments && summary.investments !== 0 && <> · {formatGBP(summary.investments)} invested</>}
+              {summary.included.assets && summary.assets !== 0 && <> · {formatGBP(summary.assets)} in assets</>}
+              {summary.included.debts && summary.debts > 0 && <> − <span className="neg">{formatGBP(summary.debts)}</span> debts</>}
             </span>
-            {incomeDue > 0 && (
-              <span className="hero-income">
-                <ArrowDownLeft size={13} strokeWidth={2.2} />
-                {formatGBP(incomeDue)} expected{nextPay ? ` ~${dayShort(nextPay.date)}` : ""} · <strong>{formatGBP(projectedEom)}</strong> projected by month-end
-              </span>
-            )}
           </div>
           <div className="hero-side">
+            <div className="hero-side-block">
+              <span className="hero-side-label">
+                <span className={`hero-chip ${safe ? "ok" : "over"}`}>{safe ? <ShieldCheck size={12} strokeWidth={2.2} /> : <AlertTriangle size={12} strokeWidth={2.2} />}{safe ? "On track" : "Over"}</span>
+                Safe to spend now
+              </span>
+              <span className={`hero-side-figure num ${safe ? "" : "neg"}`}>{formatGBP(safeToSpend)}</span>
+              <span className="hero-side-sub muted">
+                {formatGBP(available)} to spend
+                {billsDue > 0 && <> − <span className="neg">{formatGBP(billsDue)}</span> bills</>}
+                {earmarked > 0 && <> − {formatGBP(earmarked)} pots</>}
+                {incomeDue > 0 && <> · <ArrowDownLeft size={11} strokeWidth={2.4} style={{ verticalAlign: "-1px" }} />{formatGBP(incomeDue)} expected{nextPay ? ` ~${dayShort(nextPay.date)}` : ""}</>}
+              </span>
+            </div>
             <div className="hero-bar-head">
               <span className="muted">{monthLabel} budget</span>
               <span className="num">{formatGBP(spent)} <span className="muted">/ {formatGBP(budgeted)}</span></span>

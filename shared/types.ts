@@ -319,7 +319,8 @@ export interface SummaryDTO {
   investments: number;  // total across INVESTMENT accounts (ISA/crypto)
   assets: number;       // total across ASSET accounts (house, car)
   debts: number;        // total owed across LIABILITY accounts (positive)
-  available: number;    // immediately available (banks + cash)
+  liquid: number;       // all bank + cash toward net worth (incl. not-budgeted accounts, minus funds-not-yours)
+  available: number;    // immediately available to SPEND (excludes not-budgeted accounts)
   included: { investments: boolean; assets: boolean; debts: boolean }; // what net worth counts
   income: number;
   expenses: number;

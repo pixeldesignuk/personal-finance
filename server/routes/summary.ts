@@ -56,6 +56,7 @@ summaryRouter.get("/summary", async (_req, res, next) => {
       investments: round2(investments),
       assets: round2(assets),
       debts: round2(debts),
+      liquid: round2(liquid), // bank + cash toward net worth (incl. not-budgeted)
       available: round2(availableLiquid), // immediately available to spend (excludes not-budgeted accounts)
       included: {
         investments: s["networth.includeInvestments"],
