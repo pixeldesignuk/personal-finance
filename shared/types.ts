@@ -288,6 +288,7 @@ export interface AccountDTO {
   type: AccountType;
   source: AccountSource;
   currentBalance: number;
+  excludedBalance: number | null; // part of the balance that isn't yours (held for others)
   balanceType: string | null;
   balances: AccountBalanceDTO[];
 }

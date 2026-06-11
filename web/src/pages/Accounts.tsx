@@ -36,14 +36,16 @@ export default function Accounts() {
   };
 
   // Edit-value dialog (rename / set balance).
-  const [edit, setEdit] = useState<{ kind: "rename" | "balance"; id: string; label: string } | null>(null);
+  const [edit, setEdit] = useState<{ kind: "rename" | "balance" | "excluded"; id: string; label: string } | null>(null);
   const [editVal, setEditVal] = useState("");
   const openRename = (a: AccountDTO) => { setEdit({ kind: "rename", id: a.id, label: a.displayName }); setEditVal(a.nickname ?? ""); };
   const openBalance = (a: AccountDTO) => { setEdit({ kind: "balance", id: a.id, label: a.displayName }); setEditVal(String(a.currentBalance)); };
+  const openExcluded = (a: AccountDTO) => { setEdit({ kind: "excluded", id: a.id, label: a.displayName }); setEditVal(String(a.excludedBalance ?? 0)); };
   const submitEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!edit) return;
     if (edit.kind === "rename") wrap(() => api.patchAccount(edit.id, { nickname: editVal.trim() || null }));
+    else if (edit.kind === "excluded") wrap(() => api.patchAccount(edit.id, { excludedBalance: numOk(editVal) ? editVal.trim() : "0" }));
     else wrap(() => api.patchAccount(edit.id, { manualBalance: numOk(editVal) ? editVal.trim() : "0" }));
     setEdit(null);
   };
@@ -112,6 +114,7 @@ export default function Accounts() {
                       {a.balances.map((b) => <button type="button" key={b.type} className={a.balanceType === b.type ? "sel" : ""} onClick={() => setBalanceType(a.id, b.type)}>{b.type} · {b.amount}</button>)}
                     </>
                   )}
+                  {(a.source === "BANK" || isCash) && <button type="button" title="Carve out money in this account that isn't yours — kept out of net worth & safe-to-spend" onClick={() => openExcluded(a)}>Funds not mine{a.excludedBalance ? " ✓" : ""}</button>}
                   {a.source === "BANK" && <button type="button" title="Re-approve at your bank and pull more transaction history" onClick={() => openReconnect(bank.institutionId, bank.institutionName)}>Reconnect</button>}
                   {isCash && <button type="button" className="danger" onClick={() => deleteCash(a)}>Delete</button>}
                   {a.source === "BANK" && <button type="button" className="danger" onClick={() => removeBank(bank)}>Remove bank</button>}
@@ -123,6 +126,11 @@ export default function Accounts() {
               <div className="acct-card-figure">
                 <span className="eyebrow acct-card-label">Balance</span>
                 <span className="acct-card-bal"><span className="ccy">{a.currency ?? "GBP"}</span> {formatMoney(a.currentBalance)}</span>
+                {a.excludedBalance ? (
+                  <span className="acct-excluded" title="Held for others — excluded from net worth & safe-to-spend">
+                    −£{formatMoney(a.excludedBalance)} not yours · £{formatMoney(a.currentBalance - a.excludedBalance)} counts
+                  </span>
+                ) : null}
               </div>
               {recurring[a.id] && (
                 <span className="acct-maintain" title={`Recurring out of this account:\n${recurring[a.id].items.map((i) => `· ${i.name} — £${formatMoney(i.monthly)}`).join("\n")}`}>
@@ -151,9 +159,12 @@ export default function Accounts() {
       <Modal open={edit != null} onClose={() => setEdit(null)} size="sm">
         {edit && (
           <form className="modal-body" onSubmit={submitEdit}>
-            <h3>{edit.kind === "rename" ? "Rename" : "Set balance"} · {edit.label}</h3>
-            <Field label={edit.kind === "rename" ? "Nickname (blank to clear)" : "Balance (£)"}>
-              <input value={editVal} autoFocus inputMode={edit.kind === "balance" ? "decimal" : undefined} onChange={(e) => setEditVal(e.target.value)} />
+            <h3>{edit.kind === "rename" ? "Rename" : edit.kind === "excluded" ? "Funds not mine" : "Set balance"} · {edit.label}</h3>
+            <Field
+              label={edit.kind === "rename" ? "Nickname (blank to clear)" : edit.kind === "excluded" ? "Amount held for others (£)" : "Balance (£)"}
+              hint={edit.kind === "excluded" ? "Carved out of net worth & safe-to-spend. The account still syncs; set to 0 to clear." : undefined}
+            >
+              <input value={editVal} autoFocus inputMode={edit.kind === "rename" ? undefined : "decimal"} onChange={(e) => setEditVal(e.target.value)} />
             </Field>
             <div className="modal-actions"><button type="button" onClick={() => setEdit(null)}>Cancel</button><button className="btn-primary" type="submit">Save</button></div>
           </form>

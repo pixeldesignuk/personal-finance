@@ -3,7 +3,7 @@ import { z } from "zod";
 import { db } from "../lib/db.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
 import { currentMonth, monthOf, round2, personalSpendByCategory, suggestBudgets, completeSpendMonths, type BudgetTx } from "../lib/budget.ts";
-import { currentBalance } from "../lib/balance.ts";
+import { currentBalance, excludedBalance } from "../lib/balance.ts";
 import { buildBudgetRows, type BudgetCategory } from "../lib/budgetView.ts";
 import { billTarget } from "../lib/recurring.ts";
 import type { BudgetResponseDTO, BillTargetDTO, CategoryInfoDTO } from "../../shared/types.ts";
@@ -70,7 +70,7 @@ budgetRouter.get("/budget", async (req, res, next) => {
         a.manualBalance != null ? Number(a.manualBalance.toString()) : null,
         a.balances.map((b) => ({ type: b.type, amount: Number(b.amount.toString()) })),
         a.balanceType,
-      );
+      ) - excludedBalance(a.excludedBalance);
     }
 
     const response: BudgetResponseDTO = {

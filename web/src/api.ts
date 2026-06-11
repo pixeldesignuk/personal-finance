@@ -58,7 +58,7 @@ export const api = {
   createManualAccount: (input: ManualAccountInput) => send<{ id: string }>("POST", "/api/accounts/manual", input),
   linkDebt: (id: string, debtAccountId: string) => send<{ linked: boolean }>("POST", `/api/transactions/${id}/link-debt`, { debtAccountId }),
   unlinkDebt: (id: string) => send<{ unlinked: boolean }>("POST", `/api/transactions/${id}/unlink-debt`),
-  patchAccount: (id: string, patch: { nickname?: string | null; type?: string; name?: string; manualBalance?: string; balanceType?: string | null; interestRate?: string | null; priority?: number | null; targetPayment?: string | null; debtExcluded?: boolean }) =>
+  patchAccount: (id: string, patch: { nickname?: string | null; type?: string; name?: string; manualBalance?: string; excludedBalance?: string | null; balanceType?: string | null; interestRate?: string | null; priority?: number | null; targetPayment?: string | null; debtExcluded?: boolean }) =>
     send<NicknameResult>("PATCH", `/api/accounts/${id}`, patch),
   deleteManualAccount: (id: string) => send<{ deleted: boolean }>("DELETE", `/api/accounts/${id}`),
   removeBank: (requisitionId: string) => send<RemoveBankResult>("DELETE", `/api/banks/${requisitionId}`),

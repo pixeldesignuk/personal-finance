@@ -3,6 +3,12 @@ export interface BalanceLike {
   amount: number;
 }
 
+// The portion of a bank balance that isn't the user's (held for others). Carved
+// out of liquid/net worth wherever a BANK/MANUAL balance is summed.
+export function excludedBalance(v: { toString(): string } | null | undefined): number {
+  return v == null ? 0 : Number(v.toString());
+}
+
 const PREFERRED = ["interimAvailable", "expected", "closingBooked"];
 
 export function currentBalance(

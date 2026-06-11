@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "../lib/db.ts";
-import { currentBalance } from "../lib/balance.ts";
+import { currentBalance, excludedBalance } from "../lib/balance.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
 import { cashFlow, round2, currentMonth, type BudgetTx } from "../lib/budget.ts";
 import { getSettings } from "../lib/settings.ts";
@@ -26,7 +26,7 @@ summaryRouter.get("/summary", async (_req, res, next) => {
       if (a.source === "INVESTMENT") investments += bal;
       else if (a.source === "ASSET") assets += bal;
       else if (a.source === "LIABILITY") debts += -bal; // bal is negative; owed is positive
-      else liquid += bal; // BANK + MANUAL
+      else liquid += bal - excludedBalance(a.excludedBalance); // BANK + MANUAL, minus funds that aren't yours
     }
 
     // Net worth composition is configurable via settings (feature flags).
