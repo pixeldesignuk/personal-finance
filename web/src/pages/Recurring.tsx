@@ -103,7 +103,13 @@ export default function Recurring() {
                 <span className="recur-main">
                   <span className={`upcoming-ico ${out ? "out" : "in"}`}>{out ? <ArrowUpRight size={14} strokeWidth={2.2} /> : <ArrowDownLeft size={14} strokeWidth={2.2} />}</span>
                   <span className="recur-name">
-                    <span className="td-clip">{s.name}</span>
+                    <span className="td-clip">
+                      {s.name}
+                      {out && s.kind === "variable" && <span className="recur-tag" title="Amount varies month to month">variable</span>}
+                      {s.prevAmount != null && (
+                        <span className="recur-up" title={`Increased from ${formatGBP(s.prevAmount)}`}>↑ up from {formatGBP(s.prevAmount)}</span>
+                      )}
+                    </span>
                     <span className="muted recur-meta">{formatGBP(s.amount)} · {s.cadence}{s.dayOfMonth ? ` · day ${s.dayOfMonth}` : ""} · next {dueLabel(s.nextDue)}</span>
                   </span>
                 </span>

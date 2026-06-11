@@ -7,6 +7,7 @@ import { accountScope } from "../lib/accountScope.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
 import { displayName } from "../../shared/displayName.ts";
 import { merchantToken } from "../categorise/helpers.ts";
+import { rawMerchantName } from "../../shared/merchantName.ts";
 
 export const dashboardRouter = Router();
 
@@ -21,7 +22,7 @@ dashboardRouter.get("/dashboard", async (req, res, next) => {
       .map((t) => ({
         amount: Number(t.amount),
         category: effectiveCategory(t),
-        merchant: t.merchantName ?? t.creditorName ?? t.debtorName ?? null,
+        merchant: rawMerchantName(t),
         bookingDate: t.bookingDate,
       }))
       .filter((t) => t.category !== "transfer");
@@ -72,7 +73,7 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
       include: { account: true },
     });
     // Filter to a specific merchant by its token (the merchant's stable id).
-    if (q.merchant) txns = txns.filter((t) => merchantToken(t.merchantName ?? t.creditorName ?? t.debtorName ?? t.remittanceInfo ?? null) === q.merchant).slice(0, 500);
+    if (q.merchant) txns = txns.filter((t) => merchantToken(rawMerchantName(t)) === q.merchant).slice(0, 500);
     // Email orders (Gmail plugin) linked to these transactions → show what was bought.
     const txnIds = txns.map((t) => t.id);
     const orderRows = txnIds.length ? await db.emailOrder.findMany({ where: { transactionId: { in: txnIds } } }) : [];
@@ -102,8 +103,8 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
     // Friendly merchant names (Merchant table) override the raw statement line.
     const merchantNames = new Map((await db.merchant.findMany({ where: { NOT: { name: null } } })).map((m) => [m.token, m.name] as const));
     const friendlyName = (t: { merchantName: string | null; creditorName: string | null; debtorName: string | null; remittanceInfo: string | null }) => {
-      const raw = t.merchantName ?? t.creditorName ?? t.debtorName ?? null;
-      const tok = merchantToken(t.merchantName ?? t.creditorName ?? t.debtorName ?? t.remittanceInfo ?? null);
+      const raw = rawMerchantName(t);
+      const tok = merchantToken(rawMerchantName(t));
       return (tok && merchantNames.get(tok)) || raw;
     };
     const dto: TransactionDTO[] = txns.map((t) => ({

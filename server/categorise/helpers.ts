@@ -54,5 +54,7 @@ export function merchantToken(name: string | null | undefined): string | null {
   const words = cleaned.split(" ").filter((w) => w && !/^\d+$/.test(w));
   if (!words.length) return null;
   const token = words.slice(0, 3).join(" ");
-  return token.length < 3 ? null : token;
+  // Keep tokens of >= 2 chars so short real brands survive (O2, EE, BP); only a
+  // lone single character is too thin to learn from.
+  return token.length < 2 ? null : token;
 }

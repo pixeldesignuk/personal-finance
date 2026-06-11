@@ -38,7 +38,7 @@ export function Upcoming({ data, limit = 7, monthOnly = false }: { data: Upcomin
               <div className="upcoming-row" key={`${it.token}-${it.date}-${i}`}>
                 <span className={`upcoming-ico ${out ? "out" : "in"}`}>{out ? <ArrowUpRight size={14} strokeWidth={2.2} /> : <ArrowDownLeft size={14} strokeWidth={2.2} />}</span>
                 <span className="upcoming-date num">{dayLabel(it.date)}</span>
-                <span className="upcoming-name td-clip">{it.name}{it.status === "auto" && <span className="upcoming-auto" title="Auto-detected — confirm under Manage">?</span>}</span>
+                <span className="upcoming-name td-clip">{it.name}{it.prevAmount != null && <span className="upcoming-up" title={`Increased from ${formatGBP(it.prevAmount)}`}>↑</span>}{it.status === "auto" && <span className="upcoming-auto" title="Auto-detected — confirm under Manage">?</span>}</span>
                 <span className={`num upcoming-amt ${out ? "neg" : "pos"}`}>{out ? "−" : "+"}{formatGBP(it.amount).replace("-", "")}</span>
               </div>
             );

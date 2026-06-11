@@ -2,6 +2,7 @@ import { db } from "../lib/db.ts";
 import { env } from "../env.ts";
 import { merchantToken } from "../categorise/helpers.ts";
 import { geminiGenerateJson, geminiEnabled } from "../categorise/gemini.ts";
+import { rawMerchantName } from "../../shared/merchantName.ts";
 import type { AuditFn } from "../categorise/audit.ts";
 import * as gmail from "./gmail.ts";
 
@@ -83,7 +84,7 @@ Respond with ONLY a JSON array, one object per email, nothing else.`;
 }
 
 const tokenOf = (t: { merchantName: string | null; creditorName: string | null; debtorName: string | null; remittanceInfo: string | null }) =>
-  merchantToken(t.merchantName ?? t.creditorName ?? t.debtorName ?? t.remittanceInfo ?? null);
+  merchantToken(rawMerchantName(t));
 
 // Token similarity: equal, or one contains the other (word-prefix style).
 function tokensRelated(a: string | null, b: string | null): boolean {

@@ -3,6 +3,7 @@ import { applyRules, type Rule } from "../lib/rules.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
 import { classifyBatch, geminiEnabled } from "./gemini.ts";
 import { merchantToken } from "./helpers.ts";
+import { firstNonEmpty } from "../../shared/merchantName.ts";
 import type { AuditFn } from "./audit.ts";
 import type { ReconcileResult } from "../../shared/types.ts";
 
@@ -26,7 +27,7 @@ function txText(t: TxnRow): string {
   return [t.merchantName, t.creditorName, t.debtorName, t.remittanceInfo].filter(Boolean).join(" ");
 }
 function learnName(t: TxnRow): string | null {
-  return t.merchantName ?? t.creditorName ?? t.debtorName ?? null;
+  return firstNonEmpty(t.merchantName, t.creditorName, t.debtorName);
 }
 
 // Auto-categorise uncategorised transactions: deterministic rules first (free),

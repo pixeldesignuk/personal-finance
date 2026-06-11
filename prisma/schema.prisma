@@ -94,6 +94,8 @@ model RecurringSchedule {
   accountId     String?
   direction     String    @default("out")     // out (bill) | in (income)
   amount        Decimal   @default(0)
+  kind          String    @default("fixed")    // fixed | variable (amount stability)
+  prevAmount    Decimal?                         // prior amount, set when it recently changed (flags increases)
   cadence       String    @default("monthly")  // monthly | weekly | yearly | irregular
   dayOfMonth    Int?
   lastSeen      DateTime?

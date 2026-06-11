@@ -1,10 +1,11 @@
 import { db } from "./db.ts";
 import { merchantToken } from "../categorise/helpers.ts";
 import { nameMerchants } from "../categorise/gemini.ts";
+import { rawMerchantName } from "../../shared/merchantName.ts";
 import type { AuditFn } from "../categorise/audit.ts";
 
 const tokenOf = (t: { merchantName: string | null; creditorName: string | null; debtorName: string | null; remittanceInfo: string | null }) =>
-  merchantToken(t.merchantName ?? t.creditorName ?? t.debtorName ?? t.remittanceInfo ?? null);
+  merchantToken(rawMerchantName(t));
 
 // Give every still-unnamed merchant a clean brand name via Gemini, derived from
 // its raw statement line (e.g. "GREGGS PLC OLDHAM" -> "Greggs"). Only processes
@@ -18,8 +19,8 @@ export async function autoNameMerchants(audit?: AuditFn, limit = 120): Promise<{
   for (const t of txns) {
     const tok = tokenOf(t);
     if (!tok || named.has(tok) || byToken.has(tok)) continue;
-    const raw = t.merchantName ?? t.creditorName ?? t.debtorName ?? t.remittanceInfo ?? "";
-    if (raw.trim()) byToken.set(tok, raw);
+    const raw = rawMerchantName(t);
+    if (raw) byToken.set(tok, raw);
   }
   const items = [...byToken.entries()].slice(0, limit).map(([ref, text]) => ({ ref, text }));
   if (!items.length) return { named: 0 };

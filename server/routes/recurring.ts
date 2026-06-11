@@ -15,13 +15,15 @@ const isoDay = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
 
 const toDTO = (s: {
   merchantToken: string; name: string | null; accountId: string | null; direction: string;
-  amount: { toString(): string }; cadence: string; dayOfMonth: number | null; lastSeen: Date | null; nextDue: Date | null; status: string;
+  amount: { toString(): string }; kind: string; prevAmount: { toString(): string } | null; cadence: string; dayOfMonth: number | null; lastSeen: Date | null; nextDue: Date | null; status: string;
 }): RecurringScheduleDTO => ({
   token: s.merchantToken,
   name: s.name ?? s.merchantToken,
   accountId: s.accountId,
   direction: s.direction === "in" ? "in" : "out",
   amount: num(s.amount),
+  kind: s.kind === "variable" ? "variable" : "fixed",
+  prevAmount: s.prevAmount != null ? num(s.prevAmount) : null,
   cadence: s.cadence,
   dayOfMonth: s.dayOfMonth,
   lastSeen: isoDay(s.lastSeen),
@@ -94,28 +96,34 @@ recurringRouter.get("/upcoming", async (req, res, next) => {
     const next30Iso = next30.toISOString().slice(0, 10);
 
     const schedules = await db.recurringSchedule.findMany({ where: { status: { not: "ignored" } } });
-    // Total income already received this month (all income-categorised credits,
-    // i.e. every income source summed) — so the projection is the *remaining*
-    // expected income, regardless of pay date.
+    // Income already received this month, PER ACCOUNT — so each income stream's
+    // projection is its own *remaining* expected amount (typical − received for
+    // that source), regardless of pay date. Streams with no account (a manual
+    // entry) fall back to the household total.
     const ym = today.toISOString().slice(0, 7);
-    const incomeThisMonth = (await db.transaction.findMany({ where: { amount: { gt: 0 }, bookingDate: { startsWith: ym } }, select: { amount: true, category: true, categoryOverride: true } }))
-      .filter((t) => effectiveCategory(t) === "income")
-      .reduce((sum, t) => sum + num(t.amount), 0);
+    const monthCredits = (await db.transaction.findMany({ where: { amount: { gt: 0 }, bookingDate: { startsWith: ym } }, select: { amount: true, category: true, categoryOverride: true, accountId: true } }))
+      .filter((t) => effectiveCategory(t) === "income");
+    const incomeByAccount = new Map<string, number>();
+    for (const t of monthCredits) incomeByAccount.set(t.accountId, (incomeByAccount.get(t.accountId) ?? 0) + num(t.amount));
+    const incomeThisMonthTotal = monthCredits.reduce((sum, t) => sum + num(t.amount), 0);
 
     const items: UpcomingItemDTO[] = [];
     for (const s of schedules) {
       const status = (s.status as UpcomingItemDTO["status"]) ?? "auto";
+      const kind = s.kind === "variable" ? "variable" : "fixed";
+      const prevAmount = s.prevAmount != null ? num(s.prevAmount) : null;
       if (s.direction === "in") {
-        // For each expected occurrence: this-month = remaining (typical total −
-        // received so far), future months = the full typical amount.
+        const received = s.accountId ? incomeByAccount.get(s.accountId) ?? 0 : incomeThisMonthTotal;
+        // For each expected occurrence: this-month = remaining (this stream's
+        // typical − received so far), future months = the full typical amount.
         for (const d of incomeOccurrences(s.dayOfMonth ?? 28, false, today, days)) {
           const date = d.toISOString().slice(0, 10);
-          const amount = date.slice(0, 7) === ym ? Math.max(0, num(s.amount) - incomeThisMonth) : num(s.amount);
-          if (amount >= 1) items.push({ token: s.merchantToken, name: s.name ?? s.merchantToken, amount, direction: "in", date, status });
+          const amount = date.slice(0, 7) === ym ? Math.max(0, num(s.amount) - received) : num(s.amount);
+          if (amount >= 1) items.push({ token: s.merchantToken, name: s.name ?? s.merchantToken, amount, direction: "in", kind, prevAmount: null, date, status });
         }
       } else if (s.nextDue) {
         for (const d of occurrencesWithin(s.nextDue, s.cadence, today, days)) {
-          items.push({ token: s.merchantToken, name: s.name ?? s.merchantToken, amount: num(s.amount), direction: "out", date: d.toISOString().slice(0, 10), status });
+          items.push({ token: s.merchantToken, name: s.name ?? s.merchantToken, amount: num(s.amount), direction: "out", kind, prevAmount, date: d.toISOString().slice(0, 10), status });
         }
       }
     }

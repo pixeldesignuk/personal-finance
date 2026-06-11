@@ -5,6 +5,7 @@ import { merchantToken } from "../categorise/helpers.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
 import { monthOf } from "../lib/budget.ts";
 import { classifyMerchant, coefficientOfVariation, median, type RecurType } from "../lib/merchants.ts";
+import { rawMerchantName } from "../../shared/merchantName.ts";
 import { toEmailOrderDTO } from "../plugins/emailOrderDTO.ts";
 import { recordSyncRun } from "../lib/syncRun.ts";
 import { cleanseData } from "../lib/cleanse.ts";
@@ -30,7 +31,7 @@ merchantsRouter.post("/cleanse/stream", async (_req, res) => {
 });
 
 const tokenOf = (t: { merchantName: string | null; creditorName: string | null; debtorName: string | null; remittanceInfo: string | null }) =>
-  merchantToken(t.merchantName ?? t.creditorName ?? t.debtorName ?? t.remittanceInfo ?? null);
+  merchantToken(rawMerchantName(t));
 
 merchantsRouter.get("/merchants", async (_req, res, next) => {
   try {
@@ -66,7 +67,7 @@ merchantsRouter.get("/merchants", async (_req, res, next) => {
       const token = tokenOf(t);
       if (!token) continue;
       const g: Agg = groups.get(token) ?? { name: new Map(), amounts: [], months: new Set(), last: null, cats: new Map(), persons: new Map(), accounts: new Map() };
-      const rawName = t.merchantName ?? t.creditorName ?? t.debtorName ?? t.remittanceInfo ?? token;
+      const rawName = rawMerchantName(t) ?? token;
       g.name.set(rawName, (g.name.get(rawName) ?? 0) + 1);
       g.amounts.push(Math.abs(amt));
       if (t.bookingDate) { const m = monthOf(t.bookingDate); if (m) g.months.add(m); if (!g.last || t.bookingDate > g.last) g.last = t.bookingDate; }

@@ -1035,8 +1035,12 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 .recur-row { gap: 12px; }
 .recur-main { display: flex; align-items: center; gap: 11px; min-width: 0; }
 .recur-name { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.recur-name .td-clip { color: var(--ink); }
+.recur-name .td-clip { color: var(--ink); display: flex; align-items: center; gap: 6px; }
 .recur-meta { font-size: 12px; }
+/* Fixed/variable + "went up" markers on recurring bills */
+.recur-tag { font-size: 10px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; flex: none; }
+.recur-up { font-size: 11px; font-weight: 600; color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent); border-radius: 5px; padding: 1px 6px; flex: none; white-space: nowrap; }
+.upcoming-up { color: var(--amber); font-weight: 700; flex: none; }
 .recur-actions { display: flex; align-items: center; gap: 7px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
 /* Standalone page search box. */
 .search-input { max-width: 340px; margin-bottom: 16px; }

@@ -213,6 +213,8 @@ export interface RecurringScheduleDTO {
   accountId: string | null;
   direction: "out" | "in";  // out = bill, in = income
   amount: number;
+  kind: "fixed" | "variable";   // is the amount stable or does it vary?
+  prevAmount: number | null;    // prior amount when it recently increased (else null)
   cadence: string;          // monthly | weekly | yearly | irregular
   dayOfMonth: number | null;
   lastSeen: string | null;  // ISO date of the last matching transaction
@@ -226,6 +228,8 @@ export interface UpcomingItemDTO {
   name: string;
   amount: number;
   direction: "out" | "in";
+  kind: "fixed" | "variable";   // bills only; income is reported as fixed
+  prevAmount: number | null;    // prior amount when the bill recently increased
   date: string;             // ISO date of this occurrence
   status: "auto" | "confirmed" | "ignored";
 }

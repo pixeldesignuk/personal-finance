@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db } from "../lib/db.ts";
 import { monthlyAverage, projectPayoff } from "../lib/debt.ts";
 import { monthOf } from "../lib/budget.ts";
+import { firstNonEmpty } from "../../shared/merchantName.ts";
 import type { DebtsDTO, DebtDTO } from "../../shared/types.ts";
 
 export const debtsRouter = Router();
@@ -24,7 +25,7 @@ debtsRouter.get("/debts", async (_req, res, next) => {
       const mine = linked.filter((t) => t.debtAccountId === a.id);
       const payments = mine.map((t) => ({
         id: t.id, date: t.bookingDate, amount: Math.abs(Number(t.amount)),
-        name: t.merchantName ?? t.creditorName ?? t.remittanceInfo ?? null,
+        name: firstNonEmpty(t.merchantName, t.creditorName, t.remittanceInfo),
       }));
       const paidTotal = payments.reduce((s, p) => s + p.amount, 0);
       const months = payments

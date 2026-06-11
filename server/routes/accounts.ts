@@ -9,6 +9,7 @@ import { effectiveCategory } from "../lib/effectiveCategory.ts";
 import { merchantToken } from "../categorise/helpers.ts";
 import { monthOf } from "../lib/budget.ts";
 import { classifyMerchant, coefficientOfVariation, median, type RecurType } from "../lib/merchants.ts";
+import { rawMerchantName } from "../../shared/merchantName.ts";
 import type { AccountDTO, BankDTO, AccountRecurringDTO } from "../../shared/types.ts";
 
 export const accountsRouter = Router();
@@ -105,7 +106,7 @@ accountsRouter.get("/accounts/recurring", async (_req, res, next) => {
     });
     const overrides = new Map((await db.merchant.findMany()).map((m) => [m.token, m]));
     const tokenOf = (t: { merchantName: string | null; creditorName: string | null; debtorName: string | null; remittanceInfo: string | null }) =>
-      merchantToken(t.merchantName ?? t.creditorName ?? t.debtorName ?? t.remittanceInfo ?? null);
+      merchantToken(rawMerchantName(t));
 
     interface Agg { amounts: number[]; months: Set<string>; names: Map<string, number>; }
     const fresh = (): Agg => ({ amounts: [], months: new Set(), names: new Map() });
@@ -118,7 +119,7 @@ accountsRouter.get("/accounts/recurring", async (_req, res, next) => {
       if (amt >= 0 || eff === "transfer" || eff === "income") continue; // outgoings only
       const token = tokenOf(t);
       if (!token) continue;
-      const name = t.merchantName ?? t.creditorName ?? t.debtorName ?? t.remittanceInfo ?? token;
+      const name = rawMerchantName(t) ?? token;
       const mo = t.bookingDate ? monthOf(t.bookingDate) : null;
 
       const g = global.get(token) ?? fresh();
