@@ -13,7 +13,7 @@ const dec = (v: { toString(): string } | null | undefined): number | null =>
 // Liquid cash you actually hold (current accounts + cash). Pots earmark this.
 async function liquidCash(): Promise<number> {
   const accounts = await db.account.findMany({
-    where: { source: { in: ["BANK", "MANUAL"] } },
+    where: { source: { in: ["BANK", "MANUAL"] }, informational: false },
     include: { balances: true },
   });
   const sums = await manualTxnSums();

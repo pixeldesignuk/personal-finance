@@ -19,6 +19,7 @@ summaryRouter.get("/summary", async (_req, res, next) => {
     let debts = 0;
     let liquid = 0;
     for (const a of accounts) {
+      if (a.informational) continue; // tracked but excluded from all totals
       const bal = currentBalance(
         a.source,
         a.manualBalance != null ? Number(a.manualBalance.toString()) : null,
@@ -38,7 +39,7 @@ summaryRouter.get("/summary", async (_req, res, next) => {
     if (s["networth.includeInvestments"]) netWorth += investments;
     if (s["networth.includeAssets"]) netWorth += assets;
     if (s["networth.includeDebts"]) netWorth -= debts;
-    const personalIds = accounts.filter((a) => a.type === "PERSONAL").map((a) => a.id);
+    const personalIds = accounts.filter((a) => a.type === "PERSONAL" && !a.informational).map((a) => a.id);
     const txns = await db.transaction.findMany({ where: { accountId: { in: personalIds } } });
     const cf = cashFlow(
       txns.map<BudgetTx>((t) => ({ amount: Number(t.amount), category: effectiveCategory(t), bookingDate: t.bookingDate })),

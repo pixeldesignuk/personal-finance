@@ -17,7 +17,12 @@ dashboardRouter.get("/dashboard", async (req, res, next) => {
       .object({ accountId: z.string().optional(), person: z.string().optional(), month: z.string().regex(/^\d{4}-\d{2}$/).optional() })
       .parse(req.query);
     const scope = accountScope(accountId);
-    const txns = await db.transaction.findMany({ where: { ...scope, ...(person && person !== "all" ? { personKey: person === "none" ? null : person } : {}) } });
+    // Informational accounts (e.g. a shared account that's mostly not yours) are
+    // excluded from the all-accounts dashboard, but still viewable if explicitly
+    // selected.
+    const informationalIds = accountId ? [] : (await db.account.findMany({ where: { informational: true }, select: { id: true } })).map((a) => a.id);
+    const excludeInfo = informationalIds.length ? { accountId: { notIn: informationalIds } } : {};
+    const txns = await db.transaction.findMany({ where: { ...scope, ...excludeInfo, ...(person && person !== "all" ? { personKey: person === "none" ? null : person } : {}) } });
     const agg: AggTx[] = txns
       .map((t) => ({
         amount: Number(t.amount),
@@ -29,7 +34,7 @@ dashboardRouter.get("/dashboard", async (req, res, next) => {
     // Category breakdown is scoped to the selected month (the dashboard is a
     // "this month" view); the monthly trend always spans the full history.
     const monthAgg = month ? agg.filter((t) => t.bookingDate?.slice(0, 7) === month) : agg;
-    const balances = await db.balance.findMany({ where: scope });
+    const balances = await db.balance.findMany({ where: { ...scope, ...excludeInfo } });
     const dto: DashboardDTO = {
       balances: balances.map((b) => ({
         accountId: b.accountId,

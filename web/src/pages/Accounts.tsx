@@ -51,6 +51,7 @@ export default function Accounts() {
   };
 
   const toggleType = (a: AccountDTO) => wrap(() => api.patchAccount(a.id, { type: a.type === "PERSONAL" ? "BUSINESS" : "PERSONAL" }));
+  const toggleInfo = (a: AccountDTO) => wrap(() => api.patchAccount(a.id, { informational: !a.informational }));
   const setBalanceType = (id: string, value: string) => wrap(() => api.patchAccount(id, { balanceType: value || null }));
   // Reconnect dialog: re-approve at the bank and choose how much history to pull
   // (defaults to the maximum the bank allows).
@@ -102,6 +103,7 @@ export default function Accounts() {
                     : <BrandLogo name={bank.institutionName} src={bank.institutionLogo} size={22} />}
                   <span className="acct-inst">{isCash ? "Cash" : bank.institutionName}</span>
                   {a.type === "BUSINESS" && <span className="acct-biz">Business</span>}
+                  {a.informational && <span className="acct-biz" title="Tracked but excluded from net worth, income & spending">Not counted</span>}
                 </span>
                 <CardMenu>
                   <button type="button" onClick={() => openRename(a)}>Rename</button>
@@ -114,7 +116,8 @@ export default function Accounts() {
                       {a.balances.map((b) => <button type="button" key={b.type} className={a.balanceType === b.type ? "sel" : ""} onClick={() => setBalanceType(a.id, b.type)}>{b.type} · {b.amount}</button>)}
                     </>
                   )}
-                  {(a.source === "BANK" || isCash) && <button type="button" title="Carve out money in this account that isn't yours — kept out of net worth & safe-to-spend" onClick={() => openExcluded(a)}>Funds not mine{a.excludedBalance ? " ✓" : ""}</button>}
+                  {(a.source === "BANK" || isCash) && <button type="button" title="Tracked & visible, but excluded from net worth, income & spending — for shared accounts that are mostly not yours" onClick={() => toggleInfo(a)}>{a.informational ? "Count in my totals" : "Don't count in my totals"}</button>}
+                  {(a.source === "BANK" || isCash) && !a.informational && <button type="button" title="Carve out a fixed amount that isn't yours — kept out of net worth & safe-to-spend" onClick={() => openExcluded(a)}>Funds not mine{a.excludedBalance ? " ✓" : ""}</button>}
                   {a.source === "BANK" && <button type="button" title="Re-approve at your bank and pull more transaction history" onClick={() => openReconnect(bank.institutionId, bank.institutionName)}>Reconnect</button>}
                   {isCash && <button type="button" className="danger" onClick={() => deleteCash(a)}>Delete</button>}
                   {a.source === "BANK" && <button type="button" className="danger" onClick={() => removeBank(bank)}>Remove bank</button>}
@@ -126,7 +129,9 @@ export default function Accounts() {
               <div className="acct-card-figure">
                 <span className="eyebrow acct-card-label">Balance</span>
                 <span className="acct-card-bal"><span className="ccy">{a.currency ?? "GBP"}</span> {formatMoney(a.currentBalance)}</span>
-                {a.excludedBalance ? (
+                {a.informational ? (
+                  <span className="acct-excluded" title="This account is tracked but excluded from net worth, income & spending">not counted in your totals</span>
+                ) : a.excludedBalance ? (
                   a.currentBalance < a.excludedBalance ? (
                     <span className="acct-excluded warn" title="The balance has fallen below the funds you're holding for others — you've dipped into money that isn't yours. Your net worth reflects the shortfall.">
                       ⚠ £{formatMoney(a.excludedBalance - a.currentBalance)} dipped into funds not yours

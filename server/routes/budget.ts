@@ -21,7 +21,7 @@ budgetRouter.get("/budget", async (req, res, next) => {
     const q = z.object({ month: z.string().regex(/^\d{4}-\d{2}$/).optional(), person: z.string().optional() }).parse(req.query);
     const month = q.month ?? currentMonth();
 
-    const personal = await db.account.findMany({ where: { type: "PERSONAL" }, include: { balances: true } });
+    const personal = await db.account.findMany({ where: { type: "PERSONAL", informational: false }, include: { balances: true } });
     const ids = personal.map((a) => a.id);
     const txns = await db.transaction.findMany({ where: { accountId: { in: ids } } });
     const filtered = q.person ? txns.filter((t) => (q.person === "none" ? t.personKey == null : t.personKey === q.person)) : txns;
@@ -99,7 +99,7 @@ budgetRouter.get("/budget", async (req, res, next) => {
 budgetRouter.post("/budget/auto-populate", async (_req, res, next) => {
   try {
     const month = currentMonth();
-    const personal = await db.account.findMany({ where: { type: "PERSONAL" }, select: { id: true } });
+    const personal = await db.account.findMany({ where: { type: "PERSONAL", informational: false }, select: { id: true } });
     const ids = personal.map((a) => a.id);
     const txns = await db.transaction.findMany({ where: { accountId: { in: ids } } });
     const budgetTxns: BudgetTx[] = txns.map((t) => ({ amount: Number(t.amount), category: effectiveCategory(t), bookingDate: t.bookingDate }));
@@ -127,7 +127,7 @@ budgetRouter.get("/budget/category/:key", async (req, res, next) => {
     if (!cat) { res.status(404).json({ error: "Category not found" }); return; }
     const monthlyAmount = Number(cat.monthlyAmount.toString());
 
-    const personal = await db.account.findMany({ where: { type: "PERSONAL" }, select: { id: true } });
+    const personal = await db.account.findMany({ where: { type: "PERSONAL", informational: false }, select: { id: true } });
     const ids = personal.map((a) => a.id);
     const txns = await db.transaction.findMany({ where: { accountId: { in: ids } } });
     const filtered = q.person ? txns.filter((t) => (q.person === "none" ? t.personKey == null : t.personKey === q.person)) : txns;

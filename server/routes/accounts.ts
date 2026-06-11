@@ -21,6 +21,7 @@ type AccountWithBalances = {
   currency: string | null; type: "PERSONAL" | "BUSINESS"; source: "BANK" | "MANUAL" | "INVESTMENT";
   manualBalance: { toString(): string } | null;
   excludedBalance: { toString(): string } | null;
+  informational: boolean;
   balanceType: string | null;
   balances: { type: string; amount: { toString(): string }; currency: string }[];
 };
@@ -44,6 +45,7 @@ function toAccountDTO(a: AccountWithBalances, txnSum = 0): AccountDTO {
       txnSum,
     ),
     excludedBalance: a.excludedBalance != null ? Number(a.excludedBalance.toString()) : null,
+    informational: a.informational,
     balances: a.balances.map((b) => ({ type: b.type, amount: b.amount.toString(), currency: b.currency })),
   };
 }
@@ -209,6 +211,7 @@ accountsRouter.patch("/accounts/:id", async (req, res, next) => {
         name: z.string().optional(),
         manualBalance: z.string().regex(/^-?\d+(\.\d+)?$/, "manualBalance must be a number").optional(),
         excludedBalance: z.string().regex(/^\d+(\.\d+)?$/, "excludedBalance must be a number").nullable().optional(),
+        informational: z.boolean().optional(),
         balanceType: z.string().nullable().optional(),
         interestRate: z.string().regex(/^\d+(\.\d+)?$/).nullable().optional(),
         priority: z.number().int().nullable().optional(),
@@ -242,6 +245,7 @@ accountsRouter.patch("/accounts/:id", async (req, res, next) => {
       }
     }
     if (body.excludedBalance !== undefined) data.excludedBalance = body.excludedBalance && Number(body.excludedBalance) > 0 ? body.excludedBalance : null;
+    if (body.informational !== undefined) data.informational = body.informational;
     if (body.balanceType !== undefined) data.balanceType = body.balanceType || null;
     if (body.interestRate !== undefined) data.interestRate = body.interestRate;
     if (body.priority !== undefined) data.priority = body.priority;

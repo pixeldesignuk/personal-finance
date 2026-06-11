@@ -289,6 +289,7 @@ export interface AccountDTO {
   source: AccountSource;
   currentBalance: number;
   excludedBalance: number | null; // part of the balance that isn't yours (held for others)
+  informational: boolean;         // tracked & visible, but excluded from all totals
   balanceType: string | null;
   balances: AccountBalanceDTO[];
 }
