@@ -403,6 +403,10 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
   border-color: color-mix(in srgb, var(--jade) 30%, var(--line-strong));
   box-shadow: 0 28px 52px -28px rgba(0, 0, 0, 0.9), 0 0 0 1px color-mix(in srgb, var(--jade) 9%, transparent);
 }
+/* When a card's kebab menu is open, lift the whole card above its neighbours so
+   the dropdown isn't painted behind the card below (the hover transform creates
+   a stacking context that would otherwise trap it). */
+.acct-card:has(.card-menu-pop) { z-index: 30; }
 
 .acct-card-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .acct-inst-wrap { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }

@@ -48,7 +48,8 @@ async function streamNdjson(url: string, body: unknown, onEvent: (e: AuditEvent)
 
 export const api = {
   institutions: () => get<InstitutionDTO[]>("/api/institutions"),
-  connect: (institutionId: string) => send<ConnectResponse>("POST", "/api/connect", { institutionId }),
+  connect: (institutionId: string, maxHistoricalDays?: number) =>
+    send<ConnectResponse>("POST", "/api/connect", { institutionId, ...(maxHistoricalDays ? { maxHistoricalDays } : {}) }),
   finalize: (id: string) => send<FinalizeResponse>("POST", `/api/connect/${id}/finalize`),
   sync: () => send<SyncResult[]>("POST", "/api/sync"),
   syncRuns: () => get<SyncRunDTO[]>("/api/sync/runs"),

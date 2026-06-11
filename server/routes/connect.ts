@@ -10,17 +10,20 @@ const gc = new GoCardlessClient();
 
 connectRouter.post("/connect", async (req, res, next) => {
   try {
-    const { institutionId } = z.object({ institutionId: z.string().min(1) }).parse(req.body);
+    const { institutionId, maxHistoricalDays } = z
+      .object({ institutionId: z.string().min(1), maxHistoricalDays: z.number().int().positive().optional() })
+      .parse(req.body);
     const institutions = await gc.getInstitutions("gb");
     const inst = institutions.find((i) => i.id === institutionId);
     const reference = `finance-${institutionId}-${Date.now()}`;
-    // Request the deepest history the bank will give (default is only 90 days).
-    // Cap at GoCardless's 730-day ceiling; fall back to 730 if the bank doesn't
-    // advertise a limit. An agreement failure shouldn't block linking, so degrade
-    // gracefully to the default-window requisition.
+    // Request transaction history: the user's chosen window, or (default) the
+    // deepest the bank allows. Always capped at the bank's advertised maximum and
+    // GoCardless's 730-day ceiling. An agreement failure shouldn't block linking,
+    // so degrade gracefully to the default-window requisition.
     let agreementId: string | undefined;
     try {
-      const maxDays = Math.min(730, Number(inst?.transaction_total_days) || 730);
+      const bankMax = Math.min(730, Number(inst?.transaction_total_days) || 730);
+      const maxDays = maxHistoricalDays ? Math.min(maxHistoricalDays, bankMax) : bankMax;
       const agreement = await gc.createAgreement(institutionId, maxDays);
       agreementId = agreement.id;
     } catch (e) {

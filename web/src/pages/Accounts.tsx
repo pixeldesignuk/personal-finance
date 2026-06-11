@@ -50,14 +50,17 @@ export default function Accounts() {
 
   const toggleType = (a: AccountDTO) => wrap(() => api.patchAccount(a.id, { type: a.type === "PERSONAL" ? "BUSINESS" : "PERSONAL" }));
   const setBalanceType = (id: string, value: string) => wrap(() => api.patchAccount(id, { balanceType: value || null }));
-  const reconnect = async (institutionId: string) => {
-    if (!(await confirm({
-      title: "Reconnect for more history?",
-      body: "You'll re-approve access at your bank. We'll request the longest history your bank allows (up to 2 years) and pull it in — your existing transactions, categories and budgets are kept.",
-      confirmLabel: "Reconnect",
-    }))) return;
-    try { const { link } = await api.connect(institutionId); window.location.href = link; }
-    catch (e) { setMsg((e as Error).message); }
+  // Reconnect dialog: re-approve at the bank and choose how much history to pull
+  // (defaults to the maximum the bank allows).
+  const [reconnectFor, setReconnectFor] = useState<{ institutionId: string; name: string } | null>(null);
+  const [historyChoice, setHistoryChoice] = useState("max");
+  const openReconnect = (institutionId: string, name: string) => { setHistoryChoice("max"); setReconnectFor({ institutionId, name }); };
+  const submitReconnect = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reconnectFor) return;
+    const days = historyChoice === "max" ? undefined : Number(historyChoice);
+    try { const { link } = await api.connect(reconnectFor.institutionId, days); window.location.href = link; }
+    catch (e) { setMsg((e as Error).message); setReconnectFor(null); }
   };
   const deleteCash = async (a: AccountDTO) => {
     if (await confirm({ title: `Delete ${a.displayName}?`, body: "This removes the cash account and its manual transactions.", danger: true })) wrap(() => api.deleteManualAccount(a.id));
@@ -109,7 +112,7 @@ export default function Accounts() {
                       {a.balances.map((b) => <button type="button" key={b.type} className={a.balanceType === b.type ? "sel" : ""} onClick={() => setBalanceType(a.id, b.type)}>{b.type} · {b.amount}</button>)}
                     </>
                   )}
-                  {a.source === "BANK" && <button type="button" title="Re-approve at your bank and pull the longest history available" onClick={() => reconnect(bank.institutionId)}>Reconnect for more history</button>}
+                  {a.source === "BANK" && <button type="button" title="Re-approve at your bank and pull more transaction history" onClick={() => openReconnect(bank.institutionId, bank.institutionName)}>Reconnect</button>}
                   {isCash && <button type="button" className="danger" onClick={() => deleteCash(a)}>Delete</button>}
                   {a.source === "BANK" && <button type="button" className="danger" onClick={() => removeBank(bank)}>Remove bank</button>}
                 </CardMenu>
@@ -153,6 +156,26 @@ export default function Accounts() {
               <input value={editVal} autoFocus inputMode={edit.kind === "balance" ? "decimal" : undefined} onChange={(e) => setEditVal(e.target.value)} />
             </Field>
             <div className="modal-actions"><button type="button" onClick={() => setEdit(null)}>Cancel</button><button className="btn-primary" type="submit">Save</button></div>
+          </form>
+        )}
+      </Modal>
+
+      <Modal open={reconnectFor != null} onClose={() => setReconnectFor(null)} size="sm">
+        {reconnectFor && (
+          <form className="modal-body" onSubmit={submitReconnect}>
+            <h3>Reconnect · {reconnectFor.name}</h3>
+            <p className="muted" style={{ marginTop: -4 }}>You'll re-approve access at your bank. Your existing transactions, categories and budgets are kept — we just pull more history.</p>
+            <Field label="Transaction history">
+              <select value={historyChoice} autoFocus onChange={(e) => setHistoryChoice(e.target.value)}>
+                <option value="max">Maximum available (recommended)</option>
+                <option value="730">Last 2 years</option>
+                <option value="365">Last 12 months</option>
+                <option value="180">Last 6 months</option>
+                <option value="90">Last 90 days</option>
+              </select>
+            </Field>
+            <p className="muted" style={{ fontSize: 12, marginTop: -2 }}>Banks cap how far back they share — you'll get up to your choice, whichever is less.</p>
+            <div className="modal-actions"><button type="button" onClick={() => setReconnectFor(null)}>Cancel</button><button className="btn-primary" type="submit">Reconnect</button></div>
           </form>
         )}
       </Modal>
