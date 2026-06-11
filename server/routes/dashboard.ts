@@ -78,6 +78,8 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
     const txnIds = txns.map((t) => t.id);
     const orderRows = txnIds.length ? await db.emailOrder.findMany({ where: { transactionId: { in: txnIds } } }) : [];
     const orderByTxn = new Map(orderRows.map((o) => [o.transactionId as string, {
+      id: o.id,
+      hasAttachment: !!o.attachmentKey,
       merchant: o.merchantName,
       total: o.total != null ? Number(o.total.toString()) : null,
       currency: o.currency,

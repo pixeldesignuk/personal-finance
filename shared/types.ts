@@ -72,7 +72,7 @@ export interface TransactionDTO {
   source: AccountSource;
   origin: "bank" | "telegram" | "receipt" | "manual"; // how it got here (upload method)
   status: string;
-  order: { merchant: string | null; total: number | null; currency: string | null; orderNumber: string | null; date: string | null; items: EmailOrderItem[] } | null; // matched email order (Gmail plugin)
+  order: { id: string; hasAttachment: boolean; merchant: string | null; total: number | null; currency: string | null; orderNumber: string | null; date: string | null; items: EmailOrderItem[] } | null; // matched email order / receipt (Gmail or Telegram)
 }
 
 export interface AccountBalanceDTO {

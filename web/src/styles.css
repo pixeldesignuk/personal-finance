@@ -467,6 +467,14 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
 .txn-acct .badge.manual { flex: none; }
 .txn-acct .brand-logo { border-color: var(--line); }
 .txn-acct .brand-logo img { padding: 0; }
+/* Telegram-origin transactions get a Telegram avatar instead of a bank logo */
+.tg-avatar {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 24px; height: 24px; border-radius: 50%; color: #fff;
+  background: linear-gradient(160deg, #2aabee, #229ed9);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #229ed9 60%, transparent);
+}
+.tg-avatar svg { transform: translateX(-0.5px); }
 
 /* ---- savings pots -------------------------------------------------------- */
 .pot-cards { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); margin-bottom: 0; }
@@ -576,6 +584,9 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
 }
 .order-tag-count { font-size: 11px; font-weight: 640; font-variant-numeric: tabular-nums; }
 .order-tag:hover { transform: none; background: color-mix(in srgb, var(--jade) 18%, transparent); border-color: var(--jade); color: var(--jade); }
+/* Attachment (receipt image) opener — blue to distinguish from the line-items tag */
+.order-tag.attach { cursor: pointer; color: #2aabee; background: color-mix(in srgb, #2aabee 11%, transparent); border-color: color-mix(in srgb, #2aabee 26%, transparent); }
+.order-tag.attach:hover { background: color-mix(in srgb, #2aabee 18%, transparent); border-color: #2aabee; color: #2aabee; }
 /* order-detail dialog */
 .order-detail-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
 .order-detail-total { font-size: 19px; margin-left: auto; }
