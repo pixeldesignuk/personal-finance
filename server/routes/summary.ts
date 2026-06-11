@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db } from "../lib/db.ts";
 import { currentBalance, excludedBalance } from "../lib/balance.ts";
+import { manualTxnSums } from "../lib/manualBalance.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
 import { cashFlow, round2, currentMonth, type BudgetTx } from "../lib/budget.ts";
 import { getSettings } from "../lib/settings.ts";
@@ -12,6 +13,7 @@ summaryRouter.get("/summary", async (_req, res, next) => {
   try {
     const month = currentMonth();
     const accounts = await db.account.findMany({ include: { balances: true } });
+    const sums = await manualTxnSums();
     let investments = 0;
     let assets = 0;
     let debts = 0;
@@ -22,6 +24,7 @@ summaryRouter.get("/summary", async (_req, res, next) => {
         a.manualBalance != null ? Number(a.manualBalance.toString()) : null,
         a.balances.map((b) => ({ type: b.type, amount: Number(b.amount.toString()) })),
         a.balanceType,
+        sums.get(a.id) ?? 0,
       );
       if (a.source === "INVESTMENT") investments += bal;
       else if (a.source === "ASSET") assets += bal;

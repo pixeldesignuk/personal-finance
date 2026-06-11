@@ -5,6 +5,7 @@ import { db } from "../lib/db.ts";
 import { GoCardlessClient } from "../gocardless/client.ts";
 import { displayName } from "../../shared/displayName.ts";
 import { currentBalance } from "../lib/balance.ts";
+import { manualTxnSums, accountTxnSum } from "../lib/manualBalance.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
 import { merchantToken } from "../categorise/helpers.ts";
 import { monthOf } from "../lib/budget.ts";
@@ -24,7 +25,7 @@ type AccountWithBalances = {
   balances: { type: string; amount: { toString(): string }; currency: string }[];
 };
 
-function toAccountDTO(a: AccountWithBalances): AccountDTO {
+function toAccountDTO(a: AccountWithBalances, txnSum = 0): AccountDTO {
   return {
     id: a.id,
     name: a.name,
@@ -40,6 +41,7 @@ function toAccountDTO(a: AccountWithBalances): AccountDTO {
       a.manualBalance != null ? Number(a.manualBalance.toString()) : null,
       a.balances.map((b) => ({ type: b.type, amount: Number(b.amount.toString()) })),
       a.balanceType,
+      txnSum,
     ),
     excludedBalance: a.excludedBalance != null ? Number(a.excludedBalance.toString()) : null,
     balances: a.balances.map((b) => ({ type: b.type, amount: b.amount.toString(), currency: b.currency })),
@@ -48,6 +50,7 @@ function toAccountDTO(a: AccountWithBalances): AccountDTO {
 
 accountsRouter.get("/accounts", async (_req, res, next) => {
   try {
+    const sums = await manualTxnSums(); // cash accounts: balance = baseline + activity
     const reqs = await db.requisition.findMany({
       include: { accounts: { include: { balances: true } } },
       orderBy: { createdAt: "asc" },
@@ -62,7 +65,7 @@ accountsRouter.get("/accounts", async (_req, res, next) => {
         institutionName: r.institutionName,
         institutionLogo: r.institutionLogo ?? null,
         status: r.status,
-        accounts: r.accounts.map((a) => toAccountDTO(a as unknown as AccountWithBalances)),
+        accounts: r.accounts.map((a) => toAccountDTO(a as unknown as AccountWithBalances, sums.get(a.id) ?? 0)),
       }));
     const manual = await db.account.findMany({
       where: { source: "MANUAL" },
@@ -76,7 +79,7 @@ accountsRouter.get("/accounts", async (_req, res, next) => {
         institutionName: "Manual / Cash",
         institutionLogo: null,
         status: "MANUAL",
-        accounts: manual.map((a) => toAccountDTO(a as unknown as AccountWithBalances)),
+        accounts: manual.map((a) => toAccountDTO(a as unknown as AccountWithBalances, sums.get(a.id) ?? 0)),
       });
     }
     for (const [source, label] of [["INVESTMENT", "Investments"], ["ASSET", "Assets"], ["LIABILITY", "Debts"]] as const) {
@@ -88,7 +91,7 @@ accountsRouter.get("/accounts", async (_req, res, next) => {
           institutionName: label,
           institutionLogo: null,
           status: source,
-          accounts: group.map((a) => toAccountDTO(a as unknown as AccountWithBalances)),
+          accounts: group.map((a) => toAccountDTO(a as unknown as AccountWithBalances, sums.get(a.id) ?? 0)),
         });
       }
     }
@@ -227,7 +230,17 @@ accountsRouter.patch("/accounts/:id", async (req, res, next) => {
     if (body.nickname !== undefined) data.nickname = body.nickname && body.nickname.trim() ? body.nickname.trim() : null;
     if (body.type !== undefined) data.type = body.type;
     if (body.name !== undefined) data.name = body.name;
-    if (body.manualBalance !== undefined) data.manualBalance = body.manualBalance;
+    if (body.manualBalance !== undefined) {
+      // For a cash account the displayed balance is baseline + activity, so when
+      // the user sets the balance to X we store the baseline (X − activity) so the
+      // figure they typed is exactly what shows.
+      if (account.source === "MANUAL") {
+        const sum = await accountTxnSum(account.id);
+        data.manualBalance = (Number(body.manualBalance) - sum).toFixed(2);
+      } else {
+        data.manualBalance = body.manualBalance;
+      }
+    }
     if (body.excludedBalance !== undefined) data.excludedBalance = body.excludedBalance && Number(body.excludedBalance) > 0 ? body.excludedBalance : null;
     if (body.balanceType !== undefined) data.balanceType = body.balanceType || null;
     if (body.interestRate !== undefined) data.interestRate = body.interestRate;

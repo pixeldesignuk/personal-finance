@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { db } from "../lib/db.ts";
 import { currentBalance, excludedBalance } from "../lib/balance.ts";
+import { manualTxnSums } from "../lib/manualBalance.ts";
 import type { PotDTO, PotsDTO } from "../../shared/types.ts";
 
 export const potsRouter = Router();
@@ -15,6 +16,7 @@ async function liquidCash(): Promise<number> {
     where: { source: { in: ["BANK", "MANUAL"] } },
     include: { balances: true },
   });
+  const sums = await manualTxnSums();
   let total = 0;
   for (const a of accounts) {
     total += currentBalance(
@@ -22,6 +24,7 @@ async function liquidCash(): Promise<number> {
       a.manualBalance != null ? Number(a.manualBalance.toString()) : null,
       a.balances.map((b) => ({ type: b.type, amount: Number(b.amount.toString()) })),
       a.balanceType,
+      sums.get(a.id) ?? 0,
     ) - excludedBalance(a.excludedBalance);
   }
   return total;

@@ -4,6 +4,7 @@ import { db } from "../lib/db.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
 import { currentMonth, monthOf, round2, personalSpendByCategory, suggestBudgets, completeSpendMonths, type BudgetTx } from "../lib/budget.ts";
 import { currentBalance, excludedBalance } from "../lib/balance.ts";
+import { manualTxnSums } from "../lib/manualBalance.ts";
 import { buildBudgetRows, type BudgetCategory } from "../lib/budgetView.ts";
 import { billTarget } from "../lib/recurring.ts";
 import type { BudgetResponseDTO, BillTargetDTO, CategoryInfoDTO } from "../../shared/types.ts";
@@ -62,6 +63,7 @@ budgetRouter.get("/budget", async (req, res, next) => {
 
     // "Available to budget" = liquid money you actually hold (current + cash −
     // card debt) minus this month's budget. Excludes investments/assets/debts.
+    const sums = await manualTxnSums();
     let balance = 0;
     for (const a of personal) {
       if (a.source !== "BANK" && a.source !== "MANUAL") continue;
@@ -70,6 +72,7 @@ budgetRouter.get("/budget", async (req, res, next) => {
         a.manualBalance != null ? Number(a.manualBalance.toString()) : null,
         a.balances.map((b) => ({ type: b.type, amount: Number(b.amount.toString()) })),
         a.balanceType,
+        sums.get(a.id) ?? 0,
       ) - excludedBalance(a.excludedBalance);
     }
 

@@ -16,10 +16,13 @@ export function currentBalance(
   manualBalance: number | null,
   balances: BalanceLike[],
   preferredType?: string | null,
+  txnSum = 0,
 ): number {
   // Liabilities are entered as a positive amount owed but subtract from net worth.
   if (source === "LIABILITY") return -(manualBalance ?? 0);
-  // Manual / investment / asset accounts carry their value in manualBalance.
+  // Cash accounts: the balance you set is a baseline; logged transactions adjust
+  // it (a £18 spend reduces it). Investments/assets carry their value directly.
+  if (source === "MANUAL") return (manualBalance ?? 0) + txnSum;
   if (source !== "BANK") return manualBalance ?? 0;
   // An explicit per-account choice wins, when that type is present.
   if (preferredType) {
