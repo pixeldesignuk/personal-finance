@@ -19,7 +19,8 @@ summaryRouter.get("/summary", async (_req, res, next) => {
     let debts = 0;
     let liquid = 0;
     for (const a of accounts) {
-      if (a.informational) continue; // tracked but excluded from all totals
+      // Informational accounts stay in net worth (the balance counts) but are
+      // kept out of budgeting — handled below via personalIds for income/expense.
       const bal = currentBalance(
         a.source,
         a.manualBalance != null ? Number(a.manualBalance.toString()) : null,
