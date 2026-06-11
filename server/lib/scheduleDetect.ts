@@ -71,52 +71,73 @@ export async function detectSchedules(today: Date = new Date()): Promise<{ detec
     });
   }
 
-  // Income stream: aggregate everything categorised "income" into ONE recurring
-  // income schedule. We key on the category (set by rules / the default that tags
-  // positive transactions as income) rather than the merchant name, because the
-  // payroll reference varies month to month. Learns the typical monthly amount
-  // and pay day. Skipped if the user has added/confirmed their own income entry.
+  // Income stream: estimate the typical monthly household income and store it as
+  // ONE recurring income schedule. We work PER ACCOUNT, off each account's
+  // individual income-categorised deposits (not the per-month sum), then sum the
+  // accounts. Working per-deposit means irregular pay *timing* — e.g. a late wage
+  // landing in the next calendar month, so one month shows two paydays — doesn't
+  // inflate the figure. Always recomputed from current data (never user-locked),
+  // so newly categorised income (e.g. a partner's transfers) is reflected at once.
   const incomeToken = "income:stream";
   const manualIncome = await db.recurringSchedule.findFirst({ where: { direction: "in", status: { not: "ignored" }, NOT: { merchantToken: incomeToken } } });
   if (manualIncome) {
-    await db.recurringSchedule.deleteMany({ where: { merchantToken: incomeToken, status: "auto" } });
+    // The user added their own explicit income entry — respect it, don't double-count.
+    await db.recurringSchedule.deleteMany({ where: { merchantToken: incomeToken } });
   } else {
     const allIncome = txns.filter((t) => Number(t.amount) > 0 && t.bookingDate && effectiveCategory(t) === "income");
-    // Prefer the last 4 complete months so a recent change (e.g. a partner's
-    // income starting) is reflected, rather than being washed out by a long
-    // history of just one earner. Fall back to all history if that's too sparse.
+    // Prefer the last 6 complete months so a recent change (a partner starting to
+    // contribute) is reflected; fall back to all complete months if that's empty.
     const ymNow = today.toISOString().slice(0, 7);
-    const cutoff = new Date(today.getFullYear(), today.getMonth() - 4, 1).toISOString().slice(0, 10);
-    const recent = allIncome.filter((t) => t.bookingDate! >= cutoff && t.bookingDate!.slice(0, 7) !== ymNow);
-    const incomeCredits = new Set(recent.map((t) => t.bookingDate!.slice(0, 7))).size >= 2 ? recent : allIncome;
-    const byMonth = new Map<string, { sum: number; main: { amount: number; date: string } }>();
+    const cutoff = new Date(today.getFullYear(), today.getMonth() - 6, 1).toISOString().slice(0, 10);
+    const complete = allIncome.filter((t) => t.bookingDate!.slice(0, 7) !== ymNow);
+    const windowed = complete.filter((t) => t.bookingDate! >= cutoff);
+    const incomeCredits = windowed.length ? windowed : complete;
+
+    // account -> month -> deposit amounts
+    const perAccount = new Map<string, Map<string, number[]>>();
     for (const t of incomeCredits) {
       const m = t.bookingDate!.slice(0, 7);
-      const amt = Number(t.amount);
-      const e = byMonth.get(m);
-      if (!e) byMonth.set(m, { sum: amt, main: { amount: amt, date: t.bookingDate! } });
-      else { e.sum += amt; if (amt > e.main.amount) e.main = { amount: amt, date: t.bookingDate! }; }
+      const months = perAccount.get(t.accountId) ?? new Map<string, number[]>();
+      const arr = months.get(m) ?? [];
+      arr.push(Number(t.amount));
+      months.set(m, arr);
+      perAccount.set(t.accountId, months);
     }
-    if (byMonth.size >= 2) {
-      // Typical TOTAL monthly income = median of each month's summed income
-      // (captures multiple sources, e.g. your wage + a partner's transfer). The
-      // pay day is taken from the largest inflow, for display only.
-      const mains = [...byMonth.values()].map((v) => v.main);
-      const day = typicalDayOfMonth(mains.map((m) => m.date)) ?? 28;
-      const amount = median([...byMonth.values()].map((v) => v.sum));
+
+    let total = 0;
+    let dominant: { accountId: string; monthly: number } | null = null;
+    for (const [accountId, months] of perAccount) {
+      // Count an account as recurring income only if it pays in >= 2 distinct
+      // months (filters one-off credits, e.g. a refund miscategorised as income).
+      if (months.size < 2) continue;
+      const deposits = [...months.values()].flat();
+      // Typical single deposit: fixed salary -> the amount; variable transfer ->
+      // the central value. Multiply by the *minimum* deposits seen in any active
+      // month, so a bunched single salary counts once while a genuine two-stream
+      // account (every month has two) counts both.
+      const typical = median(deposits);
+      const minPerMonth = Math.min(...[...months.values()].map((a) => a.length));
+      const monthly = typical * Math.max(1, minPerMonth);
+      total += monthly;
+      if (!dominant || monthly > dominant.monthly) dominant = { accountId, monthly };
+    }
+
+    if (total >= 1 && dominant) {
+      // Pay day comes from the dominant (largest) income account, for display only.
+      const domDates = incomeCredits.filter((t) => t.accountId === dominant!.accountId).map((t) => t.bookingDate!);
+      const day = typicalDayOfMonth(domDates) ?? 28;
       const lastSeenIso = incomeCredits.map((t) => t.bookingDate!).sort().slice(-1)[0] ?? null;
       const lastSeen = lastSeenIso ? new Date(`${lastSeenIso}T00:00:00`) : null;
-      const existing = await db.recurringSchedule.findUnique({ where: { merchantToken: incomeToken } });
-      const userSet = existing != null && existing.status !== "auto";
+      const amount = Math.round(total * 100) / 100;
+      const fields = { name: "Income", accountId: null, direction: "in", amount, cadence: "monthly", dayOfMonth: day, lastSeen, nextDue: inferNextDue(day, today), status: "auto" };
       await db.recurringSchedule.upsert({
         where: { merchantToken: incomeToken },
-        create: { merchantToken: incomeToken, name: "Income", accountId: null, direction: "in", amount, cadence: "monthly", dayOfMonth: day, lastSeen, nextDue: inferNextDue(day, today), status: "auto" },
-        // Once the user confirms/edits, keep their amount + day; only refresh timing.
-        update: userSet
-          ? { lastSeen, nextDue: inferNextDue(existing!.dayOfMonth ?? day, today) }
-          : { name: "Income", accountId: null, direction: "in", amount, cadence: "monthly", dayOfMonth: day, lastSeen, nextDue: inferNextDue(day, today), status: "auto" },
+        create: { merchantToken: incomeToken, ...fields },
+        update: fields,
       });
       qualifying.add(incomeToken);
+    } else {
+      await db.recurringSchedule.deleteMany({ where: { merchantToken: incomeToken } });
     }
   }
 
