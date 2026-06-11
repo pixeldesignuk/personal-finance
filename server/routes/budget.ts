@@ -5,7 +5,8 @@ import { effectiveCategory } from "../lib/effectiveCategory.ts";
 import { currentMonth, monthOf, round2, personalSpendByCategory, suggestBudgets, completeSpendMonths, type BudgetTx } from "../lib/budget.ts";
 import { currentBalance } from "../lib/balance.ts";
 import { buildBudgetRows, type BudgetCategory } from "../lib/budgetView.ts";
-import type { BudgetResponseDTO, CategoryInfoDTO } from "../../shared/types.ts";
+import { billTarget } from "../lib/recurring.ts";
+import type { BudgetResponseDTO, BillTargetDTO, CategoryInfoDTO } from "../../shared/types.ts";
 
 function prevMonth(m: string): string {
   const [y, mo] = m.split("-").map(Number);
@@ -38,6 +39,22 @@ budgetRouter.get("/budget", async (req, res, next) => {
       if (amt > 0 && effectiveCategory(t) !== "transfer") income += amt;
     }
     const budgeted = categories.reduce((s, c) => s + c.monthlyAmount, 0);
+
+    // Non-monthly (quarterly/annual) bills, smoothed into monthly "set aside"
+    // targets so you save for them all year and they never spike one month.
+    const isoOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const now = new Date();
+    const nonMonthly = await db.recurringSchedule.findMany({ where: { direction: "out", status: { not: "ignored" }, cadence: { in: ["quarterly", "yearly"] } } });
+    const billTargets: BillTargetDTO[] = [];
+    for (const s of nonMonthly) {
+      if (!s.nextDue) continue;
+      const calc = billTarget(Number(s.amount.toString()), s.cadence, isoOf(s.nextDue), now);
+      if (!calc) continue;
+      billTargets.push({ token: s.merchantToken, name: s.name ?? s.merchantToken, amount: Number(s.amount.toString()), cadence: s.cadence, ...calc });
+    }
+    billTargets.sort((a, b) => (a.nextDue ?? "").localeCompare(b.nextDue ?? ""));
+    const setAside = billTargets.reduce((acc, b) => acc + b.monthlyAmount, 0);
+
     const spentTotal = Object.values(spent).reduce((s, v) => s + v, 0);
     const lastMonthSpend = personalSpendByCategory(budgetTxns, prevMonth(month));
     const spentLastMonth = Object.values(lastMonthSpend).reduce((s, v) => s + v, 0);
@@ -58,11 +75,13 @@ budgetRouter.get("/budget", async (req, res, next) => {
 
     const response: BudgetResponseDTO = {
       rows,
+      billTargets,
       summary: {
-        available: round2(balance - budgeted),
+        available: round2(balance - budgeted - setAside),
         spent: round2(spentTotal),
         spentLastMonth: round2(spentLastMonth),
         budgeted: round2(budgeted),
+        setAside: round2(setAside),
         income: round2(income),
         pendingCount,
       },

@@ -1056,6 +1056,12 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 .recur-tag { font-size: 10px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; flex: none; }
 .recur-up { font-size: 11px; font-weight: 600; color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent); border-radius: 5px; padding: 1px 6px; flex: none; white-space: nowrap; }
 .upcoming-up { color: var(--amber); font-weight: 700; flex: none; }
+/* Budget "Bills you're saving for" — non-monthly sinking-fund targets */
+.bill-targets { display: flex; flex-direction: column; gap: 14px; margin-top: 10px; }
+.bill-target { display: flex; flex-direction: column; gap: 6px; }
+.bill-target-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.bill-target-name { color: var(--ink); font-weight: 500; min-width: 0; }
+.bill-target-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: 12px; }
 .recur-actions { display: flex; align-items: center; gap: 7px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
 /* Standalone page search box. */
 .search-input { max-width: 340px; margin-bottom: 16px; }

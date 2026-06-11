@@ -29,10 +29,46 @@ export function occurrencesWithin(nextDue: Date, cadence: string, from: Date, da
     if (d >= start) out.push(new Date(d));
     if (cadence === "weekly") d.setDate(d.getDate() + 7);
     else if (cadence === "yearly") d.setFullYear(d.getFullYear() + 1);
+    else if (cadence === "quarterly") d.setMonth(d.getMonth() + 3);
     else if (cadence === "monthly") d.setMonth(d.getMonth() + 1);
     else break; // irregular / one-off: only the single nextDue
   }
   return out;
+}
+
+// How many months one cadence period spans (0 for sub-monthly cadences, which
+// aren't "save up for it" bills).
+export function periodMonths(cadence: string): number {
+  return cadence === "yearly" ? 12 : cadence === "quarterly" ? 3 : cadence === "monthly" ? 1 : 0;
+}
+
+export interface BillTargetCalc {
+  periodMonths: number;
+  monthlyAmount: number;
+  monthsElapsed: number;
+  setAside: number;
+  nextDue: string;
+}
+
+// Smooth a non-monthly bill into a monthly "set aside" target (sinking fund).
+// Given the full per-occurrence amount, cadence and the bill's next due date,
+// work out the monthly contribution (amount ÷ period), the next actual due date
+// (rolled forward to today or later), how many months into the current cycle we
+// are (the "X of N"), and how much should have been set aside by now. Returns
+// null for monthly/weekly/irregular (nothing to spread).
+export function billTarget(amount: number, cadence: string, nextDueISO: string, today: Date): BillTargetCalc | null {
+  const period = periodMonths(cadence);
+  if (period <= 1) return null;
+  const t = startOfDay(today);
+  const next = new Date(`${nextDueISO}T00:00:00`);
+  for (let guard = 0; next < t && guard < 400; guard++) next.setMonth(next.getMonth() + period);
+  const last = new Date(next);
+  last.setMonth(last.getMonth() - period);
+  const monthsElapsed = Math.max(0, Math.min(period, (t.getFullYear() - last.getFullYear()) * 12 + (t.getMonth() - last.getMonth())));
+  const monthlyAmount = Math.round((amount / period) * 100) / 100;
+  const setAside = Math.round(Math.min(amount, monthlyAmount * monthsElapsed) * 100) / 100;
+  const iso = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-${String(next.getDate()).padStart(2, "0")}`;
+  return { periodMonths: period, monthlyAmount, monthsElapsed, setAside, nextDue: iso };
 }
 
 // True if `date` falls within the calendar month of `ref`.

@@ -44,12 +44,18 @@ export default function Recurring() {
 
   // Add-manual dialog (e.g. a salary detection missed).
   const [addOpen, setAddOpen] = useState(false);
-  const [add, setAdd] = useState({ name: "", direction: "in" as "out" | "in", amount: "", dayOfMonth: "28" });
-  const openAdd = () => { setAdd({ name: "", direction: "in", amount: "", dayOfMonth: "28" }); setAddOpen(true); };
+  const [add, setAdd] = useState({ name: "", direction: "in" as "out" | "in", amount: "", dayOfMonth: "28", cadence: "monthly", nextDue: "" });
+  const openAdd = () => { setAdd({ name: "", direction: "in", amount: "", dayOfMonth: "28", cadence: "monthly", nextDue: "" }); setAddOpen(true); };
   const submitAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!add.name.trim() || !(Number(add.amount) > 0)) return;
-    create.mutate({ name: add.name.trim(), direction: add.direction, amount: Number(add.amount), dayOfMonth: Math.min(31, Math.max(1, Number(add.dayOfMonth) || 1)) });
+    const nonMonthly = add.cadence === "quarterly" || add.cadence === "yearly";
+    if (nonMonthly && !add.nextDue) { notify("Pick the next due date for a quarterly/annual bill", { tone: "error" }); return; }
+    create.mutate({
+      name: add.name.trim(), direction: add.direction, amount: Number(add.amount), cadence: add.cadence,
+      ...(nonMonthly ? { nextDue: add.nextDue } : { dayOfMonth: Math.min(31, Math.max(1, Number(add.dayOfMonth) || 1)) }),
+      dayOfMonth: Math.min(31, Math.max(1, Number(add.dayOfMonth) || 1)),
+    });
     setAddOpen(false);
   };
 
@@ -68,12 +74,19 @@ export default function Recurring() {
 
   // Edit dialog.
   const [edit, setEdit] = useState<RecurringScheduleDTO | null>(null);
-  const [form, setForm] = useState({ amount: "", dayOfMonth: "", cadence: "monthly", direction: "out" as "out" | "in" });
-  const openEdit = (s: RecurringScheduleDTO) => { setEdit(s); setForm({ amount: String(s.amount), dayOfMonth: String(s.dayOfMonth ?? 1), cadence: s.cadence, direction: s.direction }); };
+  const [form, setForm] = useState({ amount: "", dayOfMonth: "", cadence: "monthly", direction: "out" as "out" | "in", nextDue: "" });
+  const openEdit = (s: RecurringScheduleDTO) => { setEdit(s); setForm({ amount: String(s.amount), dayOfMonth: String(s.dayOfMonth ?? 1), cadence: s.cadence, direction: s.direction, nextDue: s.nextDue ?? "" }); };
   const saveEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!edit) return;
-    patch.mutate({ token: edit.token, p: { amount: Number(form.amount) || 0, dayOfMonth: Math.min(31, Math.max(1, Number(form.dayOfMonth) || 1)), cadence: form.cadence, direction: form.direction } });
+    const nonMonthly = form.cadence === "quarterly" || form.cadence === "yearly";
+    if (nonMonthly && !form.nextDue) { notify("Pick the next due date for a quarterly/annual bill", { tone: "error" }); return; }
+    patch.mutate({ token: edit.token, p: {
+      amount: Number(form.amount) || 0,
+      dayOfMonth: Math.min(31, Math.max(1, Number(form.dayOfMonth) || 1)),
+      cadence: form.cadence, direction: form.direction,
+      ...(nonMonthly ? { nextDue: form.nextDue } : {}),
+    } });
     setEdit(null);
   };
 
@@ -118,7 +131,7 @@ export default function Recurring() {
                         <span className="recur-up" title={`Increased from ${formatGBP(s.prevAmount)}`}>↑ up from {formatGBP(s.prevAmount)}</span>
                       )}
                     </span>
-                    <span className="muted recur-meta">{formatGBP(s.amount)} · {s.cadence}{s.dayOfMonth ? ` · day ${s.dayOfMonth}` : ""} · next {dueLabel(s.nextDue)}</span>
+                    <span className="muted recur-meta">{formatGBP(s.amount)} · {s.cadence}{(s.cadence === "yearly" || s.cadence === "quarterly") ? ` (≈${formatGBP(s.amount / (s.cadence === "yearly" ? 12 : 3))}/mo)` : ""}{s.dayOfMonth ? ` · day ${s.dayOfMonth}` : ""} · next {dueLabel(s.nextDue)}</span>
                   </span>
                 </span>
                 <span className="recur-actions">
@@ -157,9 +170,20 @@ export default function Recurring() {
             </Field>
             <Field label="Amount (£)"><input inputMode="decimal" value={add.amount} placeholder="0.00" onChange={(e) => setAdd({ ...add, amount: e.target.value })} /></Field>
           </FieldRow>
-          <Field label="Day of month" hint="Roughly when it lands — income tolerates a variable payday.">
-            <input inputMode="numeric" value={add.dayOfMonth} onChange={(e) => setAdd({ ...add, dayOfMonth: e.target.value })} />
+          <Field label="Cadence">
+            <select value={add.cadence} onChange={(e) => setAdd({ ...add, cadence: e.target.value })}>
+              <option value="monthly">Monthly</option><option value="weekly">Weekly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option><option value="irregular">Irregular</option>
+            </select>
           </Field>
+          {add.cadence === "quarterly" || add.cadence === "yearly" ? (
+            <Field label="Next due date" hint="When the next charge lands. We'll spread it across the months as a budget target.">
+              <input type="date" value={add.nextDue} onChange={(e) => setAdd({ ...add, nextDue: e.target.value })} />
+            </Field>
+          ) : (
+            <Field label="Day of month" hint="Roughly when it lands — income tolerates a variable payday.">
+              <input inputMode="numeric" value={add.dayOfMonth} onChange={(e) => setAdd({ ...add, dayOfMonth: e.target.value })} />
+            </Field>
+          )}
           <div className="modal-actions"><button type="button" onClick={() => setAddOpen(false)}>Cancel</button><button className="btn-primary" type="submit">Add</button></div>
         </form>
       </Modal>
@@ -170,12 +194,14 @@ export default function Recurring() {
             <h3>Edit · {edit.name}</h3>
             <FieldRow>
               <Field label="Amount (£)"><input inputMode="decimal" value={form.amount} autoFocus onChange={(e) => setForm({ ...form, amount: e.target.value })} /></Field>
-              <Field label="Day of month"><input inputMode="numeric" value={form.dayOfMonth} onChange={(e) => setForm({ ...form, dayOfMonth: e.target.value })} /></Field>
+              {form.cadence === "quarterly" || form.cadence === "yearly"
+                ? <Field label="Next due date"><input type="date" value={form.nextDue} onChange={(e) => setForm({ ...form, nextDue: e.target.value })} /></Field>
+                : <Field label="Day of month"><input inputMode="numeric" value={form.dayOfMonth} onChange={(e) => setForm({ ...form, dayOfMonth: e.target.value })} /></Field>}
             </FieldRow>
             <FieldRow>
               <Field label="Cadence">
                 <select value={form.cadence} onChange={(e) => setForm({ ...form, cadence: e.target.value })}>
-                  <option value="monthly">Monthly</option><option value="weekly">Weekly</option><option value="yearly">Yearly</option><option value="irregular">Irregular</option>
+                  <option value="monthly">Monthly</option><option value="weekly">Weekly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option><option value="irregular">Irregular</option>
                 </select>
               </Field>
               <Field label="Direction">

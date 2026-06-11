@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQueryState } from "nuqs";
 import { api } from "../api.ts";
-import type { BudgetRowDTO, BudgetSummaryDTO, CategoryInfoDTO } from "../../../shared/types.ts";
+import type { BudgetRowDTO, BudgetSummaryDTO, BillTargetDTO, CategoryInfoDTO } from "../../../shared/types.ts";
 import { formatMoney } from "../format.ts";
 import { PageHeader, Stat, EmptyState, Modal, Field, Toggle, useConfirm } from "../components/ui";
 
@@ -18,6 +18,7 @@ export default function Budgets() {
   const [people, setPeople] = useState<{ key: string; name: string }[]>([]);
   const [person, setPerson] = useQueryState("person", { defaultValue: "", history: "replace" });
   const [rows, setRows] = useState<BudgetRowDTO[]>([]);
+  const [billTargets, setBillTargets] = useState<BillTargetDTO[]>([]);
   const [summary, setSummary] = useState<BudgetSummaryDTO | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -30,7 +31,7 @@ export default function Budgets() {
   const [form, setForm] = useState({ name: "", group: "", monthlyAmount: "0" });
 
   useEffect(() => { api.people().then(setPeople).catch(() => setPeople([])); }, []);
-  const load = () => api.budget(month, person || undefined).then((r) => { setRows(r.rows); setSummary(r.summary); setDraft({}); }).catch((e) => setMsg(e.message));
+  const load = () => api.budget(month, person || undefined).then((r) => { setRows(r.rows); setBillTargets(r.billTargets); setSummary(r.summary); setDraft({}); }).catch((e) => setMsg(e.message));
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [month, person]);
 
   const groups = useMemo(() => {
@@ -122,9 +123,41 @@ export default function Budgets() {
             })()}
           />
           <Stat label="Budgeted this month" value={`£${formatMoney(summary.budgeted)}`} />
-          <Stat label="Pending transactions" value={summary.pendingCount} />
+          {summary.setAside > 0
+            ? <Stat label="Set aside for bills" value={`£${formatMoney(summary.setAside)}`} delta="quarterly & annual" />
+            : <Stat label="Pending transactions" value={summary.pendingCount} />}
         </div>
       )}
+
+      {billTargets.length > 0 && (
+        <div className="card">
+          <div className="card-head">
+            <h3>Bills you're saving for</h3>
+            <span className="muted" style={{ fontSize: 13 }}>£{formatMoney(billTargets.reduce((s, t) => s + t.monthlyAmount, 0))} / mo</span>
+          </div>
+          <p className="muted" style={{ marginTop: -4, fontSize: 13 }}>Quarterly & annual bills, spread across the months so they never spike. We reserve the monthly amount from your “available to budget”.</p>
+          <div className="bill-targets">
+            {billTargets.map((t) => {
+              const pct = Math.min(100, Math.round((t.monthsElapsed / t.periodMonths) * 100));
+              const due = t.nextDue ? new Date(`${t.nextDue}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—";
+              return (
+                <div className="bill-target" key={t.token}>
+                  <div className="bill-target-top">
+                    <span className="bill-target-name td-clip">{t.name}</span>
+                    <span className="num"><strong>£{formatMoney(t.monthlyAmount)}</strong> <span className="muted">/ mo</span></span>
+                  </div>
+                  <div className="progress"><i className="ok" style={{ width: `${pct}%` }} /></div>
+                  <div className="bill-target-meta muted">
+                    <span>£{formatMoney(t.setAside)} set aside of £{formatMoney(t.amount)} · {t.monthsElapsed} of {t.periodMonths}</span>
+                    <span>{t.cadence === "yearly" ? "Annual" : "Quarterly"} · due {due}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {rows.length === 0 && <EmptyState>No categories yet — add one above.</EmptyState>}
       {groups.map((g) => {
         const gr = rows.filter((r) => (r.group ?? "Other") === g && (!hideEmpty || r.budgeted > 0 || r.spent > 0));

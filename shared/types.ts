@@ -364,16 +364,32 @@ export interface BudgetRowDTO {
 }
 
 export interface BudgetSummaryDTO {
-  available: number;     // personal-account balances − budgeted (money on hand to assign)
+  available: number;     // personal-account balances − budgeted − setAside (money free to assign)
   spent: number;         // total personal spend this month
   spentLastMonth: number; // total personal spend last month (for the trend)
   budgeted: number;      // total of category monthly budgets
+  setAside: number;      // monthly reserve for non-monthly (quarterly/annual) bills
   income: number;        // income this month (reference)
   pendingCount: number;  // pending transactions
 }
 
+// A non-monthly bill (quarterly/annual) smoothed into a monthly "set aside"
+// target, YNAB-style: budget monthlyAmount each month and it's covered when due.
+export interface BillTargetDTO {
+  token: string;
+  name: string;
+  amount: number;        // full bill amount per occurrence (e.g. £600/yr)
+  cadence: string;       // quarterly | yearly
+  periodMonths: number;  // 3 | 12
+  monthlyAmount: number; // amount ÷ periodMonths — the monthly set-aside
+  monthsElapsed: number; // months into the current cycle (the "X" in "X of N")
+  setAside: number;      // monthlyAmount × monthsElapsed — what should be saved by now
+  nextDue: string | null;// ISO date of the next occurrence
+}
+
 export interface BudgetResponseDTO {
   rows: BudgetRowDTO[];
+  billTargets: BillTargetDTO[];
   summary: BudgetSummaryDTO;
 }
 

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { inferNextDue, occurrencesWithin, sameMonth, typicalDayOfMonth, incomeOccurrences } from "./recurring.ts";
+import { inferNextDue, occurrencesWithin, sameMonth, typicalDayOfMonth, incomeOccurrences, periodMonths, billTarget } from "./recurring.ts";
 
 test("inferNextDue: this month when the day hasn't passed", () => {
   const due = inferNextDue(15, new Date(2026, 5, 10)); // 10 Jun
@@ -78,4 +78,42 @@ test("incomeOccurrences: payday passed but not received → surfaced as due now"
   const occ = incomeOccurrences(5, false, new Date(2026, 5, 10), 30); // payday 5th passed, not paid
   assert.equal(occ[0].getMonth(), 5);
   assert.equal(occ[0].getDate(), 10); // clamped to today (overdue income)
+});
+
+test("occurrencesWithin: quarterly steps every 3 months", () => {
+  const occ = occurrencesWithin(new Date(2026, 0, 1), "quarterly", new Date(2026, 0, 1), 200);
+  // Jan, Apr, Jul (month indexes 0, 3, 6) within ~200 days; compare local parts
+  assert.deepEqual(occ.map((d) => d.getMonth()), [0, 3, 6]);
+  assert.ok(occ.every((d) => d.getDate() === 1));
+});
+
+test("periodMonths maps cadences", () => {
+  assert.equal(periodMonths("yearly"), 12);
+  assert.equal(periodMonths("quarterly"), 3);
+  assert.equal(periodMonths("monthly"), 1);
+  assert.equal(periodMonths("weekly"), 0);
+});
+
+test("billTarget: annual bill smoothed, 3 months into the cycle", () => {
+  // £600/yr last due 12 Mar; today 11 Jun -> 3 months in, £50/mo, £150 set aside
+  const t = billTarget(600, "yearly", "2026-03-12", new Date(2026, 5, 11));
+  assert.ok(t);
+  assert.equal(t!.periodMonths, 12);
+  assert.equal(t!.monthlyAmount, 50);
+  assert.equal(t!.monthsElapsed, 3);
+  assert.equal(t!.setAside, 150);
+  assert.equal(t!.nextDue, "2027-03-12");
+});
+
+test("billTarget: quarterly bill, 1 month into the cycle", () => {
+  const t = billTarget(90, "quarterly", "2026-05-01", new Date(2026, 5, 11));
+  assert.equal(t!.monthlyAmount, 30);
+  assert.equal(t!.monthsElapsed, 1);
+  assert.equal(t!.setAside, 30);
+  assert.equal(t!.nextDue, "2026-08-01");
+});
+
+test("billTarget: monthly/weekly return null (nothing to spread)", () => {
+  assert.equal(billTarget(50, "monthly", "2026-06-01", new Date(2026, 5, 11)), null);
+  assert.equal(billTarget(20, "weekly", "2026-06-01", new Date(2026, 5, 11)), null);
 });

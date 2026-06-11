@@ -55,10 +55,15 @@ recurringRouter.post("/recurring", async (req, res, next) => {
       direction: z.enum(["out", "in"]),
       amount: z.number().nonnegative(),
       dayOfMonth: z.number().int().min(1).max(31),
-      cadence: z.enum(["monthly", "weekly", "yearly", "irregular"]).default("monthly"),
+      cadence: z.enum(["monthly", "weekly", "quarterly", "yearly", "irregular"]).default("monthly"),
+      // Quarterly/annual bills need a full next-due DATE (we need the month, not
+      // just the day); monthly/weekly just need dayOfMonth.
+      nextDue: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     }).parse(req.body ?? {});
     const token = `manual:${slug(b.name)}`;
-    const fields = { name: b.name.trim(), direction: b.direction, amount: b.amount, dayOfMonth: b.dayOfMonth, cadence: b.cadence, nextDue: inferNextDue(b.dayOfMonth, new Date()), status: "confirmed", accountId: null };
+    const dayOfMonth = b.nextDue ? Number(b.nextDue.slice(8, 10)) : b.dayOfMonth;
+    const nextDue = b.nextDue ? new Date(`${b.nextDue}T00:00:00`) : inferNextDue(b.dayOfMonth, new Date());
+    const fields = { name: b.name.trim(), direction: b.direction, amount: b.amount, dayOfMonth, cadence: b.cadence, nextDue, status: "confirmed", accountId: null };
     const row = await db.recurringSchedule.upsert({ where: { merchantToken: token }, create: { merchantToken: token, ...fields }, update: fields });
     res.json(toDTO(row));
   } catch (err) { next(err); }
@@ -71,17 +76,23 @@ recurringRouter.patch("/recurring/:token", async (req, res, next) => {
       status: z.enum(["auto", "confirmed", "ignored"]).optional(),
       amount: z.number().nonnegative().optional(),
       dayOfMonth: z.number().int().min(1).max(31).optional(),
-      cadence: z.enum(["monthly", "weekly", "yearly", "irregular"]).optional(),
+      cadence: z.enum(["monthly", "weekly", "quarterly", "yearly", "irregular"]).optional(),
       direction: z.enum(["out", "in"]).optional(),
       accountId: z.string().nullable().optional(),
+      nextDue: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), // full date for quarterly/annual bills
     }).parse(req.body ?? {});
     const token = req.params.token;
     const current = await db.recurringSchedule.findUnique({ where: { merchantToken: token } });
     if (!current) { res.status(404).json({ error: "No such schedule" }); return; }
-    // Recompute the next occurrence if the timing inputs changed.
+    const { nextDue: nextDueStr, ...rest } = patch;
+    // An explicit next-due date wins; otherwise recompute from dayOfMonth when the
+    // timing inputs changed; otherwise keep the existing one.
     const day = patch.dayOfMonth ?? current.dayOfMonth ?? 1;
-    const nextDue = (patch.dayOfMonth != null || patch.cadence != null) ? inferNextDue(day, new Date()) : current.nextDue;
-    const updated = await db.recurringSchedule.update({ where: { merchantToken: token }, data: { ...patch, nextDue } });
+    const nextDue = nextDueStr
+      ? new Date(`${nextDueStr}T00:00:00`)
+      : (patch.dayOfMonth != null || patch.cadence != null) ? inferNextDue(day, new Date()) : current.nextDue;
+    const data = { ...rest, nextDue, ...(nextDueStr ? { dayOfMonth: Number(nextDueStr.slice(8, 10)) } : {}) };
+    const updated = await db.recurringSchedule.update({ where: { merchantToken: token }, data });
     res.json(toDTO(updated));
   } catch (err) { next(err); }
 });
