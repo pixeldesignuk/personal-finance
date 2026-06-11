@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { env } from "../env.ts";
 import { db } from "../lib/db.ts";
-import { GoCardlessClient } from "../gocardless/client.ts";
+import { GoCardlessClient, GoCardlessError } from "../gocardless/client.ts";
 import { syncAccount } from "./sync.ts";
 
 export const connectRouter = Router();
@@ -71,6 +71,7 @@ connectRouter.post("/connect/:id/finalize", async (req, res, next) => {
     // Track requisitions these accounts previously belonged to, so a reconnect
     // (same bank, new consent) can clean up the now-orphaned old requisition.
     const movedFromReqs = new Set<string>();
+    let rateLimited = false;
     for (const accountId of requisition.accounts) {
       const existing = await db.account.findUnique({ where: { id: accountId }, select: { requisitionId: true } });
       if (existing?.requisitionId && existing.requisitionId !== id) movedFromReqs.add(existing.requisitionId);
@@ -93,8 +94,16 @@ connectRouter.post("/connect/:id/finalize", async (req, res, next) => {
           ownerName: details.account?.ownerName,
         },
       });
-      // Reconnect intent is "give me more history", so always pull the full window.
-      await syncAccount(accountId, undefined, { fullHistory: true });
+      // Reconnect intent is "give me more history", so always pull the full
+      // window. If the bank's daily fetch limit (PSD2: ~4/day) is already spent,
+      // don't fail the whole link — the account is connected, and because no
+      // successful sync is recorded yet, the next sync still pulls full history.
+      try {
+        await syncAccount(accountId, undefined, { fullHistory: true });
+      } catch (e) {
+        if (e instanceof GoCardlessError && e.status === 429) { rateLimited = true; }
+        else throw e;
+      }
     }
     // Remove old requisitions left with no accounts after a reconnect, so the
     // bank doesn't appear twice on the accounts screen.
@@ -103,7 +112,7 @@ connectRouter.post("/connect/:id/finalize", async (req, res, next) => {
       try { await gc.deleteRequisition(oldReq); } catch (e) { console.error("Old requisition delete (GoCardless) failed", e); }
       await db.requisition.delete({ where: { id: oldReq } }).catch(() => {});
     }
-    res.json({ accounts: requisition.accounts.length });
+    res.json({ accounts: requisition.accounts.length, rateLimited });
   } catch (err) {
     next(err);
   }

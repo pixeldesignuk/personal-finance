@@ -18,7 +18,11 @@ import type { SyncResult } from "../../shared/types.ts";
 export const syncRouter = Router();
 const gc = new GoCardlessClient();
 
-const SYNC_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+// Banks only allow ~4 unattended data pulls per account per day (a PSD2 cap
+// GoCardless can't raise). A 6h cooldown would use the entire budget on
+// background syncs, leaving none for a manual sync or a reconnect. Cap automatic
+// syncs at one per ~12h (≈2/day) so 2 pulls stay free for on-demand use.
+const SYNC_COOLDOWN_MS = 12 * 60 * 60 * 1000;
 // Re-fetch a few days of overlap before the last sync so late-posting and
 // pending→booked transactions aren't missed (banks backdate; pending settle late).
 const SYNC_OVERLAP_DAYS = 7;

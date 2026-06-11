@@ -12,6 +12,7 @@ export interface ConnectResponse {
 
 export interface FinalizeResponse {
   accounts: number;
+  rateLimited?: boolean; // bank's daily fetch limit was hit; history fills in on the next sync
 }
 
 export interface SyncResult {

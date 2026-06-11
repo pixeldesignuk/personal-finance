@@ -13,7 +13,12 @@ export default function Callback() {
     fetch(`/api/connect/by-ref/${encodeURIComponent(ref)}`)
       .then((r) => r.json())
       .then(({ id }) => api.finalize(id))
-      .then((r) => { setStatus(`Connected ${r.accounts} account(s).`); setTimeout(() => navigate("/"), 1200); })
+      .then((r) => {
+        setStatus(r.rateLimited
+          ? `Connected ${r.accounts} account(s). Your bank's daily refresh limit was reached, so transactions will fill in on the next sync.`
+          : `Connected ${r.accounts} account(s).`);
+        setTimeout(() => navigate("/"), r.rateLimited ? 3500 : 1200);
+      })
       .catch((e) => setStatus(`Error: ${e.message}`));
   }, [params, navigate]);
 
