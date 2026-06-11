@@ -127,9 +127,15 @@ export default function Accounts() {
                 <span className="eyebrow acct-card-label">Balance</span>
                 <span className="acct-card-bal"><span className="ccy">{a.currency ?? "GBP"}</span> {formatMoney(a.currentBalance)}</span>
                 {a.excludedBalance ? (
-                  <span className="acct-excluded" title="Held for others — excluded from net worth & safe-to-spend">
-                    −£{formatMoney(a.excludedBalance)} not yours · £{formatMoney(a.currentBalance - a.excludedBalance)} counts
-                  </span>
+                  a.currentBalance < a.excludedBalance ? (
+                    <span className="acct-excluded warn" title="The balance has fallen below the funds you're holding for others — you've dipped into money that isn't yours. Your net worth reflects the shortfall.">
+                      ⚠ £{formatMoney(a.excludedBalance - a.currentBalance)} dipped into funds not yours
+                    </span>
+                  ) : (
+                    <span className="acct-excluded" title="Held for others — excluded from net worth & safe-to-spend">
+                      −£{formatMoney(a.excludedBalance)} not yours · £{formatMoney(a.currentBalance - a.excludedBalance)} counts
+                    </span>
+                  )
                 ) : null}
               </div>
               {recurring[a.id] && (

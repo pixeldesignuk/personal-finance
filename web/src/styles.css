@@ -414,6 +414,7 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
 .acct-cash-ico.asset { color: var(--jade); background: color-mix(in srgb, var(--jade) 12%, var(--surface-2)); border-color: color-mix(in srgb, var(--jade) 26%, var(--line-strong)); }
 .acct-biz { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-3); border: 1px solid var(--line-strong); border-radius: 99px; padding: 1px 7px; flex: none; }
 .acct-excluded { display: block; margin-top: 4px; font-size: 12px; color: var(--ink-3); }
+.acct-excluded.warn { color: var(--coral); }
 
 /* kebab card menu */
 .card-menu { position: relative; flex: none; }
