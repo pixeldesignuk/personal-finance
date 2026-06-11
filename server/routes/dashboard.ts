@@ -52,28 +52,36 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
     const q = z
       .object({ search: z.string().optional(), accountId: z.string().optional(), person: z.string().optional(), month: z.string().regex(/^\d{4}-\d{2}$/).optional(), merchant: z.string().optional(), limit: z.coerce.number().max(2000).default(200) })
       .parse(req.query);
+    // Friendly merchant names (Merchant table) override the raw statement line —
+    // needed up front so search can match the name the user actually SEES
+    // (e.g. "Council Tax") and not just the raw line ("OLDHAM MBC").
+    const merchantNames = new Map((await db.merchant.findMany({ where: { NOT: { name: null } } })).map((m) => [m.token, m.name] as const));
     let txns = await db.transaction.findMany({
       where: {
         ...accountScope(q.accountId),
         ...(q.person ? { personKey: q.person === "none" ? null : q.person } : {}),
         ...(q.month ? { bookingDate: { startsWith: q.month } } : {}),
-        ...(q.search
-          ? {
-              OR: [
-                { merchantName: { contains: q.search, mode: "insensitive" } },
-                { creditorName: { contains: q.search, mode: "insensitive" } },
-                { debtorName: { contains: q.search, mode: "insensitive" } },
-                { remittanceInfo: { contains: q.search, mode: "insensitive" } },
-              ],
-            }
-          : {}),
       },
       orderBy: [{ bookingDate: "desc" }, { id: "asc" }],
-      take: q.merchant ? 2000 : q.limit, // merchant filter is by computed token → fetch wide, filter below
+      // Search and the merchant filter are evaluated in-memory (the friendly name
+      // and the merchant token are computed, not columns), so fetch wide for them.
+      take: q.search || q.merchant ? 2000 : q.limit,
       include: { account: true },
     });
+    // Search across the raw statement fields AND the friendly merchant name.
+    if (q.search) {
+      const term = q.search.toLowerCase();
+      txns = txns.filter((t) => {
+        const raw = `${t.merchantName ?? ""} ${t.creditorName ?? ""} ${t.debtorName ?? ""} ${t.remittanceInfo ?? ""}`.toLowerCase();
+        if (raw.includes(term)) return true;
+        const tok = merchantToken(rawMerchantName(t));
+        const friendly = tok ? merchantNames.get(tok) : null;
+        return !!friendly && friendly.toLowerCase().includes(term);
+      });
+    }
     // Filter to a specific merchant by its token (the merchant's stable id).
-    if (q.merchant) txns = txns.filter((t) => merchantToken(rawMerchantName(t)) === q.merchant).slice(0, 500);
+    if (q.merchant) txns = txns.filter((t) => merchantToken(rawMerchantName(t)) === q.merchant);
+    txns = txns.slice(0, q.merchant ? 500 : q.limit);
     // Email orders (Gmail plugin) linked to these transactions → show what was bought.
     const txnIds = txns.map((t) => t.id);
     const orderRows = txnIds.length ? await db.emailOrder.findMany({ where: { transactionId: { in: txnIds } } }) : [];
@@ -102,8 +110,6 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
       if (raw?.telegram) return "telegram";
       return t.account.source === "BANK" ? "bank" : "manual";
     };
-    // Friendly merchant names (Merchant table) override the raw statement line.
-    const merchantNames = new Map((await db.merchant.findMany({ where: { NOT: { name: null } } })).map((m) => [m.token, m.name] as const));
     const friendlyName = (t: { merchantName: string | null; creditorName: string | null; debtorName: string | null; remittanceInfo: string | null }) => {
       const raw = rawMerchantName(t);
       const tok = merchantToken(rawMerchantName(t));
