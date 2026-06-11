@@ -74,14 +74,16 @@ export default function Recurring() {
 
   // Edit dialog.
   const [edit, setEdit] = useState<RecurringScheduleDTO | null>(null);
-  const [form, setForm] = useState({ amount: "", dayOfMonth: "", cadence: "monthly", direction: "out" as "out" | "in", nextDue: "" });
-  const openEdit = (s: RecurringScheduleDTO) => { setEdit(s); setForm({ amount: String(s.amount), dayOfMonth: String(s.dayOfMonth ?? 1), cadence: s.cadence, direction: s.direction, nextDue: s.nextDue ?? "" }); };
+  const [form, setForm] = useState({ name: "", amount: "", dayOfMonth: "", cadence: "monthly", direction: "out" as "out" | "in", nextDue: "" });
+  const openEdit = (s: RecurringScheduleDTO) => { setEdit(s); setForm({ name: s.name, amount: String(s.amount), dayOfMonth: String(s.dayOfMonth ?? 1), cadence: s.cadence, direction: s.direction, nextDue: s.nextDue ?? "" }); };
   const saveEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!edit) return;
+    if (!form.name.trim()) { notify("Enter a name", { tone: "error" }); return; }
     const nonMonthly = form.cadence === "quarterly" || form.cadence === "yearly";
     if (nonMonthly && !form.nextDue) { notify("Pick the next due date for a quarterly/annual bill", { tone: "error" }); return; }
     patch.mutate({ token: edit.token, p: {
+      name: form.name.trim(),
       amount: Number(form.amount) || 0,
       dayOfMonth: Math.min(31, Math.max(1, Number(form.dayOfMonth) || 1)),
       cadence: form.cadence, direction: form.direction,
@@ -192,6 +194,9 @@ export default function Recurring() {
         {edit && (
           <form className="modal-body" onSubmit={saveEdit}>
             <h3>Edit · {edit.name}</h3>
+            <Field label="Name" hint={edit.token.startsWith("income:") || edit.token.startsWith("manual:") ? undefined : "Also renames this merchant across your transactions"}>
+              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </Field>
             <FieldRow>
               <Field label="Amount (£)"><input inputMode="decimal" value={form.amount} autoFocus onChange={(e) => setForm({ ...form, amount: e.target.value })} /></Field>
               {form.cadence === "quarterly" || form.cadence === "yearly"

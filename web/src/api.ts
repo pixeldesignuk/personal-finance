@@ -121,7 +121,7 @@ export const api = {
   detectRecurring: () => send<{ detected: number }>("POST", "/api/recurring/detect"),
   createRecurring: (input: { name: string; direction: "out" | "in"; amount: number; dayOfMonth: number; cadence?: string; nextDue?: string }) =>
     send<RecurringScheduleDTO>("POST", "/api/recurring", input),
-  patchRecurring: (token: string, patch: { status?: "auto" | "confirmed" | "ignored"; amount?: number; dayOfMonth?: number; cadence?: string; direction?: "out" | "in"; accountId?: string | null; nextDue?: string }) =>
+  patchRecurring: (token: string, patch: { status?: "auto" | "confirmed" | "ignored"; amount?: number; dayOfMonth?: number; cadence?: string; direction?: "out" | "in"; accountId?: string | null; nextDue?: string; name?: string }) =>
     send<RecurringScheduleDTO>("PATCH", `/api/recurring/${encodeURIComponent(token)}`, patch),
   notRecurring: (token: string) => send<{ ok: true }>("POST", `/api/recurring/${encodeURIComponent(token)}/not-recurring`),
   upcoming: (days = 30) => get<UpcomingDTO>(`/api/upcoming?days=${days}`),

@@ -80,18 +80,26 @@ recurringRouter.patch("/recurring/:token", async (req, res, next) => {
       direction: z.enum(["out", "in"]).optional(),
       accountId: z.string().nullable().optional(),
       nextDue: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), // full date for quarterly/annual bills
+      name: z.string().min(1).optional(),
     }).parse(req.body ?? {});
     const token = req.params.token;
     const current = await db.recurringSchedule.findUnique({ where: { merchantToken: token } });
     if (!current) { res.status(404).json({ error: "No such schedule" }); return; }
-    const { nextDue: nextDueStr, ...rest } = patch;
+    const { nextDue: nextDueStr, name: nameRaw, ...rest } = patch;
+    const name = nameRaw?.trim();
+    // Renaming a detected bill renames the underlying merchant too, so it sticks
+    // through re-detection AND renames it everywhere (transactions, budget). For
+    // income/manual schedules there is no merchant — just set the schedule name.
+    if (name && !token.startsWith("income:") && !token.startsWith("manual:")) {
+      await db.merchant.upsert({ where: { token }, create: { token, name }, update: { name } });
+    }
     // An explicit next-due date wins; otherwise recompute from dayOfMonth when the
     // timing inputs changed; otherwise keep the existing one.
     const day = patch.dayOfMonth ?? current.dayOfMonth ?? 1;
     const nextDue = nextDueStr
       ? new Date(`${nextDueStr}T00:00:00`)
       : (patch.dayOfMonth != null || patch.cadence != null) ? inferNextDue(day, new Date()) : current.nextDue;
-    const data = { ...rest, nextDue, ...(nextDueStr ? { dayOfMonth: Number(nextDueStr.slice(8, 10)) } : {}) };
+    const data = { ...rest, nextDue, ...(name ? { name } : {}), ...(nextDueStr ? { dayOfMonth: Number(nextDueStr.slice(8, 10)) } : {}) };
     const updated = await db.recurringSchedule.update({ where: { merchantToken: token }, data });
     res.json(toDTO(updated));
   } catch (err) { next(err); }
