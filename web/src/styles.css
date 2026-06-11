@@ -415,6 +415,8 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
 .acct-biz { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-3); border: 1px solid var(--line-strong); border-radius: 99px; padding: 1px 7px; flex: none; }
 .acct-excluded { display: block; margin-top: 4px; font-size: 12px; color: var(--ink-3); }
 .acct-excluded.warn { color: var(--coral); }
+.settings-toggle { display: flex; flex-direction: column; gap: 2px; }
+.settings-hint { font-size: 12px; margin: 0; }
 
 /* kebab card menu */
 .card-menu { position: relative; flex: none; }

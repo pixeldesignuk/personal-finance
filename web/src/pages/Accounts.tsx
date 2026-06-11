@@ -6,7 +6,7 @@ import type { BankDTO, AccountDTO, AccountRecurringDTO } from "../../../shared/t
 import { formatMoney } from "../format.ts";
 import { BrandLogo } from "../components/BrandLogo.tsx";
 import { CardMenu } from "../components/CardMenu.tsx";
-import { PageHeader, EmptyState, Modal, Field, useConfirm } from "../components/ui";
+import { PageHeader, EmptyState, Modal, Field, Toggle, useConfirm } from "../components/ui";
 
 const numOk = (s: string) => /^-?\d+(\.\d+)?$/.test(s.trim());
 
@@ -35,24 +35,38 @@ export default function Accounts() {
     wrap(async () => { await api.createManualAccount({ name: addForm.name.trim(), type: addForm.type, source: "MANUAL", manualBalance: value }); setAddOpen(false); });
   };
 
-  // Edit-value dialog (rename / set balance).
-  const [edit, setEdit] = useState<{ kind: "rename" | "balance" | "excluded"; id: string; label: string } | null>(null);
+  // Rename dialog.
+  const [edit, setEdit] = useState<{ id: string; label: string } | null>(null);
   const [editVal, setEditVal] = useState("");
-  const openRename = (a: AccountDTO) => { setEdit({ kind: "rename", id: a.id, label: a.displayName }); setEditVal(a.nickname ?? ""); };
-  const openBalance = (a: AccountDTO) => { setEdit({ kind: "balance", id: a.id, label: a.displayName }); setEditVal(String(a.currentBalance)); };
-  const openExcluded = (a: AccountDTO) => { setEdit({ kind: "excluded", id: a.id, label: a.displayName }); setEditVal(String(a.excludedBalance ?? 0)); };
+  const openRename = (a: AccountDTO) => { setEdit({ id: a.id, label: a.displayName }); setEditVal(a.nickname ?? ""); };
   const submitEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!edit) return;
-    if (edit.kind === "rename") wrap(() => api.patchAccount(edit.id, { nickname: editVal.trim() || null }));
-    else if (edit.kind === "excluded") wrap(() => api.patchAccount(edit.id, { excludedBalance: numOk(editVal) ? editVal.trim() : "0" }));
-    else wrap(() => api.patchAccount(edit.id, { manualBalance: numOk(editVal) ? editVal.trim() : "0" }));
+    wrap(() => api.patchAccount(edit.id, { nickname: editVal.trim() || null }));
     setEdit(null);
   };
 
-  const toggleType = (a: AccountDTO) => wrap(() => api.patchAccount(a.id, { type: a.type === "PERSONAL" ? "BUSINESS" : "PERSONAL" }));
-  const toggleInfo = (a: AccountDTO) => wrap(() => api.patchAccount(a.id, { informational: !a.informational }));
-  const setBalanceType = (id: string, value: string) => wrap(() => api.patchAccount(id, { balanceType: value || null }));
+  // Account settings dialog — balance figure, exclude-from-budget, funds-not-mine,
+  // and (for cash) the balance — all in one tidy place instead of crowding the menu.
+  const [settingsFor, setSettingsFor] = useState<AccountDTO | null>(null);
+  const [sForm, setSForm] = useState({ balanceType: "", informational: false, excluded: "", balance: "" });
+  const openSettings = (a: AccountDTO) => {
+    setSForm({ balanceType: a.balanceType ?? "", informational: a.informational, excluded: a.excludedBalance ? String(a.excludedBalance) : "", balance: String(a.currentBalance) });
+    setSettingsFor(a);
+  };
+  const saveSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    const a = settingsFor;
+    if (!a) return;
+    const patch: Parameters<typeof api.patchAccount>[1] = {};
+    if ((a.balanceType ?? "") !== sForm.balanceType) patch.balanceType = sForm.balanceType || null;
+    if (a.informational !== sForm.informational) patch.informational = sForm.informational;
+    const excluded = sForm.excluded.trim();
+    if (excluded !== (a.excludedBalance ? String(a.excludedBalance) : "")) patch.excludedBalance = numOk(excluded) && Number(excluded) > 0 ? excluded : null;
+    if (a.source === "MANUAL" && numOk(sForm.balance) && Number(sForm.balance) !== a.currentBalance) patch.manualBalance = sForm.balance.trim();
+    if (Object.keys(patch).length) wrap(() => api.patchAccount(a.id, patch));
+    setSettingsFor(null);
+  };
   // Reconnect dialog: re-approve at the bank and choose how much history to pull
   // (defaults to the maximum the bank allows).
   const [reconnectFor, setReconnectFor] = useState<{ institutionId: string; name: string } | null>(null);
@@ -107,17 +121,7 @@ export default function Accounts() {
                 </span>
                 <CardMenu>
                   <button type="button" onClick={() => openRename(a)}>Rename</button>
-                  {isCash && <button type="button" onClick={() => openBalance(a)}>Set balance</button>}
-                  {isCash && <button type="button" onClick={() => toggleType(a)}>Mark as {a.type === "PERSONAL" ? "business" : "personal"}</button>}
-                  {a.source === "BANK" && a.balances.length > 1 && (
-                    <>
-                      <div className="card-menu-label">Balance figure</div>
-                      <button type="button" className={a.balanceType ? "" : "sel"} onClick={() => setBalanceType(a.id, "")}>Auto</button>
-                      {a.balances.map((b) => <button type="button" key={b.type} className={a.balanceType === b.type ? "sel" : ""} onClick={() => setBalanceType(a.id, b.type)}>{b.type} · {b.amount}</button>)}
-                    </>
-                  )}
-                  {(a.source === "BANK" || isCash) && <button type="button" title="Keep this account in net worth, but leave its transactions out of your income, spending & safe-to-spend — for shared/non-personal accounts" onClick={() => toggleInfo(a)}>{a.informational ? "Include in budget" : "Exclude from budget"}</button>}
-                  {(a.source === "BANK" || isCash) && <button type="button" title="Carve out a fixed amount that isn't yours — kept out of net worth" onClick={() => openExcluded(a)}>Funds not mine{a.excludedBalance ? " ✓" : ""}</button>}
+                  {(a.source === "BANK" || isCash) && <button type="button" onClick={() => openSettings(a)}>Settings…</button>}
                   {a.source === "BANK" && <button type="button" title="Re-approve at your bank and pull more transaction history" onClick={() => openReconnect(bank.institutionId, bank.institutionName)}>Reconnect</button>}
                   {isCash && <button type="button" className="danger" onClick={() => deleteCash(a)}>Delete</button>}
                   {a.source === "BANK" && <button type="button" className="danger" onClick={() => removeBank(bank)}>Remove bank</button>}
@@ -171,14 +175,40 @@ export default function Accounts() {
       <Modal open={edit != null} onClose={() => setEdit(null)} size="sm">
         {edit && (
           <form className="modal-body" onSubmit={submitEdit}>
-            <h3>{edit.kind === "rename" ? "Rename" : edit.kind === "excluded" ? "Funds not mine" : "Set balance"} · {edit.label}</h3>
-            <Field
-              label={edit.kind === "rename" ? "Nickname (blank to clear)" : edit.kind === "excluded" ? "Amount held for others (£)" : "Balance (£)"}
-              hint={edit.kind === "excluded" ? "Carved out of net worth & safe-to-spend. The account still syncs; set to 0 to clear." : undefined}
-            >
-              <input value={editVal} autoFocus inputMode={edit.kind === "rename" ? undefined : "decimal"} onChange={(e) => setEditVal(e.target.value)} />
+            <h3>Rename · {edit.label}</h3>
+            <Field label="Nickname (blank to clear)">
+              <input value={editVal} autoFocus onChange={(e) => setEditVal(e.target.value)} />
             </Field>
             <div className="modal-actions"><button type="button" onClick={() => setEdit(null)}>Cancel</button><button className="btn-primary" type="submit">Save</button></div>
+          </form>
+        )}
+      </Modal>
+
+      <Modal open={settingsFor != null} onClose={() => setSettingsFor(null)} size="sm">
+        {settingsFor && (
+          <form className="modal-body" onSubmit={saveSettings}>
+            <h3>Settings · {settingsFor.displayName}</h3>
+            {settingsFor.source === "MANUAL" && (
+              <Field label="Balance (£)" hint="Logged cash transactions adjust this automatically.">
+                <input inputMode="decimal" value={sForm.balance} onChange={(e) => setSForm({ ...sForm, balance: e.target.value })} />
+              </Field>
+            )}
+            {settingsFor.source === "BANK" && settingsFor.balances.length > 1 && (
+              <Field label="Balance figure" hint="Which of the bank's balance figures to use.">
+                <select value={sForm.balanceType} onChange={(e) => setSForm({ ...sForm, balanceType: e.target.value })}>
+                  <option value="">Auto</option>
+                  {settingsFor.balances.map((b) => <option key={b.type} value={b.type}>{b.type} · {b.amount}</option>)}
+                </select>
+              </Field>
+            )}
+            <div className="settings-toggle">
+              <Toggle checked={sForm.informational} onChange={(v) => setSForm({ ...sForm, informational: v })} label="Exclude from budget" />
+              <p className="muted settings-hint">Kept in net worth, but left out of income, spending & safe-to-spend. For shared / non-personal accounts.</p>
+            </div>
+            <Field label="Funds not mine (£)" hint="A fixed amount held for someone else — carved out of net worth. Leave blank or 0 if none.">
+              <input inputMode="decimal" value={sForm.excluded} placeholder="0.00" onChange={(e) => setSForm({ ...sForm, excluded: e.target.value })} />
+            </Field>
+            <div className="modal-actions"><button type="button" onClick={() => setSettingsFor(null)}>Cancel</button><button className="btn-primary" type="submit">Save</button></div>
           </form>
         )}
       </Modal>
