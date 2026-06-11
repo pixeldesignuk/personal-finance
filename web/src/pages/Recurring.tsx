@@ -124,12 +124,17 @@ export default function Recurring() {
                   {s.status === "ignored" && <span className="badge" title="Hidden from Upcoming &amp; safe-to-spend">stopped</span>}
                   {s.status === "auto" && <button className="btn-sm btn-primary" onClick={() => patch.mutate({ token: s.token, p: { status: "confirmed" } })}>Confirm</button>}
                   <button className="btn-sm" onClick={() => openEdit(s)}>Edit</button>
-                  {s.direction === "out" && s.status !== "ignored" && (
-                    <button className="btn-sm" title="The detector got this wrong — it isn't a recurring payment. We'll stop flagging it." onClick={() => reject.mutate(s.token)}>Not recurring</button>
+                  {/* One negative action per row: an unconfirmed bill can be rejected as
+                      "not recurring" (trains the detector); a confirmed item — which the
+                      user already accepted as recurring — can only be hidden via "Stop
+                      tracking"; a stopped item can be re-tracked. */}
+                  {s.status === "ignored" ? (
+                    <button className="btn-sm" onClick={() => patch.mutate({ token: s.token, p: { status: "auto" } })}>Track again</button>
+                  ) : s.status === "auto" && s.direction === "out" ? (
+                    <button className="btn-danger btn-sm" title="The detector got this wrong — it isn't a recurring payment. We'll stop flagging it." onClick={() => reject.mutate(s.token)}>Not recurring</button>
+                  ) : (
+                    <button className="btn-danger btn-sm" title="It is recurring, but hide it (e.g. cancelled) — keep it out of Upcoming &amp; safe-to-spend" onClick={() => patch.mutate({ token: s.token, p: { status: "ignored" } })}>Stop tracking</button>
                   )}
-                  {s.status === "ignored"
-                    ? <button className="btn-sm" onClick={() => patch.mutate({ token: s.token, p: { status: "auto" } })}>Track again</button>
-                    : <button className="btn-danger btn-sm" title="It is recurring, but hide it (e.g. cancelled) — keep it out of Upcoming &amp; safe-to-spend" onClick={() => patch.mutate({ token: s.token, p: { status: "ignored" } })}>Stop tracking</button>}
                 </span>
               </div>
             );
