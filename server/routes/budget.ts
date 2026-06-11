@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { db } from "../lib/db.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
-import { currentMonth, monthOf, round2, personalSpendByCategory, type BudgetTx } from "../lib/budget.ts";
+import { currentMonth, monthOf, round2, personalSpendByCategory, suggestBudgets, completeSpendMonths, type BudgetTx } from "../lib/budget.ts";
 import { currentBalance } from "../lib/balance.ts";
 import { buildBudgetRows, type BudgetCategory } from "../lib/budgetView.ts";
 import type { BudgetResponseDTO, CategoryInfoDTO } from "../../shared/types.ts";
@@ -68,6 +68,29 @@ budgetRouter.get("/budget", async (req, res, next) => {
       },
     };
     res.json(response);
+  } catch (err) { next(err); }
+});
+
+// Auto-populate every expense category's monthly budget from spending history
+// (median monthly spend over complete months). Overwrites existing amounts for
+// categories that have history; categories with no spend are left untouched.
+budgetRouter.post("/budget/auto-populate", async (_req, res, next) => {
+  try {
+    const month = currentMonth();
+    const personal = await db.account.findMany({ where: { type: "PERSONAL" }, select: { id: true } });
+    const ids = personal.map((a) => a.id);
+    const txns = await db.transaction.findMany({ where: { accountId: { in: ids } } });
+    const budgetTxns: BudgetTx[] = txns.map((t) => ({ amount: Number(t.amount), category: effectiveCategory(t), bookingDate: t.bookingDate }));
+    const months = completeSpendMonths(budgetTxns, month);
+    if (months === 0) { res.json({ updated: 0, months: 0, total: 0 }); return; }
+    const suggestions = suggestBudgets(budgetTxns, month);
+    let updated = 0;
+    let total = 0;
+    for (const [key, amount] of Object.entries(suggestions)) {
+      const r = await db.category.updateMany({ where: { key, archived: false }, data: { monthlyAmount: amount } });
+      if (r.count) { updated += r.count; total += amount; }
+    }
+    res.json({ updated, months, total: round2(total) });
   } catch (err) { next(err); }
 });
 

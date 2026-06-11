@@ -29,6 +29,56 @@ export function personalSpendByCategory(txns: BudgetTx[], month: string): Record
   return out;
 }
 
+function median(nums: number[]): number {
+  if (!nums.length) return 0;
+  const s = [...nums].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+// Suggest a monthly budget per category from spending history. For each expense
+// category we take the MEDIAN of its monthly spend across the complete months in
+// the data (the current, partial month is excluded), which is robust to one-off
+// spikes. A category that only spends occasionally (median 0 but some spend)
+// gets its average instead, so it isn't budgeted at zero. Amounts round to the
+// nearest pound. Returns category key -> suggested monthly amount.
+export function suggestBudgets(txns: BudgetTx[], currentMonthStr: string): Record<string, number> {
+  const byCatMonth = new Map<string, Map<string, number>>();
+  const months = new Set<string>();
+  for (const t of txns) {
+    if (t.category === "transfer" || t.category === "income") continue;
+    if (t.amount >= 0) continue;
+    const m = monthOf(t.bookingDate);
+    if (!m || m === currentMonthStr) continue;
+    months.add(m);
+    const cm = byCatMonth.get(t.category) ?? new Map<string, number>();
+    cm.set(m, round2((cm.get(m) ?? 0) + -t.amount));
+    byCatMonth.set(t.category, cm);
+  }
+  const monthList = [...months];
+  const out: Record<string, number> = {};
+  if (!monthList.length) return out;
+  for (const [cat, cm] of byCatMonth) {
+    const sums = monthList.map((m) => cm.get(m) ?? 0);
+    let v = median(sums);
+    const total = sums.reduce((a, b) => a + b, 0);
+    if (v === 0 && total > 0) v = total / monthList.length;
+    out[cat] = Math.round(v);
+  }
+  return out;
+}
+
+// Number of complete (non-current) months of expense history available.
+export function completeSpendMonths(txns: BudgetTx[], currentMonthStr: string): number {
+  const months = new Set<string>();
+  for (const t of txns) {
+    if (t.amount >= 0 || t.category === "transfer" || t.category === "income") continue;
+    const m = monthOf(t.bookingDate);
+    if (m && m !== currentMonthStr) months.add(m);
+  }
+  return months.size;
+}
+
 export interface BudgetRow {
   category: string;
   monthlyLimit: number;

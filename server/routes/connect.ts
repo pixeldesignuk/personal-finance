@@ -14,10 +14,23 @@ connectRouter.post("/connect", async (req, res, next) => {
     const institutions = await gc.getInstitutions("gb");
     const inst = institutions.find((i) => i.id === institutionId);
     const reference = `finance-${institutionId}-${Date.now()}`;
+    // Request the deepest history the bank will give (default is only 90 days).
+    // Cap at GoCardless's 730-day ceiling; fall back to 730 if the bank doesn't
+    // advertise a limit. An agreement failure shouldn't block linking, so degrade
+    // gracefully to the default-window requisition.
+    let agreementId: string | undefined;
+    try {
+      const maxDays = Math.min(730, Number(inst?.transaction_total_days) || 730);
+      const agreement = await gc.createAgreement(institutionId, maxDays);
+      agreementId = agreement.id;
+    } catch (e) {
+      console.error("GoCardless agreement creation failed; using default 90-day window", e);
+    }
     const requisition = await gc.createRequisition(
       institutionId,
       reference,
       `${env.APP_BASE_URL}/callback`,
+      agreementId,
     );
     await db.requisition.create({
       data: {

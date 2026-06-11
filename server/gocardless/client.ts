@@ -2,6 +2,7 @@ import { env } from "../env.ts";
 import { TokenManager, type Creds } from "./token.ts";
 import type {
   GcAccountDetails,
+  GcAgreement,
   GcBalances,
   GcInstitution,
   GcRequisition,
@@ -43,10 +44,26 @@ export class GoCardlessClient {
     return this.request(`/api/v2/institutions/?country=${country}`);
   }
 
-  createRequisition(institutionId: string, reference: string, redirect: string): Promise<GcRequisition> {
+  // Create an end-user agreement that requests a longer transaction history than
+  // the 90-day default. The bank caps this at its own maximum, so we request the
+  // bank's advertised `transaction_total_days` (fallback 730). Pass the returned
+  // agreement id into createRequisition so the consent covers that window.
+  createAgreement(institutionId: string, maxHistoricalDays: number, accessValidForDays = 90): Promise<GcAgreement> {
+    return this.request("/api/v2/agreements/enduser/", {
+      method: "POST",
+      body: JSON.stringify({
+        institution_id: institutionId,
+        max_historical_days: maxHistoricalDays,
+        access_valid_for_days: accessValidForDays,
+        access_scope: ["balances", "details", "transactions"],
+      }),
+    });
+  }
+
+  createRequisition(institutionId: string, reference: string, redirect: string, agreement?: string): Promise<GcRequisition> {
     return this.request("/api/v2/requisitions/", {
       method: "POST",
-      body: JSON.stringify({ institution_id: institutionId, reference, redirect }),
+      body: JSON.stringify({ institution_id: institutionId, reference, redirect, ...(agreement ? { agreement } : {}) }),
     });
   }
 

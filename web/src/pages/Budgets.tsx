@@ -51,6 +51,21 @@ export default function Budgets() {
   const wrap = async (fn: () => Promise<unknown>) => { try { await fn(); await load(); setDialogOpen(false); } catch (e) { setMsg((e as Error).message); } };
   const [info, setInfo] = useState<CategoryInfoDTO | null>(null);
   const openNew = () => { setEditId(null); setInfo(null); setForm({ name: "", group: "", monthlyAmount: "0" }); setDialogOpen(true); };
+  // Set every category's budget from spending history (median monthly spend).
+  const autoPopulate = async () => {
+    if (!(await confirm({
+      title: "Auto-budget from history?",
+      body: "This sets each category's monthly budget to your typical (median) spend over the months of history you have. It overwrites the current budget for categories you've spent in.",
+      confirmLabel: "Set budgets",
+    }))) return;
+    try {
+      const r = await api.autoPopulateBudget();
+      await load();
+      setMsg(r.months === 0
+        ? "Not enough history yet — sync a full month first."
+        : `Set ${r.updated} budget${r.updated === 1 ? "" : "s"} (${formatMoney(r.total)}/mo) from ${r.months} month${r.months === 1 ? "" : "s"} of history.`);
+    } catch (e) { setMsg((e as Error).message); }
+  };
   const openEdit = (r: BudgetRowDTO) => {
     setEditId(r.id); setForm({ name: r.name, group: r.group ?? "", monthlyAmount: String(r.budgeted) });
     setInfo(null);
@@ -83,6 +98,7 @@ export default function Budgets() {
           </select>
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: "auto" }} />
           <Toggle checked={hideEmpty} onChange={toggleHideEmpty} label="Hide empty" title="Hide categories with no budget and no spend" />
+          <button onClick={autoPopulate} title="Set budgets automatically from your spending history">Auto-budget</button>
           <button className="btn-primary" onClick={openNew}>Add category</button>
         </>}
       />

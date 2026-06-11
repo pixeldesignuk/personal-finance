@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { monthOf, personalSpendByCategory, buildBudgetRows, cashFlow, type BudgetTx } from "./budget.ts";
+import { monthOf, personalSpendByCategory, buildBudgetRows, cashFlow, suggestBudgets, completeSpendMonths, type BudgetTx } from "./budget.ts";
 
 const txns: BudgetTx[] = [
   { amount: -10, category: "groceries", bookingDate: "2026-06-02" },
@@ -43,4 +43,52 @@ test("cashFlow excludes transfers, computes savings rate", () => {
 
 test("cashFlow with zero income gives rate 0", () => {
   assert.equal(cashFlow([{ amount: -10, category: "groceries", bookingDate: "2026-06-01" }], "2026-06").savingsRate, 0);
+});
+
+test("suggestBudgets: median of monthly spend, current month excluded", () => {
+  const tx: BudgetTx[] = [
+    { amount: -100, category: "groceries", bookingDate: "2026-03-10" },
+    { amount: -120, category: "groceries", bookingDate: "2026-04-10" },
+    { amount: -110, category: "groceries", bookingDate: "2026-05-10" },
+    { amount: -999, category: "groceries", bookingDate: "2026-06-10" }, // current month — excluded
+  ];
+  const s = suggestBudgets(tx, "2026-06");
+  assert.equal(s.groceries, 110); // median of 100,120,110
+});
+
+test("suggestBudgets: one-off spike doesn't inflate (median robust)", () => {
+  const tx: BudgetTx[] = [
+    { amount: -50, category: "shopping", bookingDate: "2026-03-01" },
+    { amount: -50, category: "shopping", bookingDate: "2026-04-01" },
+    { amount: -800, category: "shopping", bookingDate: "2026-05-01" }, // spike
+  ];
+  assert.equal(suggestBudgets(tx, "2026-06").shopping, 50);
+});
+
+test("suggestBudgets: occasional category gets its average, not zero", () => {
+  const tx: BudgetTx[] = [
+    { amount: -60, category: "gifts", bookingDate: "2026-03-01" },
+    // no gifts in Apr or May, but groceries keep those months 'complete'
+    { amount: -10, category: "groceries", bookingDate: "2026-04-01" },
+    { amount: -10, category: "groceries", bookingDate: "2026-05-01" },
+  ];
+  // 3 complete months, gifts total 60 -> average 20
+  assert.equal(suggestBudgets(tx, "2026-06").gifts, 20);
+});
+
+test("suggestBudgets: income and transfers are ignored", () => {
+  const tx: BudgetTx[] = [
+    { amount: 2000, category: "income", bookingDate: "2026-03-01" },
+    { amount: -500, category: "transfer", bookingDate: "2026-03-01" },
+  ];
+  assert.deepEqual(suggestBudgets(tx, "2026-06"), {});
+});
+
+test("completeSpendMonths counts non-current months with spend", () => {
+  const tx: BudgetTx[] = [
+    { amount: -10, category: "groceries", bookingDate: "2026-03-01" },
+    { amount: -10, category: "groceries", bookingDate: "2026-04-01" },
+    { amount: -10, category: "groceries", bookingDate: "2026-06-01" }, // current
+  ];
+  assert.equal(completeSpendMonths(tx, "2026-06"), 2);
 });

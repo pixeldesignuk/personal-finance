@@ -75,6 +75,7 @@ export const api = {
     const parts = [month ? `month=${month}` : "", person ? `person=${encodeURIComponent(person)}` : ""].filter(Boolean);
     return get<BudgetResponseDTO>(`/api/budget${parts.length ? `?${parts.join("&")}` : ""}`);
   },
+  autoPopulateBudget: () => send<{ updated: number; months: number; total: number }>("POST", "/api/budget/auto-populate"),
   report: (month?: string) => get<ReportDTO>(`/api/reports${month ? `?month=${month}` : ""}`),
   categoryInfo: (key: string, month?: string, person?: string) => {
     const parts = [month ? `month=${month}` : "", person ? `person=${encodeURIComponent(person)}` : ""].filter(Boolean);

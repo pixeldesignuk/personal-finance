@@ -10,6 +10,15 @@ export interface GcInstitution {
   name: string;
   bic?: string;
   logo?: string; // PNG URL provided by GoCardless
+  transaction_total_days?: string; // max history the bank exposes, in days (as a string)
+}
+
+export interface GcAgreement {
+  id: string;
+  max_historical_days: number;
+  access_valid_for_days: number;
+  access_scope: string[];
+  institution_id: string;
 }
 
 export interface GcRequisition {
