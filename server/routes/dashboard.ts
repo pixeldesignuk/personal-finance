@@ -61,6 +61,7 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
               OR: [
                 { merchantName: { contains: q.search, mode: "insensitive" } },
                 { creditorName: { contains: q.search, mode: "insensitive" } },
+                { debtorName: { contains: q.search, mode: "insensitive" } },
                 { remittanceInfo: { contains: q.search, mode: "insensitive" } },
               ],
             }

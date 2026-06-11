@@ -81,7 +81,14 @@ export async function detectSchedules(today: Date = new Date()): Promise<{ detec
   if (manualIncome) {
     await db.recurringSchedule.deleteMany({ where: { merchantToken: incomeToken, status: "auto" } });
   } else {
-    const incomeCredits = txns.filter((t) => Number(t.amount) > 0 && t.bookingDate && effectiveCategory(t) === "income");
+    const allIncome = txns.filter((t) => Number(t.amount) > 0 && t.bookingDate && effectiveCategory(t) === "income");
+    // Prefer the last 4 complete months so a recent change (e.g. a partner's
+    // income starting) is reflected, rather than being washed out by a long
+    // history of just one earner. Fall back to all history if that's too sparse.
+    const ymNow = today.toISOString().slice(0, 7);
+    const cutoff = new Date(today.getFullYear(), today.getMonth() - 4, 1).toISOString().slice(0, 10);
+    const recent = allIncome.filter((t) => t.bookingDate! >= cutoff && t.bookingDate!.slice(0, 7) !== ymNow);
+    const incomeCredits = new Set(recent.map((t) => t.bookingDate!.slice(0, 7))).size >= 2 ? recent : allIncome;
     const byMonth = new Map<string, { sum: number; main: { amount: number; date: string } }>();
     for (const t of incomeCredits) {
       const m = t.bookingDate!.slice(0, 7);
