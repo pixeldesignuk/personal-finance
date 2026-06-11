@@ -17,10 +17,9 @@ summaryRouter.get("/summary", async (_req, res, next) => {
     let investments = 0;
     let assets = 0;
     let debts = 0;
-    let liquid = 0;
+    let liquid = 0;        // bank + cash for NET WORTH (includes informational accounts)
+    let availableLiquid = 0; // bank + cash you can actually spend (EXCLUDES informational)
     for (const a of accounts) {
-      // Informational accounts stay in net worth (the balance counts) but are
-      // kept out of budgeting — handled below via personalIds for income/expense.
       const bal = currentBalance(
         a.source,
         a.manualBalance != null ? Number(a.manualBalance.toString()) : null,
@@ -31,7 +30,12 @@ summaryRouter.get("/summary", async (_req, res, next) => {
       if (a.source === "INVESTMENT") investments += bal;
       else if (a.source === "ASSET") assets += bal;
       else if (a.source === "LIABILITY") debts += -bal; // bal is negative; owed is positive
-      else liquid += bal - excludedBalance(a.excludedBalance); // BANK + MANUAL, minus funds that aren't yours
+      else {
+        // BANK + MANUAL, minus funds that aren't yours.
+        const net = bal - excludedBalance(a.excludedBalance);
+        liquid += net; // counts toward net worth even for informational accounts
+        if (!a.informational) availableLiquid += net; // but not toward spendable / safe-to-spend
+      }
     }
 
     // Net worth composition is configurable via settings (feature flags).
@@ -52,7 +56,7 @@ summaryRouter.get("/summary", async (_req, res, next) => {
       investments: round2(investments),
       assets: round2(assets),
       debts: round2(debts),
-      available: round2(liquid), // immediately available (banks + cash)
+      available: round2(availableLiquid), // immediately available to spend (excludes not-budgeted accounts)
       included: {
         investments: s["networth.includeInvestments"],
         assets: s["networth.includeAssets"],
