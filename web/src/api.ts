@@ -121,6 +121,7 @@ export const api = {
     send<RecurringScheduleDTO>("POST", "/api/recurring", input),
   patchRecurring: (token: string, patch: { status?: "auto" | "confirmed" | "ignored"; amount?: number; dayOfMonth?: number; cadence?: string; direction?: "out" | "in"; accountId?: string | null }) =>
     send<RecurringScheduleDTO>("PATCH", `/api/recurring/${encodeURIComponent(token)}`, patch),
+  notRecurring: (token: string) => send<{ ok: true }>("POST", `/api/recurring/${encodeURIComponent(token)}/not-recurring`),
   upcoming: (days = 30) => get<UpcomingDTO>(`/api/upcoming?days=${days}`),
   plugins: () => get<PluginsDTO>("/api/plugins"),
   gmailOrders: (q = "", filter = "all") => get<EmailOrderDTO[]>(`/api/plugins/gmail/orders?q=${encodeURIComponent(q)}&filter=${encodeURIComponent(filter)}`),

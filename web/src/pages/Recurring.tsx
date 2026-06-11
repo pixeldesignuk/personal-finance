@@ -35,6 +35,11 @@ export default function Recurring() {
     onSuccess: () => { invalidate(); notify("Added", { tone: "success" }); },
     onError: (e: Error) => notify(e.message, { tone: "error" }),
   });
+  const reject = useMutation({
+    mutationFn: (token: string) => api.notRecurring(token),
+    onSuccess: () => { invalidate(); notify("Thanks — won't flag this as recurring again", { tone: "success" }); },
+    onError: (e: Error) => notify(e.message, { tone: "error" }),
+  });
 
   // Add-manual dialog (e.g. a salary detection missed).
   const [addOpen, setAddOpen] = useState(false);
@@ -119,9 +124,12 @@ export default function Recurring() {
                   {s.status === "ignored" && <span className="badge" title="Hidden from Upcoming &amp; safe-to-spend">stopped</span>}
                   {s.status === "auto" && <button className="btn-sm btn-primary" onClick={() => patch.mutate({ token: s.token, p: { status: "confirmed" } })}>Confirm</button>}
                   <button className="btn-sm" onClick={() => openEdit(s)}>Edit</button>
+                  {s.direction === "out" && s.status !== "ignored" && (
+                    <button className="btn-sm" title="The detector got this wrong — it isn't a recurring payment. We'll stop flagging it." onClick={() => reject.mutate(s.token)}>Not recurring</button>
+                  )}
                   {s.status === "ignored"
                     ? <button className="btn-sm" onClick={() => patch.mutate({ token: s.token, p: { status: "auto" } })}>Track again</button>
-                    : <button className="btn-danger btn-sm" title="Cancelled or not recurring — hide from Upcoming &amp; safe-to-spend" onClick={() => patch.mutate({ token: s.token, p: { status: "ignored" } })}>Stop tracking</button>}
+                    : <button className="btn-danger btn-sm" title="It is recurring, but hide it (e.g. cancelled) — keep it out of Upcoming &amp; safe-to-spend" onClick={() => patch.mutate({ token: s.token, p: { status: "ignored" } })}>Stop tracking</button>}
                 </span>
               </div>
             );

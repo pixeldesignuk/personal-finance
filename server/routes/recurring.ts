@@ -86,6 +86,25 @@ recurringRouter.patch("/recurring/:token", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// Feedback: this detected schedule is NOT actually recurring (the detector got
+// it wrong). Distinct from "stop tracking" (status=ignored), which keeps a
+// genuinely-recurring item but hides it. Here we TRAIN the detector to never
+// re-add it — set the merchant's recurring override to "ignore" — and remove the
+// schedule. Income streams / manual entries have no merchant row, so we just
+// delete them (income won't be re-derived once there's nothing to learn from).
+recurringRouter.post("/recurring/:token/not-recurring", async (req, res, next) => {
+  try {
+    const token = req.params.token;
+    const current = await db.recurringSchedule.findUnique({ where: { merchantToken: token } });
+    if (!current) { res.status(404).json({ error: "No such schedule" }); return; }
+    if (!token.startsWith("income:") && !token.startsWith("manual:")) {
+      await db.merchant.upsert({ where: { token }, create: { token, recurring: "ignore" }, update: { recurring: "ignore" } });
+    }
+    await db.recurringSchedule.delete({ where: { merchantToken: token } });
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 // Expected bills + income in the next `days` (default 30), plus this-month totals.
 recurringRouter.get("/upcoming", async (req, res, next) => {
   try {
