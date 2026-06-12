@@ -11,12 +11,15 @@ import { AddTransaction } from "../components/AddTransaction.tsx";
 import { AuditSheet } from "../components/AuditSheet.tsx";
 import { BrandLogo } from "../components/BrandLogo.tsx";
 import { Combobox } from "../components/Combobox.tsx";
+import { RowMenu } from "../components/RowMenu.tsx";
 import { TxnDrawer } from "../components/TxnDrawer.tsx";
 import { PageHeader, useConfirm } from "../components/ui";
 import { Receipt, Send } from "lucide-react";
 
 type PropField = "category" | "person";
 type Flag = "red" | "orange" | "yellow" | null;
+// Click cycles: none → red → orange → yellow → none.
+const FLAG_NEXT: Record<string, Flag> = { "": "red", red: "orange", orange: "yellow", yellow: null };
 
 export default function Transactions() {
   const [params] = useSearchParams();
@@ -226,6 +229,7 @@ export default function Transactions() {
     },
   });
 
+  const cycleFlag = (r: TransactionDTO) => flagMutation.mutate({ id: r.id, flag: FLAG_NEXT[r.flag ?? ""] });
   const invalidateAfterDebt = () => { invalidateTxns(); qc.invalidateQueries({ queryKey: ["accounts"] }); qc.invalidateQueries({ queryKey: ["summary"] }); };
   const linkMut = useMutation({
     mutationFn: ({ id, debtAccountId }: { id: string; debtAccountId: string }) => api.linkDebt(id, debtAccountId),
@@ -374,17 +378,18 @@ export default function Transactions() {
             <col style={{ width: 230 }} />
             <col style={{ width: 120 }} />
             <col style={{ width: 112 }} />
+            <col style={{ width: 56 }} />
           </colgroup>
           <thead><tr>
             <th><input type="checkbox" checked={allVisibleSelected} onChange={toggleAll} title="Select all shown" /></th>
-            <th>Date</th><th>Account</th><th>Name</th><th>Category</th><th>Person</th><th>Amount</th>
+            <th>Date</th><th>Account</th><th>Name</th><th>Category</th><th>Person</th><th>Amount</th><th></th>
           </tr></thead>
           <tbody>
             {visible.map((r) => {
               const acct = r.accountName;
               return (
-              <tr key={r.id} className={["txn-row", selected.has(r.id) ? "row-selected" : "", r.flag ? `flag-row-${r.flag}` : ""].filter(Boolean).join(" ")} onClick={() => setDrawerId(r.id)}>
-                <td onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} /></td>
+              <tr key={r.id} className={[selected.has(r.id) ? "row-selected" : "", r.flag ? `flag-row-${r.flag}` : ""].filter(Boolean).join(" ") || undefined}>
+                <td><input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} /></td>
                 <td className="td-date" title={r.bookingDate ?? ""}>{relativeDate(r.bookingDate)}</td>
                 <td title={acct}>
                   <span className="txn-acct">
@@ -396,7 +401,7 @@ export default function Transactions() {
                   </span>
                 </td>
                 <td>
-                  <div className="td-name" onClick={(e) => e.stopPropagation()}>
+                  <div className="td-name">
                     <Combobox
                       value={r.name?.trim() || r.remittanceInfo?.trim() || null}
                       options={nameOptions(r.name?.trim() || r.remittanceInfo?.trim() || null)}
@@ -411,18 +416,32 @@ export default function Transactions() {
                   {r.note && <div className="note-line">{r.note}</div>}
                   {r.debtAccountId && <div className="note-line" title="Debt repayment">⛓ repayment → {debtName(r.debtAccountId)}</div>}
                 </td>
-                <td onClick={(e) => e.stopPropagation()}>
+                <td>
                   <select value={r.category} onChange={(e) => setCategory(r.id, e.target.value)}>
                     {catNames.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
                   </select>
                 </td>
-                <td onClick={(e) => e.stopPropagation()}>
+                <td>
                   <select value={r.personKey ?? ""} onChange={(e) => setPerson(r.id, e.target.value || null)}>
                     <option value="">—</option>
                     {people.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
                   </select>
                 </td>
                 <td className={`num td-amount ${Number(r.amount) < 0 ? "neg" : "pos"}`}>{r.currency} {formatMoney(r.amount)}</td>
+                <td className="cell-actions">
+                  <span className="cell-actions-row">
+                    <RowMenu>
+                      <button type="button" onClick={() => setDrawerId(r.id)}>Edit details…</button>
+                      <button type="button" onClick={() => cycleFlag(r)}>{r.flag ? `Flag: ${r.flag} (change)` : "Flag for reduction"}</button>
+                      {(liabilities.length > 0 || r.debtAccountId) && (
+                        <button type="button" onClick={() => { if (r.debtAccountId) unlinkRepayment(r.id); else setDrawerId(r.id); }}>
+                          {r.debtAccountId ? `Unlink repayment (${debtName(r.debtAccountId)})` : "Link as debt repayment"}
+                        </button>
+                      )}
+                      {r.source === "MANUAL" && <button type="button" className="danger" onClick={() => del(r.id)}>Delete</button>}
+                    </RowMenu>
+                  </span>
+                </td>
               </tr>
               );
             })}
