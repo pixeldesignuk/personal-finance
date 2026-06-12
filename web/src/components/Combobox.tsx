@@ -5,7 +5,7 @@ export interface ComboOption { value: string; label: string }
 
 // A bespoke select that reads like inline table text but, on click, opens a
 // searchable autocomplete popover (portalled, so table overflow can't clip it).
-export function Combobox({ value, options, onChange, placeholder = "—", allowClear, clearLabel = "— none —", muted }: {
+export function Combobox({ value, options, onChange, placeholder = "—", allowClear, clearLabel = "— none —", muted, allowCustom }: {
   value: string | null;
   options: ComboOption[];
   onChange: (value: string | null) => void;
@@ -13,6 +13,7 @@ export function Combobox({ value, options, onChange, placeholder = "—", allowC
   allowClear?: boolean;
   clearLabel?: string;
   muted?: boolean;  // render the selected value muted (e.g. an unconfirmed suggestion)
+  allowCustom?: boolean;  // offer "Use <typed text>" when the query matches no option
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -59,11 +60,14 @@ export function Combobox({ value, options, onChange, placeholder = "—", allowC
             }} />
           <div className="combo-list">
             {allowClear && <div className="combo-opt" onClick={() => choose(null)}>{clearLabel}</div>}
+            {allowCustom && q.trim() && !options.some((o) => o.label.toLowerCase() === q.trim().toLowerCase()) && (
+              <div className="combo-opt combo-custom" onClick={() => choose(q.trim())}>Use “{q.trim()}”</div>
+            )}
             {filtered.map((o, i) => (
               <div key={o.value} className={`combo-opt${i === active ? " active" : ""}${o.value === value ? " selected" : ""}`}
                 onMouseEnter={() => setActive(i)} onClick={() => choose(o.value)}>{o.label}</div>
             ))}
-            {filtered.length === 0 && <div className="combo-empty">No matches</div>}
+            {filtered.length === 0 && !(allowCustom && q.trim()) && <div className="combo-empty">No matches</div>}
           </div>
         </div>,
         document.body,

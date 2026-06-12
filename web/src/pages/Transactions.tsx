@@ -10,6 +10,8 @@ import { AccountSelector } from "../components/AccountSelector.tsx";
 import { AddTransaction } from "../components/AddTransaction.tsx";
 import { AuditSheet } from "../components/AuditSheet.tsx";
 import { BrandLogo } from "../components/BrandLogo.tsx";
+import { RowMenu } from "../components/RowMenu.tsx";
+import { Combobox } from "../components/Combobox.tsx";
 import { OrderDetail } from "../components/OrderDetail.tsx";
 import { PageHeader, Modal, useConfirm } from "../components/ui";
 import { Receipt, Send, Paperclip } from "lucide-react";
@@ -65,6 +67,15 @@ export default function Transactions() {
     staleTime: 5 * 60_000,
   });
   const people = useMemo<PersonDTO[]>(() => peopleQuery.data ?? [], [peopleQuery.data]);
+
+  // Existing merchant names for the rename picker.
+  const merchantNamesQuery = useQuery({ queryKey: ["merchantNames"], queryFn: () => api.merchantNames(), staleTime: 5 * 60_000 });
+  const merchantOptions = useMemo(() => (merchantNamesQuery.data ?? []).map((n) => ({ value: n, label: n })), [merchantNamesQuery.data]);
+  const merchantNameSet = useMemo(() => new Set(merchantNamesQuery.data ?? []), [merchantNamesQuery.data]);
+  const nameOptions = (name: string | null) => {
+    const cur = name?.trim();
+    return cur && !merchantNameSet.has(cur) ? [{ value: cur, label: cur }, ...merchantOptions] : merchantOptions;
+  };
 
   const accountsQuery = useQuery({ queryKey: ["accounts"], queryFn: () => api.accounts(), staleTime: 5 * 60_000 });
   const liabilities = useMemo(() => (accountsQuery.data ?? []).flatMap((b) => b.accounts).filter((a) => a.source === "LIABILITY"), [accountsQuery.data]);
@@ -285,11 +296,6 @@ export default function Transactions() {
   const [noteDraft, setNoteDraft] = useState("");
   const startNote = (r: TransactionDTO) => { setNoteEditId(r.id); setNoteDraft(r.note ?? ""); };
   const saveNote = (id: string) => { noteMutation.mutate({ id, note: noteDraft.trim() || null }); setNoteEditId(null); };
-  // Inline name (merchant) editing.
-  const [nameEditId, setNameEditId] = useState<string | null>(null);
-  const [nameDraft, setNameDraft] = useState("");
-  const startName = (r: TransactionDTO) => { setNameEditId(r.id); setNameDraft(r.name ?? r.remittanceInfo ?? ""); };
-  const saveName = (id: string) => { const v = nameDraft.trim(); if (v) nameMutation.mutate({ id, name: v }); setNameEditId(null); };
 
   // Order-detail dialog (click the receipt tag).
   const [orderView, setOrderView] = useState<{ name: string; order: NonNullable<TransactionDTO["order"]> } | null>(null);
@@ -403,20 +409,13 @@ export default function Transactions() {
                 </td>
                 <td>
                   <div className="td-name">
-                    {nameEditId === r.id ? (
-                      <input
-                        className="note-input name-input"
-                        value={nameDraft}
-                        autoFocus
-                        onChange={(e) => setNameDraft(e.target.value)}
-                        onBlur={() => saveName(r.id)}
-                        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setNameEditId(null); }}
-                      />
-                    ) : (
-                      <span className="td-clip td-name-edit" title="Click to rename" onClick={() => startName(r)}>
-                        {r.name?.trim() || r.remittanceInfo?.trim() || <span className="td-name-empty">Add name</span>}
-                      </span>
-                    )}
+                    <Combobox
+                      value={r.name?.trim() || r.remittanceInfo?.trim() || null}
+                      options={nameOptions(r.name?.trim() || r.remittanceInfo?.trim() || null)}
+                      onChange={(v) => { if (v) nameMutation.mutate({ id: r.id, name: v }); }}
+                      placeholder="Add name"
+                      allowCustom
+                    />
                     {r.order && (
                       <button type="button" className="order-tag" title="View line items" onClick={() => openOrder(r)}>
                         <Receipt size={13} strokeWidth={1.9} />
@@ -463,14 +462,18 @@ export default function Transactions() {
                 </td>
                 <td className={`num td-amount ${Number(r.amount) < 0 ? "neg" : "pos"}`}>{r.currency} {formatMoney(r.amount)}</td>
                 <td className="cell-actions">
-                  <button className={`btn-sm flag-btn${r.flag ? ` flag-${r.flag}` : ""}`} title={r.flag ? `Reduction flag: ${r.flag} (click to change)` : "Flag for reduction"} onClick={() => cycleFlag(r)}>⚑</button>
-                  {(liabilities.length > 0 || r.debtAccountId) && (
-                    <button className={`btn-sm${r.debtAccountId ? " flag-orange" : ""}`}
-                      title={r.debtAccountId ? `Repayment → ${debtName(r.debtAccountId)} (click to unlink)` : "Link as debt repayment"}
-                      onClick={() => { if (r.debtAccountId) unlinkRepayment(r.id); else setLinkEditId(linkEditId === r.id ? null : r.id); }}>⛓</button>
-                  )}
-                  {noteEditId !== r.id && <button className="btn-sm" title={r.note ? "Edit note" : "Add note"} onClick={() => startNote(r)}>✎</button>}
-                  {r.source === "MANUAL" && <button className="btn-danger btn-sm" onClick={() => del(r.id)}>✕</button>}
+                  <span className="cell-actions-row">
+                  <RowMenu>
+                    <button type="button" onClick={() => startNote(r)}>{r.note ? "Edit note" : "Add note"}</button>
+                    <button type="button" onClick={() => cycleFlag(r)}>{r.flag ? `Flag: ${r.flag} (change)` : "Flag for reduction"}</button>
+                    {(liabilities.length > 0 || r.debtAccountId) && (
+                      <button type="button" onClick={() => { if (r.debtAccountId) unlinkRepayment(r.id); else setLinkEditId(linkEditId === r.id ? null : r.id); }}>
+                        {r.debtAccountId ? `Unlink repayment (${debtName(r.debtAccountId)})` : "Link as debt repayment"}
+                      </button>
+                    )}
+                    {r.source === "MANUAL" && <button type="button" className="danger" onClick={() => del(r.id)}>Delete</button>}
+                  </RowMenu>
+                  </span>
                 </td>
               </tr>
               );

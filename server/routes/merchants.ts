@@ -33,6 +33,14 @@ merchantsRouter.post("/cleanse/stream", async (_req, res) => {
 const tokenOf = (t: { merchantName: string | null; creditorName: string | null; debtorName: string | null; remittanceInfo: string | null }) =>
   merchantToken(rawMerchantName(t));
 
+// Lightweight list of existing merchant names (for the rename picker).
+merchantsRouter.get("/merchant-names", async (_req, res, next) => {
+  try {
+    const rows = await db.merchant.findMany({ where: { NOT: { name: null } }, select: { name: true }, orderBy: { name: "asc" } });
+    res.json([...new Set(rows.map((r) => r.name!).filter(Boolean))]);
+  } catch (err) { next(err); }
+});
+
 merchantsRouter.get("/merchants", async (_req, res, next) => {
   try {
     const txns = await db.transaction.findMany({

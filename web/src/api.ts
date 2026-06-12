@@ -107,6 +107,7 @@ export const api = {
   summary: () => get<SummaryDTO>("/api/summary"),
   debts: () => get<DebtsDTO>("/api/debts"),
   merchants: () => get<MerchantsDTO>("/api/merchants"),
+  merchantNames: () => get<string[]>("/api/merchant-names"),
   merchantOrders: (token: string) => get<EmailOrderDTO[]>(`/api/merchants/${encodeURIComponent(token)}/orders`),
   confirmDetectedMerchants: () => send<{ created: number }>("POST", "/api/merchants/confirm-detected"),
   patchMerchant: (token: string, patch: { name?: string | null; domain?: string | null; recurring?: "auto" | "fixed" | "variable" | "ignore"; categoryKey?: string | null; personKey?: string | null; priority?: number }) =>

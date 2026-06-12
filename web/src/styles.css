@@ -850,6 +850,11 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 .combo-opt { padding: 6px 8px; border-radius: 6px; font-size: 13px; color: var(--ink-2); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .combo-opt.active { background: var(--surface-2); color: var(--ink); }
 .combo-opt.selected { color: var(--jade); }
+.combo-opt.combo-custom { color: var(--jade); }
+/* The name cell's merchant picker reads like inline text, sized to its content
+   so the dropdown chevron hugs the name rather than floating far right. */
+.td-name .combo { flex: 0 1 auto; min-width: 0; max-width: 220px; }
+.td-name .combo-trigger { width: auto; max-width: 220px; }
 .combo-empty { padding: 8px; color: var(--ink-3); font-size: 12px; }
 
 /* debt payoff order */
@@ -995,7 +1000,15 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 /* Right-aligned action buttons in a table's last cell or a card footer. */
 .row-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
 /* Tighter variant for narrow table action columns (icon buttons). */
-.cell-actions { display: flex; gap: 4px; justify-content: flex-end; }
+/* Keep the actions cell a normal table cell so its bottom border aligns with the
+   row; the flex lives on an inner wrapper (a display:flex <td> draws its border
+   at the bottom of its content, which floats mid-row when a note makes the row
+   taller). */
+.cell-actions { white-space: nowrap; vertical-align: middle; }
+.cell-actions-row { display: inline-flex; gap: 4px; align-items: center; justify-content: flex-end; }
+.rowmenu-btn { display: inline-flex; align-items: center; justify-content: center; padding: 4px 5px; color: var(--ink-3); }
+.rowmenu-btn:hover { color: var(--ink); }
+.rowmenu-pop { position: fixed; min-width: 176px; z-index: 60; }
 /* Inline form error inside a modal. */
 .form-error { margin: 0; color: var(--coral); font-size: 13px; }
 
