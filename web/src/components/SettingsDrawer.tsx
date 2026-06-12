@@ -29,7 +29,8 @@ export function SettingsDrawer() {
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const groups = data ? [...new Set(data.defs.map((d) => d.group))] : [];
+  const visibleDefs = data ? data.defs.filter((d) => !d.hidden) : [];
+  const groups = [...new Set(visibleDefs.map((d) => d.group))];
 
   return (
     <>
@@ -53,7 +54,7 @@ export function SettingsDrawer() {
               {groups.map((g) => (
                 <div className="drawer-section" key={g}>
                   <div className="eyebrow">{g}</div>
-                  {data!.defs.filter((d) => d.group === g).map((d) => (
+                  {visibleDefs.filter((d) => d.group === g).map((d) => (
                     <label className="setting-row" key={d.key}>
                       <span>{d.label}</span>
                       <span className="switch">

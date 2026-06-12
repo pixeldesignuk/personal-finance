@@ -23,11 +23,19 @@ dashboardRouter.get("/dashboard", async (req, res, next) => {
     const informationalIds = accountId ? [] : (await db.account.findMany({ where: { informational: true }, select: { id: true } })).map((a) => a.id);
     const excludeInfo = informationalIds.length ? { accountId: { notIn: informationalIds } } : {};
     const txns = await db.transaction.findMany({ where: { ...scope, ...excludeInfo, ...(person && person !== "all" ? { personKey: person === "none" ? null : person } : {}) } });
+    // Friendly merchant names (Merchant table) so "Top merchants" groups and
+    // displays clean brands ("Tesco") rather than raw statement lines.
+    const merchantNames = new Map((await db.merchant.findMany({ where: { NOT: { name: null } } })).map((m) => [m.token, m.name] as const));
+    const friendlyName = (t: Parameters<typeof rawMerchantName>[0]) => {
+      const raw = rawMerchantName(t);
+      const tok = merchantToken(raw);
+      return (tok && merchantNames.get(tok)) || raw;
+    };
     const agg: AggTx[] = txns
       .map((t) => ({
         amount: Number(t.amount),
         category: effectiveCategory(t),
-        merchant: rawMerchantName(t),
+        merchant: friendlyName(t),
         bookingDate: t.bookingDate,
       }))
       .filter((t) => t.category !== "transfer");

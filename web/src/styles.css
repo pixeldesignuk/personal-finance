@@ -282,9 +282,35 @@ nav a.active:not(.nav-cta)::after {
   background: linear-gradient(90deg, transparent, rgba(233, 230, 223, 0.14), transparent);
   pointer-events: none;
 }
-.stat { display: flex; flex-direction: column; gap: 8px; margin-bottom: 0; }
+/* Card centres its inner block; the inner row sizes to the text, so a full-height
+   donut spans exactly label→delta (not the stretched card height). */
+.stat { display: flex; flex-direction: column; justify-content: center; margin-bottom: 0; }
+.stat-inner { display: flex; align-items: stretch; gap: 16px; }
+.stat-body { display: flex; flex-direction: column; gap: 8px; flex: 1 1 auto; min-width: 0; }
+.stat-side { display: flex; align-items: center; flex: none; }
+.stat-side .stat-pie.is-fill { height: 100%; width: auto; aspect-ratio: 1 / 1; }
 .stat .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-3); font-weight: 600; }
 .stat .value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 27px; letter-spacing: -0.03em; }
+/* Enriched stat tiles: value + % badge row, and a breakdown bar. */
+.stat-main { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+.stat-badge { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 11px; font-weight: 640; letter-spacing: 0.01em; color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+.stat .stat-bar { height: 8px; margin-top: 2px; }
+/* Hatched progress: solid fill + diagonal-shaded remainder, tinted to --bar
+   (QuickBooks "Business at a glance" style). */
+.progress.hatched {
+  background-color: color-mix(in srgb, var(--bar, var(--ink)) 7%, transparent);
+  background-image: repeating-linear-gradient(45deg,
+    color-mix(in srgb, var(--bar, var(--ink)) 26%, transparent) 0 3px,
+    transparent 3px 8px);
+}
+/* A two-slice donut for a stat tile (saved vs spent). */
+.stat-pie {
+  display: inline-block;
+  border-radius: 50%;
+  background: conic-gradient(var(--jade) calc(var(--p, 0) * 1%), color-mix(in srgb, var(--coral) 60%, transparent) 0);
+  -webkit-mask: radial-gradient(circle at center, transparent 54%, #000 55%);
+          mask: radial-gradient(circle at center, transparent 54%, #000 55%);
+}
 
 /* ---- buttons ------------------------------------------------------------- */
 button {
@@ -1118,3 +1144,48 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 /* A centred message card (e.g. the OAuth callback screen). */
 .card-centered { text-align: center; padding: 40px 24px; max-width: 460px; margin: 40px auto; }
 .card-centered h1 { margin-bottom: 0.3em; }
+
+/* ── Dashboard "Customize" mode: per-card show/hide toggles ──────────────── */
+/* Wraps a dashboard section in edit mode. When not editing the wrapper isn't
+   rendered, so normal layout is untouched. */
+.customizable { position: relative; margin-bottom: 16px; }
+.customizable > .card { margin-bottom: 0; outline: 1px dashed var(--line-strong); outline-offset: 3px; transition: opacity 0.15s ease, filter 0.15s ease; }
+/* Hidden = card content stays visible but disabled (dimmed, non-interactive). */
+.customizable.is-off > .card { opacity: 0.4; filter: grayscale(0.5); pointer-events: none; }
+/* Switch pinned to the card's top-right corner; stays interactive over a
+   disabled card (it's a sibling of .card, so the dimming doesn't reach it). */
+.customize-toggle { position: absolute; top: 10px; right: 12px; z-index: 6; display: inline-flex; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 999px; padding: 3px 5px; box-shadow: var(--shadow); }
+/* Empty grids (every card in a row hidden) shouldn't leave a gap. */
+.grid:empty { display: none; margin: 0; }
+/* Dashboard card rows: flex so that when cards are hidden the remaining ones in
+   the last row grow to fill the freed space (CSS grid would leave a hole). */
+.grid.grid-fill { display: flex; flex-wrap: wrap; }
+.grid.grid-fill > * { flex: 1 1 220px; min-width: 0; }
+/* Hint line shown while customizing. */
+.customize-hint { margin: -4px 0 14px; font-size: 12.5px; }
+/* Clickable list rows (recent activity, top merchants). */
+.lrow-link { text-decoration: none; color: inherit; border-radius: 8px; margin: 0 -8px; padding-left: 8px; padding-right: 8px; transition: background 0.12s ease; }
+.lrow-link:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+
+/* Clean monthly-spend bar chart (Wise "Spending" style). */
+.spendbars-plot { display: flex; align-items: flex-end; gap: 6px; height: 170px; }
+.spendbars-col { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 10px; padding: 0; background: none; border: 0; cursor: pointer; }
+.spendbars-bar { width: 100%; max-width: 28px; min-height: 6px; border-radius: 999px; background: var(--surface-2); transition: background 0.15s ease, transform 0.15s ease; }
+.spendbars-col:hover .spendbars-bar { background: var(--line-strong); }
+.spendbars-col.is-active .spendbars-bar { background: var(--jade); }
+.spendbars-x { font-size: 11px; letter-spacing: 0.02em; color: var(--ink-3); white-space: nowrap; }
+.spendbars-col:hover .spendbars-x { color: var(--ink-2); }
+.spendbars-col.is-active .spendbars-x { color: var(--bg); background: var(--jade); border-radius: 999px; padding: 2px 8px; font-weight: 600; }
+.spendbars-stats { display: flex; flex-wrap: wrap; gap: 14px 44px; margin-top: 20px; }
+.spendbars-stats > div { display: flex; flex-direction: column; gap: 2px; }
+.spendbars-fig { font-size: 20px; }
+/* The selected-month figure matches the highlighted bar colour. */
+.spendbars-fig.is-sel { color: var(--jade); }
+.spendbars-stats .muted { font-size: 12.5px; }
+/* Drag-to-reorder: a grip in the section's top-left corner (mirrors the
+   per-card switch on the right). Only rendered in edit mode. */
+.sortable-block { position: relative; }
+.drag-handle { position: absolute; top: 10px; left: 12px; z-index: 7; display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 22px; padding: 0 6px; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 999px; color: var(--ink-3); font-size: 13px; line-height: 1; cursor: grab; touch-action: none; box-shadow: var(--shadow); }
+.drag-handle:hover { color: var(--ink); }
+.drag-handle:active { cursor: grabbing; }
+.sortable-block.dragging .card { outline-color: var(--jade); }

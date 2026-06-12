@@ -1,15 +1,24 @@
 import { Router } from "express";
 import { z } from "zod";
-import { SETTING_DEFS, getSettings, setSetting } from "../lib/settings.ts";
+import { SETTING_DEFS, getSettings, setSetting, getDashboardOrder, setDashboardOrder } from "../lib/settings.ts";
 import type { SettingsDTO } from "../../shared/types.ts";
 
 export const settingsRouter = Router();
 
 settingsRouter.get("/settings", async (_req, res, next) => {
   try {
-    const values = await getSettings();
-    const dto: SettingsDTO = { defs: SETTING_DEFS, values };
+    const [values, order] = await Promise.all([getSettings(), getDashboardOrder()]);
+    const dto: SettingsDTO = { defs: SETTING_DEFS, values, order };
     res.json(dto);
+  } catch (err) { next(err); }
+});
+
+// Replace the dashboard section order: { order: string[] }.
+settingsRouter.put("/settings/dashboard-order", async (req, res, next) => {
+  try {
+    const { order } = z.object({ order: z.array(z.string()) }).parse(req.body);
+    await setDashboardOrder(order);
+    res.json({ order: await getDashboardOrder() });
   } catch (err) { next(err); }
 });
 
