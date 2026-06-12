@@ -190,6 +190,20 @@ export default function Transactions() {
     },
   });
 
+  const nameMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) => api.renameTxn(id, name),
+    onMutate: async ({ id, name }) => {
+      await qc.cancelQueries({ queryKey: ["transactions"] });
+      const snap = snapshotTxns();
+      patchRow(id, { name: name.trim() || null });
+      return { snap };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx) restoreTxns(ctx.snap);
+      notify("Couldn't rename", { tone: "error" });
+    },
+  });
+
   const flagMutation = useMutation({
     mutationFn: ({ id, flag }: { id: string; flag: Flag }) => api.setTxnFlag(id, flag),
     onMutate: async ({ id, flag }) => {
@@ -271,6 +285,11 @@ export default function Transactions() {
   const [noteDraft, setNoteDraft] = useState("");
   const startNote = (r: TransactionDTO) => { setNoteEditId(r.id); setNoteDraft(r.note ?? ""); };
   const saveNote = (id: string) => { noteMutation.mutate({ id, note: noteDraft.trim() || null }); setNoteEditId(null); };
+  // Inline name (merchant) editing.
+  const [nameEditId, setNameEditId] = useState<string | null>(null);
+  const [nameDraft, setNameDraft] = useState("");
+  const startName = (r: TransactionDTO) => { setNameEditId(r.id); setNameDraft(r.name ?? r.remittanceInfo ?? ""); };
+  const saveName = (id: string) => { const v = nameDraft.trim(); if (v) nameMutation.mutate({ id, name: v }); setNameEditId(null); };
 
   // Order-detail dialog (click the receipt tag).
   const [orderView, setOrderView] = useState<{ name: string; order: NonNullable<TransactionDTO["order"]> } | null>(null);
@@ -384,7 +403,18 @@ export default function Transactions() {
                 </td>
                 <td>
                   <div className="td-name">
-                    <span className="td-clip" title={r.name ?? r.remittanceInfo ?? ""}>{r.name ?? r.remittanceInfo ?? ""}</span>
+                    {nameEditId === r.id ? (
+                      <input
+                        className="note-input name-input"
+                        value={nameDraft}
+                        autoFocus
+                        onChange={(e) => setNameDraft(e.target.value)}
+                        onBlur={() => saveName(r.id)}
+                        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setNameEditId(null); }}
+                      />
+                    ) : (
+                      <span className="td-clip td-name-edit" title="Click to rename" onClick={() => startName(r)}>{r.name ?? r.remittanceInfo ?? "—"}</span>
+                    )}
                     {r.order && (
                       <button type="button" className="order-tag" title="View line items" onClick={() => openOrder(r)}>
                         <Receipt size={13} strokeWidth={1.9} />
