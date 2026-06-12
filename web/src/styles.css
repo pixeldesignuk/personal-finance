@@ -786,7 +786,7 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 .txn-table th:first-child, .txn-table td:first-child { padding-right: 0; }
 /* quick note under the transaction name */
 .note-line {
-  margin-top: 4px; font-size: 12px; color: var(--ink-3); cursor: pointer;
+  margin-top: 2px; padding-left: 7px; font-size: 12px; color: var(--ink-3);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .note-line:hover { color: var(--ink-2); }
