@@ -10,16 +10,13 @@ import { AccountSelector } from "../components/AccountSelector.tsx";
 import { AddTransaction } from "../components/AddTransaction.tsx";
 import { AuditSheet } from "../components/AuditSheet.tsx";
 import { BrandLogo } from "../components/BrandLogo.tsx";
-import { RowMenu } from "../components/RowMenu.tsx";
 import { Combobox } from "../components/Combobox.tsx";
-import { OrderDetail } from "../components/OrderDetail.tsx";
-import { PageHeader, Modal, useConfirm } from "../components/ui";
-import { Receipt, Send, Paperclip } from "lucide-react";
+import { TxnDrawer } from "../components/TxnDrawer.tsx";
+import { PageHeader, useConfirm } from "../components/ui";
+import { Receipt, Send } from "lucide-react";
 
 type PropField = "category" | "person";
 type Flag = "red" | "orange" | "yellow" | null;
-// Click cycles: none → red → orange → yellow → none.
-const FLAG_NEXT: Record<string, Flag> = { "": "red", red: "orange", orange: "yellow", yellow: null };
 
 export default function Transactions() {
   const [params] = useSearchParams();
@@ -228,7 +225,6 @@ export default function Transactions() {
       notify("Couldn't update flag", { tone: "error" });
     },
   });
-  const cycleFlag = (r: TransactionDTO) => flagMutation.mutate({ id: r.id, flag: FLAG_NEXT[r.flag ?? ""] });
 
   const invalidateAfterDebt = () => { invalidateTxns(); qc.invalidateQueries({ queryKey: ["accounts"] }); qc.invalidateQueries({ queryKey: ["summary"] }); };
   const linkMut = useMutation({
@@ -290,16 +286,8 @@ export default function Transactions() {
     }
   };
 
-  const [linkEditId, setLinkEditId] = useState<string | null>(null);
-  // Inline quick-note editing.
-  const [noteEditId, setNoteEditId] = useState<string | null>(null);
-  const [noteDraft, setNoteDraft] = useState("");
-  const startNote = (r: TransactionDTO) => { setNoteEditId(r.id); setNoteDraft(r.note ?? ""); };
-  const saveNote = (id: string) => { noteMutation.mutate({ id, note: noteDraft.trim() || null }); setNoteEditId(null); };
-
-  // Order-detail dialog (click the receipt tag).
-  const [orderView, setOrderView] = useState<{ name: string; order: NonNullable<TransactionDTO["order"]> } | null>(null);
-  const openOrder = (r: TransactionDTO) => { if (!r.order) return; setOrderView({ name: r.name ?? r.remittanceInfo ?? "Order", order: r.order }); };
+  // The transaction whose detail/edit sidebar is open (click a row to open).
+  const [drawerId, setDrawerId] = useState<string | null>(null);
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const scopedAccount = accountId && accountId !== "all" ? accountId : undefined;
@@ -311,6 +299,7 @@ export default function Transactions() {
     () => rows.filter((r) => (!catFilter || r.category === catFilter) && (!flaggedOnly || r.flag != null)),
     [rows, catFilter, flaggedOnly],
   );
+  const drawerTxn = useMemo(() => visible.find((t) => t.id === drawerId) ?? null, [visible, drawerId]);
   const unreconciledCount = useMemo(() => rows.filter((r) => r.category === "uncategorised").length, [rows]);
   const flaggedCount = useMemo(() => rows.filter((r) => r.flag != null).length, [rows]);
   const showingUnreconciled = catFilter === "uncategorised";
@@ -385,18 +374,17 @@ export default function Transactions() {
             <col style={{ width: 230 }} />
             <col style={{ width: 120 }} />
             <col style={{ width: 112 }} />
-            <col style={{ width: 136 }} />
           </colgroup>
           <thead><tr>
             <th><input type="checkbox" checked={allVisibleSelected} onChange={toggleAll} title="Select all shown" /></th>
-            <th>Date</th><th>Account</th><th>Name</th><th>Category</th><th>Person</th><th>Amount</th><th></th>
+            <th>Date</th><th>Account</th><th>Name</th><th>Category</th><th>Person</th><th>Amount</th>
           </tr></thead>
           <tbody>
             {visible.map((r) => {
               const acct = r.accountName;
               return (
-              <tr key={r.id} className={[selected.has(r.id) ? "row-selected" : "", r.flag ? `flag-row-${r.flag}` : ""].filter(Boolean).join(" ") || undefined}>
-                <td><input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} /></td>
+              <tr key={r.id} className={["txn-row", selected.has(r.id) ? "row-selected" : "", r.flag ? `flag-row-${r.flag}` : ""].filter(Boolean).join(" ")} onClick={() => setDrawerId(r.id)}>
+                <td onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} /></td>
                 <td className="td-date" title={r.bookingDate ?? ""}>{relativeDate(r.bookingDate)}</td>
                 <td title={acct}>
                   <span className="txn-acct">
@@ -408,7 +396,7 @@ export default function Transactions() {
                   </span>
                 </td>
                 <td>
-                  <div className="td-name">
+                  <div className="td-name" onClick={(e) => e.stopPropagation()}>
                     <Combobox
                       value={r.name?.trim() || r.remittanceInfo?.trim() || null}
                       options={nameOptions(r.name?.trim() || r.remittanceInfo?.trim() || null)}
@@ -416,65 +404,25 @@ export default function Transactions() {
                       placeholder="Add name"
                       allowCustom
                     />
-                    {r.order && (
-                      <button type="button" className="order-tag" title="View line items" onClick={() => openOrder(r)}>
-                        <Receipt size={13} strokeWidth={1.9} />
-                        {r.order.items.length > 0 && <span className="order-tag-count">{r.order.items.length}</span>}
-                      </button>
-                    )}
-                    {r.order?.hasAttachment && (
-                      <button type="button" className="order-tag attach" title="View receipt image" onClick={() => window.open(`/api/orders/${r.order!.id}/file`, "_blank", "noopener")}>
-                        <Paperclip size={13} strokeWidth={1.9} />
-                      </button>
+                    {r.order && (r.order.items.length > 0 || r.order.hasAttachment) && (
+                      <span className="order-tag" title="Has a receipt — open to view"><Receipt size={12} strokeWidth={1.9} />{r.order.items.length > 0 && <span className="order-tag-count">{r.order.items.length}</span>}</span>
                     )}
                   </div>
-                  {noteEditId === r.id ? (
-                    <input
-                      className="note-input"
-                      value={noteDraft}
-                      autoFocus
-                      placeholder="Add a note…"
-                      onChange={(e) => setNoteDraft(e.target.value)}
-                      onBlur={() => saveNote(r.id)}
-                      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setNoteEditId(null); }}
-                    />
-                  ) : r.note ? (
-                    <div className="note-line" onClick={() => startNote(r)} title="Edit note">✎ {r.note}</div>
-                  ) : null}
-                  {linkEditId === r.id && !r.debtAccountId && (
-                    <select className="note-input" autoFocus value="" onChange={(e) => { if (e.target.value) { linkMut.mutate({ id: r.id, debtAccountId: e.target.value }); setLinkEditId(null); } }}>
-                      <option value="">— repay which debt? —</option>
-                      {liabilities.map((l) => <option key={l.id} value={l.id}>{l.displayName}</option>)}
-                    </select>
-                  )}
+                  {r.note && <div className="note-line">{r.note}</div>}
                   {r.debtAccountId && <div className="note-line" title="Debt repayment">⛓ repayment → {debtName(r.debtAccountId)}</div>}
                 </td>
-                <td>
+                <td onClick={(e) => e.stopPropagation()}>
                   <select value={r.category} onChange={(e) => setCategory(r.id, e.target.value)}>
                     {catNames.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
                   </select>
                 </td>
-                <td>
+                <td onClick={(e) => e.stopPropagation()}>
                   <select value={r.personKey ?? ""} onChange={(e) => setPerson(r.id, e.target.value || null)}>
                     <option value="">—</option>
                     {people.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
                   </select>
                 </td>
                 <td className={`num td-amount ${Number(r.amount) < 0 ? "neg" : "pos"}`}>{r.currency} {formatMoney(r.amount)}</td>
-                <td className="cell-actions">
-                  <span className="cell-actions-row">
-                  <RowMenu>
-                    <button type="button" onClick={() => startNote(r)}>{r.note ? "Edit note" : "Add note"}</button>
-                    <button type="button" onClick={() => cycleFlag(r)}>{r.flag ? `Flag: ${r.flag} (change)` : "Flag for reduction"}</button>
-                    {(liabilities.length > 0 || r.debtAccountId) && (
-                      <button type="button" onClick={() => { if (r.debtAccountId) unlinkRepayment(r.id); else setLinkEditId(linkEditId === r.id ? null : r.id); }}>
-                        {r.debtAccountId ? `Unlink repayment (${debtName(r.debtAccountId)})` : "Link as debt repayment"}
-                      </button>
-                    )}
-                    {r.source === "MANUAL" && <button type="button" className="danger" onClick={() => del(r.id)}>Delete</button>}
-                  </RowMenu>
-                  </span>
-                </td>
               </tr>
               );
             })}
@@ -482,19 +430,25 @@ export default function Transactions() {
         </table>
       </div>
 
-      <Modal open={orderView != null} onClose={() => setOrderView(null)}>
-        {orderView && (
-          <OrderDetail
-            merchant={orderView.order.merchant ?? orderView.name}
-            orderNumber={orderView.order.orderNumber}
-            dateISO={orderView.order.date}
-            total={orderView.order.total}
-            currency={orderView.order.currency}
-            items={orderView.order.items}
-            onClose={() => setOrderView(null)}
-          />
-        )}
-      </Modal>
+      {drawerTxn && (
+        <TxnDrawer
+          txn={drawerTxn}
+          onClose={() => setDrawerId(null)}
+          catNames={catNames}
+          people={people}
+          liabilities={liabilities}
+          debtName={debtName}
+          nameOptions={nameOptions}
+          onRename={(name) => nameMutation.mutate({ id: drawerTxn.id, name })}
+          onCategory={(key) => setCategory(drawerTxn.id, key)}
+          onPerson={(key) => setPerson(drawerTxn.id, key)}
+          onNote={(note) => noteMutation.mutate({ id: drawerTxn.id, note })}
+          onFlag={(flag) => flagMutation.mutate({ id: drawerTxn.id, flag: flag as Flag })}
+          onDelete={() => { del(drawerTxn.id); setDrawerId(null); }}
+          onLinkDebt={(debtId) => linkMut.mutate({ id: drawerTxn.id, debtAccountId: debtId })}
+          onUnlinkDebt={() => unlinkRepayment(drawerTxn.id)}
+        />
+      )}
     </div>
   );
 }

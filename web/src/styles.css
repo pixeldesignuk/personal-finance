@@ -196,6 +196,28 @@ nav a.active:not(.nav-cta)::after {
 .drawer-link { display: block; padding: 8px 0; color: var(--ink-2); text-decoration: none; font-size: 14px; }
 .drawer-link:hover { color: var(--ink); }
 .drawer-link.active { color: var(--jade); }
+/* Transaction detail/edit sidebar */
+.txn-drawer { width: 400px; }
+.txn-row { cursor: pointer; }
+.txnd-amount { display: flex; flex-direction: column; gap: 3px; padding: 8px 0 6px; }
+.txnd-amount .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 26px; letter-spacing: -0.02em; color: var(--ink); }
+.txnd-amount .num.neg { color: var(--coral); }
+.txnd-sub { font-size: 12.5px; }
+.txnd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.txnd-field { display: flex; flex-direction: column; gap: 5px; }
+.txnd-field .eyebrow { margin: 0; }
+.txn-drawer select { border: 1px solid var(--line-strong); border-radius: var(--r-sm); padding: 8px 30px 8px 10px; background-color: var(--surface-2); color: var(--ink); width: 100%; }
+.txn-drawer .combo-trigger { border: 1px solid var(--line-strong); padding: 8px 28px 8px 10px; }
+.txnd-flags { display: flex; gap: 6px; flex-wrap: wrap; }
+.txnd-flags .sel { color: var(--ink); border-color: var(--ink-3); }
+.txnd-flags .flag-red.sel { color: var(--coral); border-color: var(--coral); }
+.txnd-flags .flag-orange.sel { color: #d98a2b; border-color: #d98a2b; }
+.txnd-flags .flag-yellow.sel { color: var(--amber); border-color: var(--amber); }
+.txnd-receipt { display: inline-flex; align-items: center; gap: 6px; }
+.txnd-items { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.txnd-items li { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--ink-2); }
+.txnd-raw { font-size: 12.5px; word-break: break-word; margin: 0; }
+.txnd-actions { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
 .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; font-size: 14px; color: var(--ink-2); cursor: pointer; }
 
 /* toggle switch */
