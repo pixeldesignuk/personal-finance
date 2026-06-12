@@ -205,3 +205,169 @@ Ledger stores currency on accounts, balances, transactions, orders, and holdings
 
 - Repo files inspected: `TODO.md`, `web/src/App.tsx`, `shared/types.ts`, `web/src/pages/*.tsx`, `web/src/api.ts`, `server/routes/*.ts`, and `prisma/schema.prisma`.
 - Competitive references checked: [YNAB features](https://www.ynab.com/features), [Monarch](https://www.monarch.com/), [Copilot](https://www.copilot.money), [Actual Budget docs](https://actualbudget.org/docs/), [Lunch Money features](https://lunchmoney.app/features), [Rocket Money](https://www.rocketmoney.com/), [PocketSmith features](https://www.pocketsmith.com/features/), [Emma](https://emma-app.com/), and [Money Dashboard closure context](https://en.wikipedia.org/wiki/Money_Dashboard).
+
+---
+
+# 2026-06-12 update — design-forward comparators, overbuilt/gap framing, navigation IA
+
+This update was driven by a UX/IA review of Ledger's navigation. It adds three
+design-forward comparators the 2026-06-10 matrix omitted — **Origin** (US
+all-in-one wealth/planning), **Cleo** (AI chatbot budgeting), **Ubank** (AU
+neobank with Spend/Save/Bills buckets) — alongside the existing **Monarch /
+YNAB / Copilot** benchmarks, and reframes the analysis around two questions the
+original doc never asked: *where is Ledger over-built* and *where are the gaps*.
+Competitor cells verified via live web sources (June 2026); Origin/Cleo/Ubank
+were corrected against a from-memory first pass (see "Corrections" below).
+
+## Verified feature matrix (Ledger vs design-forward + budgeting benchmarks)
+
+Legend: `✓` native/strong · `◐` partial/limited · `✗` absent
+
+| Capability | Ledger | Monarch | Origin | Cleo | Ubank | YNAB | Copilot |
+|---|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+| Bank aggregation / sync | ✓ | ✓ | ✓ | ✓ | ✓ᵃ | ✓ | ✓ |
+| Manual accounts | ✓ | ✓ | ◐ | ✗ | ✗ | ✓ | ✓ |
+| Transaction categorisation | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| AI categorisation | ✓ | ◐ | ✓ | ✓ | ✗ | ✗ | ✓ |
+| Envelope / zero-based budgeting | ◐ | ◐ | ✗ | ✗ | ✗ | ✓ | ◐ |
+| Month-specific budgets + rollover | ✗ | ✓ | ✗ | ✗ | ✗ | ✓ | ✓ |
+| Category goals / targets | ◐ | ✓ | ◐ | ◐ | ◐ | ✓ | ◐ |
+| Recurring / subscription detection | ◐ | ✓ | ✓ᵇ | ◐ | ✓ | ◐ | ✓ |
+| Upcoming bills / calendar | ◐ | ✓ | ◐ | ◐ | ✓ᶜ | ◐ | ◐ |
+| Cash-flow forecasting | ✗ | ◐ | ✓ᵈ | ✗ | ✗ | ◐ | ◐ |
+| Net-worth tracking | ✓ | ✓ | ✓ | ✗ | ◐ᵉ | ◐ | ✓ |
+| Investment tracking | ◐ | ✓ | ✓ | ✗ | ✗ | ✗ | ✓ |
+| Debt payoff planning | ✓ | ◐ | ◐ | ◐ᶠ | ✗ | ◐ | ◐ |
+| Savings goals / pots / buckets | ✓ | ✓ | ◐ | ✓ | ✓ | ✓ | ◐ |
+| Receipt / email order parsing | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| Reports / analytics | ◐ | ✓ | ◐ | ◐ | ◐ | ✓ | ✓ |
+| CSV import / export | ✗ | ✓ | ◐ | ✗ | ◐ | ✓ | ◐ |
+| Alerts / notifications | ✗ | ✓ | ◐ | ✓ | ✓ | ◐ | ✓ |
+| Multi-currency + FX | ◐ | ◐ | ◐ | ✗ | ✗ | ◐ | ◐ |
+| Native mobile app | ✗ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Household / collaboration | ◐ | ✓ | ◐ | ✗ | ✗ | ✓ | ✗ |
+| Conversational / chat AI | ◐ᵍ | ◐ | ✓ʰ | ✓ | ✗ | ✗ | ◐ |
+
+ᵃ Connected Accounts, 140+ AU institutions. ᵇ finds + cancels subscriptions.
+ᶜ Bill Planner + bill prediction. ᵈ net-worth-over-time forecasting tool.
+ᵉ shows connected external balances, not full net-worth modelling.
+ᶠ debt dashboard + payoff plan (not labelled snowball/avalanche).
+ᵍ Telegram expense bot. ʰ SEC-regulated AI financial advisor ("Sidekick").
+
+**Corrections vs the from-memory first pass:** Ubank bank-agg `✗→✓` (Connected
+Accounts); Origin forecasting `✗→✓`, subscriptions `◐→✓`, conversational AI
+`◐→✓`; Cleo savings `◐→✓`, debt `✗→◐`.
+
+## Where Ledger is over-built
+
+Features where Ledger has more depth than every comparator — sometimes more than
+a single-user app needs:
+
+1. **Receipt / email order parsing (+ item-aware categorisation).** 0/6
+   competitors do this. The single most differentiated feature — but the heaviest
+   consumer of the ~20 req/day Gemini budget. Protect it; don't expand it.
+2. **Person / people attribution wired through the whole app.** Household-split
+   machinery (transactions, budgets, reports, rules, merchants) inside a
+   single-user, no-auth app. Monarch/YNAB earn this with real logins; Ledger
+   maintains the plumbing for one person. Top "does this earn its complexity?"
+   candidate.
+3. **Debt payoff planning.** Ledger's `✓` (snowball/avalanche, linked repayments,
+   projected months) is deeper than Monarch, Copilot, YNAB, *and* Origin — all
+   `◐`. Ahead of demand for a personal tool.
+4. **Investment provider integrations.** Only Origin/Copilot/Monarch (wealth apps)
+   match Ledger here. For a budgeting north-star, manual values likely cover most
+   of the need at a fraction of the maintenance.
+
+Pattern: Ledger has out-built the *wealth/holistic* apps (Origin, Monarch) on net
+worth, debts, investments, and receipts — surfaces that don't directly serve the
+north star (save money, clear debts, don't overspend).
+
+## Where the real gaps are (table-stakes Ledger lacks)
+
+1. **Month-specific budgets + rollover** — the headline gap (= P0 below). YNAB,
+   Monarch, Copilot all `✓`; Ledger `✗` on a single mutable `Category.monthlyAmount`.
+   This is what turns category budgeting into envelope budgeting, and it is the
+   exact loop the north star names.
+2. **Native mobile app** — the only `✗` shared by *no competitor*. Telegram +
+   responsive web soften it, but on-the-go capture is where habits form.
+3. **Upcoming bills / cash-flow forecast** — Ubank (a *bank*) ships a Bill Planner;
+   Origin projects net worth forward. Ledger detects recurring spend but never
+   answers "will this account survive rent + subs + payday?" Seed data already exists.
+4. **Alerts / insights / review queue** — Cleo, Ubank, Monarch, Copilot all push.
+   Ledger generates every raw signal (overspend, balance drops, unmatched orders)
+   and surfaces none. Cheapest high-leverage win.
+5. **CSV import/export** — trivial; the #1 "can I get my data out?" trust signal.
+
+**Verdict:** Ledger is built to *Origin/Monarch* depth on the balance sheet while
+the *YNAB/Copilot* budgeting core (rollover → upcoming → alerts) is under-built.
+Keep **receipts** and **AI capture** as signature differentiators; close gaps in
+order: **rollover budgets → upcoming/forecast → alerts**. This matches the
+existing P0/P1 backlog above.
+
+## Navigation / IA structure of each app
+
+How each competitor organises primary navigation, for comparison against Ledger's
+new IA. Competitors are mobile-first (bottom tab bar, 4–5 items); Ledger is a web
+top-nav. Confidence noted where the exact tab set is fuzzy from public sources.
+
+- **Ledger (current, post-restructure).** Web top-nav: **Dashboard · Transactions ·
+  Spending ▾** (Budget · Recurring · Reports) **· Accounts ▾** (Accounts ·
+  Investments · Savings · Assets · Debts) **· ⚙ Manage** (Merchants · Receipts ·
+  People · Plugins) **· Connect.** Two grouped dropdowns + a settings drawer for
+  config surfaces.
+- **Monarch.** 5 bottom tabs — **Dashboard · Accounts · Transactions · Budget ·
+  Recurring** — plus a profile/sidebar menu for the deeper surfaces (Cash Flow,
+  Investments, Goals, Advice, Reports, Settings). Recurring is a first-class tab
+  with a bills/subscriptions calendar. (med-high confidence)
+- **Copilot.** 5 bottom tabs — **Dashboard · Transactions · Accounts · Categories
+  (budget) · Investments** — with Goals nested inside. "Categories" *is* the
+  budget surface; Investments earns its own tab. (high confidence)
+- **YNAB.** Bottom tabs (post-2025 remodel, Home screen added Sep 2025) — **Home ·
+  Budget (Plan) · Reflect (reports/insights) · Accounts** — plus a quick add-
+  transaction action. "Spaces" = multiple budgets, not a tab. (med-high confidence)
+- **Origin.** Tabs — **Home · Spending · Investments · Advice** — where Home =
+  dashboard (budgets/accounts/insights), Spending = AI budgeting + net worth,
+  Investments = Holdings, Advice = the "Sidekick" AI advisor + CFP scheduling.
+  (med confidence)
+- **Cleo.** Chat-first: the home screen *is* the conversation. Functional areas
+  (spend · budget · chat · save · borrow · habits) are reached largely through
+  chat + a thin tab/menu rather than a conventional tab bar. IA ≈ one AI surface,
+  not a sectioned app. (med confidence on exact chrome)
+- **Ubank.** Banking-app shell — **Home (accounts) · Save · Card · Bills ·
+  Spending (Insights)** — built around the Spend/Bills/Save account structure;
+  Bills and Save are first-class because they are products, not just views.
+  (med confidence)
+
+**IA takeaways for Ledger:**
+
+1. **Transactions and Accounts top-level is universal** — every tabbed competitor
+   surfaces both directly. Ledger's restructure (promoting Transactions, an
+   Accounts hub) matches the field.
+2. **Budget is always a top-level destination, never buried** — Monarch, Copilot,
+   YNAB, Origin all give budgeting its own tab. Ledger's "Spending ▾" header with
+   Budget inside is acceptable but slightly demotes the north-star surface; worth
+   watching whether Budget deserves promotion to a bare top-level link.
+3. **Nobody surfaces Merchants or Receipts as primary nav** — these are
+   power-user/config surfaces everywhere. Demoting them into ⚙ Manage is correct
+   and well-precedented.
+4. **Investments as its own tab is a wealth-app tell** (Origin, Copilot, Monarch).
+   Ledger nesting Investments/Savings/Assets/Debts under an Accounts hub is the
+   right call for a budgeting-first product — it keeps the balance sheet one click
+   away without competing with the budgeting loop for top-level attention.
+5. **Recurring/Bills as a first-class surface** (Monarch tab, Ubank Bills) is the
+   IA expression of the "upcoming/forecast" gap above — when Ledger builds the
+   Upcoming view, it has a natural home one level under Spending.
+
+## Source notes (2026-06-12 update)
+
+- Competitor features/nav verified June 2026 via: [Origin](https://useorigin.com/),
+  [Origin review (Rob Berger)](https://robberger.com/origin-review/),
+  [Cleo 3.0](https://web.meetcleo.com/blog/introducing-cleo-3-0),
+  [Cleo review (Penny Hoarder)](https://www.thepennyhoarder.com/budgeting/cleo-app-review/),
+  [Ubank bills & budgeting](https://news.nab.com.au/news/ubanks-new-bills-and-budgeting-tools-help-customers-see-their-money-clearly/),
+  [Ubank Savings Targets](https://www.ubank.com.au/banking/savings-account/savings-targets),
+  [Monarch new mobile navigation](https://www.monarchmoney.com/whats-new/new-mobile-navigation),
+  [Copilot dashboard/tabs](https://help.copilot.money/en/articles/6045480-dashboard-tab-overview),
+  [YNAB the great remodel](https://www.ynab.com/whats-new/the-great-ynab-remodel).
+- Origin/Cleo/Ubank cells were corrected against a from-memory first pass;
+  Perplexity API was used for cross-checks once credits were available.
