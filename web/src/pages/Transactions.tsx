@@ -388,8 +388,8 @@ export default function Transactions() {
             {visible.map((r) => {
               const acct = r.accountName;
               return (
-              <tr key={r.id} className={[selected.has(r.id) ? "row-selected" : "", r.flag ? `flag-row-${r.flag}` : ""].filter(Boolean).join(" ") || undefined}>
-                <td><input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} /></td>
+              <tr key={r.id} className={["txn-row", selected.has(r.id) ? "row-selected" : "", r.flag ? `flag-row-${r.flag}` : ""].filter(Boolean).join(" ")} onClick={() => setDrawerId(r.id)}>
+                <td onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} /></td>
                 <td className="td-date" title={r.bookingDate ?? ""}>{relativeDate(r.bookingDate)}</td>
                 <td title={acct}>
                   <span className="txn-acct">
@@ -401,7 +401,7 @@ export default function Transactions() {
                   </span>
                 </td>
                 <td>
-                  <div className="td-name">
+                  <div className="td-name" onClick={(e) => e.stopPropagation()}>
                     <Combobox
                       value={r.name?.trim() || r.remittanceInfo?.trim() || null}
                       options={nameOptions(r.name?.trim() || r.remittanceInfo?.trim() || null)}
@@ -416,19 +416,19 @@ export default function Transactions() {
                   {r.note && <div className="note-line">{r.note}</div>}
                   {r.debtAccountId && <div className="note-line" title="Debt repayment">⛓ repayment → {debtName(r.debtAccountId)}</div>}
                 </td>
-                <td>
+                <td onClick={(e) => e.stopPropagation()}>
                   <select value={r.category} onChange={(e) => setCategory(r.id, e.target.value)}>
                     {catNames.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
                   </select>
                 </td>
-                <td>
+                <td onClick={(e) => e.stopPropagation()}>
                   <select value={r.personKey ?? ""} onChange={(e) => setPerson(r.id, e.target.value || null)}>
                     <option value="">—</option>
                     {people.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
                   </select>
                 </td>
                 <td className={`num td-amount ${Number(r.amount) < 0 ? "neg" : "pos"}`}>{r.currency} {formatMoney(r.amount)}</td>
-                <td className="cell-actions">
+                <td className="cell-actions" onClick={(e) => e.stopPropagation()}>
                   <span className="cell-actions-row">
                     <RowMenu>
                       <button type="button" onClick={() => setDrawerId(r.id)}>Edit details…</button>
