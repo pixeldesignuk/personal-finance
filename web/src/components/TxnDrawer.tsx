@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Paperclip } from "lucide-react";
 import type { TransactionDTO, CategoryNameDTO, PersonDTO } from "../../../shared/types.ts";
 import { formatMoney } from "../format.ts";
@@ -47,7 +48,7 @@ export function TxnDrawer({
   const originLabel = { bank: "Bank sync", telegram: "Telegram", receipt: "Telegram receipt", manual: "Manual" }[txn.origin];
   const commitNote = () => { const v = note.trim(); if ((v || null) !== (txn.note ?? null)) onNote(v || null); };
 
-  return (
+  return createPortal(
     <div className="drawer-backdrop" onClick={onClose}>
       <aside className="drawer txn-drawer" onClick={(e) => e.stopPropagation()}>
         <div className="drawer-head">
@@ -134,6 +135,7 @@ export function TxnDrawer({
           </div>
         </div>
       </aside>
-    </div>
+    </div>,
+    document.body,
   );
 }
