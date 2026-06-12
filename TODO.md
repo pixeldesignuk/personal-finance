@@ -4,6 +4,50 @@
 
 Running todo of planned features. Newest ideas at the bottom; check off when shipped.
 
+## Value-ranked roadmap (2026-06-12)
+
+Single descending-value ordering from the competitive review (full analysis +
+feature matrix + nav IA in [`docs/budget-app-research.md`](docs/budget-app-research.md)).
+Value = impact on the north-star (save money, clear debts, spend-safety). Build
+items marked `↓` are detailed in the P0/P1/P2 sections below; items marked `★` are
+**new** from this review (not yet specified anywhere else).
+
+**Tier 1 — core budgeting loop (highest value; this is the north-star).**
+
+- [ ] **Month-specific budget allocations** `↓P0` — the headline gap; foundation for everything envelope-shaped.
+- [ ] **Category rollover balances** `↓P0` — turns category budgeting into real envelope budgeting.
+- [ ] **Variable spend in Upcoming (learned estimates)** `↓` — makes safe-to-spend honest, not just fixed-bill-aware.
+- [ ] **In-app insights / review queue** `↓P1` — converts signals you already generate into spend-safety reassurance; cheapest high-leverage win.
+
+**Tier 2 — "will I survive to payday" + saving.**
+
+- [ ] **Category goals / target dates** `↓P1` — the saving half of the north-star.
+- [ ] **Cash-flow forecast view** `↓P1` — answers the question Ubank/Origin answer and you don't.
+- [ ] **Reviewed state + "Needs review" filter** `↓P1` — turns sync into a daily workflow.
+
+**Tier 3 — trust, portability, IA polish.**
+
+- [ ] **CSV export** `↓P1` — #1 "can I get my data out?" trust signal; trivial.
+- [ ] **CSV import (manual accounts only)** `↓P1`.
+- [ ] ★ **Promote Budget to a top-level nav link** — every tabbed competitor (Monarch/Copilot/YNAB/Origin) makes Budget top-level; "Spending ▾ → Budget" slightly demotes the north-star surface. Trial Budget as a bare `NavLink` (keep Recurring/Reports grouped). Low effort, in `App.tsx`/`MobileNav.tsx`.
+- [ ] ★ **Recurring/Bills as a first-class surface** — once the Upcoming/forecast work lands, give it an IA home one level under Spending (Monarch has a Recurring tab; Ubank a Bills tab).
+
+**Tier 4 — restraint: question over-built surfaces (value = reclaimed focus/cost).**
+
+- [ ] ★ **Review person/people attribution** — household-split machinery wired through txns/budgets/reports/rules/merchants in a single-user, no-auth app. Decide: keep, or quietly retire to cut maintenance surface. No competitor needs this without real logins.
+- [ ] ★ **Cap Gemini usage; keep receipts as the signature feature** — receipt/email parsing is your only 0/6-competitor differentiator but the heaviest consumer of the ~20 req/day budget. Add a guardrail/priority so receipts never starve categorisation; don't expand AI surfaces beyond it.
+- [ ] ★ **Reconsider investment-provider integrations** — net-worth-grade investment tracking is wealth-app scope (Origin/Copilot/Monarch). Evaluate whether manual values cover ~80% at a fraction of the upkeep before extending provider support.
+
+**Tier 5 — lower value / high effort / explicitly deferred.**
+
+- [ ] **Debt payoff simulator** `↓P2` — already deeper than every competitor; low marginal value.
+- [ ] **Advanced search + saved views** `↓P2`.
+- [ ] **Split transactions** `↓P2` — after budget allocations.
+- [ ] **FX conversion + home currency** `↓P2` — only if non-GBP holdings matter.
+- [ ] **Notification channels** `↓P2` — after insights exist.
+- [ ] **Local API + docs** `↓P2`.
+- [ ] **Native mobile app** ★ — the only gap no competitor shares, but Telegram + responsive web soften it; high effort, deferred under the single-user constraint.
+
 ## Open
 
 ### Done
