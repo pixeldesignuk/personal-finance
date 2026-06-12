@@ -99,8 +99,16 @@ export default function Dashboard() {
   }, [upcoming]);
   // Pay-date reassurance: income still expected this month (shown on the stat cards).
   const incomeDue = upcoming?.incomeDueThisMonth ?? 0;
-  const nextPay = upcoming?.items.find((i) => i.direction === "in") ?? null;
   const dayShort = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  // Income can arrive on several dates (e.g. a partner's transfer mid-month, a
+  // wage at month-end). Show "by <last date>" when it spans dates, "~<date>" for
+  // a single payment — never imply it all lands on the soonest date.
+  const payLabel = useMemo(() => {
+    const ymNow = nowMonth();
+    const dates = [...new Set((upcoming?.items ?? []).filter((i) => i.direction === "in" && i.date.slice(0, 7) === ymNow).map((i) => i.date))].sort();
+    if (!dates.length) return "";
+    return dates.length > 1 ? `by ${dayShort(dates[dates.length - 1])}` : `~${dayShort(dates[0])}`;
+  }, [upcoming]);
   // Rounded GBP for supporting lines — keeps the hero from looking dense.
   const gbp0 = (n: number) => `£${Math.round(n).toLocaleString("en-GB")}`;
 
@@ -199,7 +207,7 @@ export default function Dashboard() {
             label="Income"
             value={formatGBP(income)}
             valueTone="pos"
-            delta={isThisMonth && incomeDue > 0 ? `+${formatGBP(incomeDue)} expected${nextPay ? ` ~${dayShort(nextPay.date)}` : ""}` : incomeMom.node}
+            delta={isThisMonth && incomeDue > 0 ? `+${formatGBP(incomeDue)} expected${payLabel ? ` ${payLabel}` : ""}` : incomeMom.node}
             deltaTone={isThisMonth && incomeDue > 0 ? "pos" : incomeMom.tone}
           />
           <Stat label={`Spent · ${isThisMonth ? "this month" : monthLabel}`} value={formatGBP(spent)} valueTone="neg" delta={spentMom.node} deltaTone={spentMom.tone} />
