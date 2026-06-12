@@ -12,7 +12,7 @@ import { AuditSheet } from "../components/AuditSheet.tsx";
 import { BrandLogo } from "../components/BrandLogo.tsx";
 import { OrderDetail } from "../components/OrderDetail.tsx";
 import { PageHeader, Modal, useConfirm } from "../components/ui";
-import { Receipt, Camera, Send, Paperclip } from "lucide-react";
+import { Receipt, Send, Paperclip } from "lucide-react";
 
 type PropField = "category" | "person";
 type Flag = "red" | "orange" | "yellow" | null;
@@ -379,8 +379,6 @@ export default function Transactions() {
                       ? <span className="tg-avatar" title="Added via Telegram"><Send size={13} strokeWidth={2.2} /></span>
                       : <BrandLogo name={bankByAccount[r.accountId]?.name ?? acct} src={bankByAccount[r.accountId]?.logo} size={24} />}
                     <span className="td-clip">{acct}</span>
-                    {r.origin === "receipt" && <span className="origin-tag tg" title="From a Telegram receipt"><Camera size={11} strokeWidth={2} />receipt</span>}
-                    {r.origin === "telegram" && <span className="origin-tag tg" title="From the Telegram bot"><Send size={11} strokeWidth={2} />telegram</span>}
                     {r.origin === "manual" && <span className="badge manual">manual</span>}
                   </span>
                 </td>
