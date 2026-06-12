@@ -134,16 +134,23 @@ recurringRouter.get("/upcoming", async (req, res, next) => {
     const next30Iso = next30.toISOString().slice(0, 10);
 
     const schedules = await db.recurringSchedule.findMany({ where: { status: { not: "ignored" } } });
-    // Income already received this month, PER ACCOUNT — so each income stream's
-    // projection is its own *remaining* expected amount (typical − received for
-    // that source), regardless of pay date. Streams with no account (a manual
-    // entry) fall back to the household total.
+    // Income received this month, PER ACCOUNT — tracked as the running total AND
+    // the single largest credit. We use these to decide whether a stream's
+    // *recurring* payment has actually landed, rather than subtracting every
+    // credit (a one-off like a friend paying you back must NOT reduce the
+    // projection).
     const ym = today.toISOString().slice(0, 7);
     const monthCredits = (await db.transaction.findMany({ where: { amount: { gt: 0 }, bookingDate: { startsWith: ym } }, select: { amount: true, category: true, categoryOverride: true, accountId: true } }))
       .filter((t) => effectiveCategory(t) === "income");
-    const incomeByAccount = new Map<string, number>();
-    for (const t of monthCredits) incomeByAccount.set(t.accountId, (incomeByAccount.get(t.accountId) ?? 0) + num(t.amount));
-    const incomeThisMonthTotal = monthCredits.reduce((sum, t) => sum + num(t.amount), 0);
+    const incomeByAccount = new Map<string, { total: number; max: number }>();
+    for (const t of monthCredits) {
+      const v = num(t.amount);
+      const e = incomeByAccount.get(t.accountId) ?? { total: 0, max: 0 };
+      e.total += v; e.max = Math.max(e.max, v);
+      incomeByAccount.set(t.accountId, e);
+    }
+    const totalAll = monthCredits.reduce((s, t) => s + num(t.amount), 0);
+    const maxAll = monthCredits.reduce((m, t) => Math.max(m, num(t.amount)), 0);
 
     const items: UpcomingItemDTO[] = [];
     for (const s of schedules) {
@@ -151,13 +158,17 @@ recurringRouter.get("/upcoming", async (req, res, next) => {
       const kind = s.kind === "variable" ? "variable" : "fixed";
       const prevAmount = s.prevAmount != null ? num(s.prevAmount) : null;
       if (s.direction === "in") {
-        const received = s.accountId ? incomeByAccount.get(s.accountId) ?? 0 : incomeThisMonthTotal;
-        // For each expected occurrence: this-month = remaining (this stream's
-        // typical − received so far), future months = the full typical amount.
-        for (const d of incomeOccurrences(s.dayOfMonth ?? 28, false, today, days)) {
-          const date = d.toISOString().slice(0, 10);
-          const amount = date.slice(0, 7) === ym ? Math.max(0, num(s.amount) - received) : num(s.amount);
-          if (amount >= 1) items.push({ token: s.merchantToken, name: s.name ?? s.merchantToken, amount, direction: "in", kind, prevAmount: null, date, status });
+        const amt = num(s.amount);
+        const got = s.accountId ? incomeByAccount.get(s.accountId) ?? { total: 0, max: 0 } : { total: totalAll, max: maxAll };
+        // The recurring payment has arrived if a salary-sized credit landed
+        // (≥60% of the typical amount) OR the month's income for this source
+        // already covers it. A small one-off below that bar is ignored, so the
+        // projection stays at the full expected amount.
+        const arrived = got.max >= 0.6 * amt || got.total >= amt - 0.005;
+        // Project the FULL typical amount for each future occurrence; this month's
+        // occurrence is dropped only once the payment has actually arrived.
+        for (const d of incomeOccurrences(s.dayOfMonth ?? 28, arrived, today, days)) {
+          if (amt >= 1) items.push({ token: s.merchantToken, name: s.name ?? s.merchantToken, amount: amt, direction: "in", kind, prevAmount: null, date: d.toISOString().slice(0, 10), status });
         }
       } else if (s.nextDue) {
         for (const d of occurrencesWithin(s.nextDue, s.cadence, today, days)) {
