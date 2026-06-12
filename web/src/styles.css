@@ -1013,16 +1013,13 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 .hero-chip.over { color: var(--coral); background: color-mix(in srgb, var(--coral) 14%, transparent); border: 1px solid color-mix(in srgb, var(--coral) 32%, transparent); }
 .hero-figure { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: clamp(38px, 7vw, 54px); letter-spacing: -0.04em; line-height: 1; color: var(--ink); margin: 2px 0; }
 .hero-figure.neg { color: var(--coral); }
-.hero-breakdown { font-size: 13.5px; color: var(--ink-2); }
+/* Both subtitles (net-worth breakdown + budget pace) share one type style */
+.hero-breakdown, .hero-pace { font-size: 13px; color: var(--ink-2); }
 .hero-breakdown .neg { color: var(--coral); }
-.hero-income { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 12.5px; color: var(--jade); }
-.hero-income strong { color: var(--ink); font-weight: 640; }
-/* Right column = this-month budget. Mirrors the left's eyebrow + figure + line,
-   plus the thin progress bar — tuned to balance the left column's height. */
-.hero-side { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 11px; border-left: 1px solid var(--line); padding-left: clamp(18px, 4vw, 40px); }
-.hero-figure-sm { font-size: clamp(28px, 4.2vw, 40px); }
-.hero-figure-unit { font-family: var(--font); font-size: 0.4em; font-weight: 600; letter-spacing: 0; color: var(--ink-3); margin-left: 3px; }
-.hero-pace { font-size: 12.5px; }
+/* Right column = this-month budget: same-size figure as net worth, the bar, and
+   the pace line. Gap tuned so the column height matches the left's. */
+.hero-side { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 10px; border-left: 1px solid var(--line); padding-left: clamp(18px, 4vw, 40px); }
+.hero-figure-unit { font-family: var(--font); font-size: 0.4em; font-weight: 600; letter-spacing: 0; color: var(--ink-3); margin-left: 8px; }
 .hero-side .progress { margin-top: 0; }
 .upcoming-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--amber); margin-right: 5px; vertical-align: 0; }
 @media (max-width: 680px) {

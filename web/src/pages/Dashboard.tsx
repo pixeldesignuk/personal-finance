@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQueryState } from "nuqs";
-import { ShieldCheck, AlertTriangle, PiggyBank, Landmark, Wallet } from "lucide-react";
+import { PiggyBank, Landmark, Wallet } from "lucide-react";
 import { api } from "../api.ts";
 import type { BankDTO, AuditEvent } from "../../../shared/types.ts";
 import { formatGBP, formatMoney } from "../format.ts";
@@ -179,16 +179,12 @@ export default function Dashboard() {
             </span>
           </div>
           <div className="hero-side">
-            <span className="hero-eyebrow">
-              <span className={`hero-chip ${overBudget ? "over" : "ok"}`}>{overBudget ? <AlertTriangle size={13} strokeWidth={2.2} /> : <ShieldCheck size={13} strokeWidth={2.2} />}{overBudget ? "Over" : "On track"}</span>
-              {monthLabel} budget
-            </span>
-            <span className={`hero-figure hero-figure-sm num ${overBudget ? "neg" : ""}`}>{gbp0(Math.abs(budgetLeft))} <span className="hero-figure-unit">{overBudget ? "over" : "left"}</span></span>
+            <span className={`hero-figure num ${overBudget ? "neg" : ""}`}>{gbp0(Math.abs(budgetLeft))}<span className="hero-figure-unit">{overBudget ? "over" : "left"}</span></span>
             <div className="progress stack">
               <i className={barClass(budgetPct)} style={{ width: `${spentW}%` }} />
               {billsW > 0 && <i className="upcoming" style={{ width: `${billsW}%` }} title="Upcoming bills" />}
             </div>
-            <span className="hero-pace muted">
+            <span className="hero-pace">
               {budgeted > 0 ? `${gbp0(spent)} of ${gbp0(budgeted)} · ${budgetPct}% used · ${elapsed}% of month` : "No budget set yet"}
               {billsDue > 0 && <> · <span className="upcoming-dot" />{gbp0(billsDue)} bills due</>}
             </span>
