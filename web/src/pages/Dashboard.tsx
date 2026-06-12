@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQueryState } from "nuqs";
-import { ShieldCheck, AlertTriangle, PiggyBank, Landmark, ArrowDownLeft, Wallet } from "lucide-react";
+import { ShieldCheck, AlertTriangle, PiggyBank, Landmark, Wallet } from "lucide-react";
 import { api } from "../api.ts";
 import type { BankDTO, AuditEvent } from "../../../shared/types.ts";
 import { formatGBP, formatMoney } from "../format.ts";
@@ -100,11 +100,12 @@ export default function Dashboard() {
     return upcoming.items.filter((i) => i.direction === "out" && i.date <= monthEnd).length;
   }, [upcoming]);
   const safe = safeToSpend >= 0;
-  // Pay-date reassurance: income still expected this month + projected month-end balance.
+  // Pay-date reassurance: income still expected this month (shown on the stat cards).
   const incomeDue = upcoming?.incomeDueThisMonth ?? 0;
   const nextPay = upcoming?.items.find((i) => i.direction === "in") ?? null;
-  const projectedEom = available - billsDue + incomeDue;
   const dayShort = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  // Rounded GBP for supporting lines — keeps the hero from looking dense.
+  const gbp0 = (n: number) => `£${Math.round(n).toLocaleString("en-GB")}`;
 
   const spent = budget?.summary.spent ?? 0;
   const budgeted = budget?.summary.budgeted ?? 0;
@@ -182,25 +183,22 @@ export default function Dashboard() {
             <div className="hero-side-block">
               <span className="hero-side-label">
                 <span className={`hero-chip ${safe ? "ok" : "over"}`}>{safe ? <ShieldCheck size={12} strokeWidth={2.2} /> : <AlertTriangle size={12} strokeWidth={2.2} />}{safe ? "On track" : "Over"}</span>
-                Safe to spend now
+                Safe to spend
               </span>
               <span className={`hero-side-figure num ${safe ? "" : "neg"}`}>{formatGBP(safeToSpend)}</span>
-              <span className="hero-side-sub muted">
-                {formatGBP(available)} to spend
-                {billsDue > 0 && <> − <span className="neg">{formatGBP(billsDue)}</span> bills</>}
-                {earmarked > 0 && <> − {formatGBP(earmarked)} pots</>}
-                {incomeDue > 0 && <> · <ArrowDownLeft size={11} strokeWidth={2.4} style={{ verticalAlign: "-1px" }} />{formatGBP(incomeDue)} expected{nextPay ? ` ~${dayShort(nextPay.date)}` : ""}</>}
+              <span className="hero-side-sub muted">{gbp0(available)} available{billsDue > 0 && <> · {gbp0(billsDue)} bills due</>}</span>
+            </div>
+            <div className="hero-side-block hero-budget">
+              <div className="hero-bar-head">
+                <span className="muted">Budget left</span>
+                <span className="num">{gbp0(Math.max(0, budgeted - spent))} <span className="muted">of {gbp0(budgeted)}</span></span>
+              </div>
+              <div className="progress"><i className={barClass(budgetPct)} style={{ width: `${Math.min(budgetPct, 100)}%` }} /></div>
+              <span className="hero-pace muted">
+                {budgeted > 0 ? `${budgetPct}% used · ${elapsed}% of month` : "No budget set yet"}
+                {billsDueCount > 0 && ` · ${billsDueCount} bill${billsDueCount === 1 ? "" : "s"} left`}
               </span>
             </div>
-            <div className="hero-bar-head">
-              <span className="muted">{monthLabel} budget</span>
-              <span className="num">{formatGBP(spent)} <span className="muted">/ {formatGBP(budgeted)}</span></span>
-            </div>
-            <div className="progress"><i className={barClass(budgetPct)} style={{ width: `${Math.min(budgetPct, 100)}%` }} /></div>
-            <span className="hero-pace muted">
-              {budgeted > 0 ? `${budgetPct}% of budget used · ${elapsed}% of month gone` : "No budget set yet"}
-              {billsDueCount > 0 && ` · ${billsDueCount} bill${billsDueCount === 1 ? "" : "s"} left`}
-            </span>
           </div>
         </div>
       )}
