@@ -4,6 +4,8 @@ import { env } from "../env.ts";
 import { db } from "../lib/db.ts";
 import { GoCardlessClient, GoCardlessError } from "../gocardless/client.ts";
 import { syncAccount } from "./sync.ts";
+import { recordSyncRun } from "../lib/syncRun.ts";
+import type { AuditFn } from "../categorise/audit.ts";
 
 export const connectRouter = Router();
 const gc = new GoCardlessClient();
@@ -59,6 +61,12 @@ connectRouter.get("/connect/by-ref/:ref", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// Finalize is *link only* and must stay fast: it attaches the accounts to the
+// fresh consent and cleans up orphaned requisitions, then returns immediately.
+// The actual transaction import — which for a reconnect pulls up to 730 days and
+// can take minutes — is NOT done here. Doing it inline used to overrun the
+// proxy/edge request timeout and surface as a 502 even though work continued
+// server-side. The client streams the import via `/connect/:id/sync/stream`.
 connectRouter.post("/connect/:id/finalize", async (req, res, next) => {
   try {
     const id = req.params.id;
@@ -71,7 +79,6 @@ connectRouter.post("/connect/:id/finalize", async (req, res, next) => {
     // Track requisitions these accounts previously belonged to, so a reconnect
     // (same bank, new consent) can clean up the now-orphaned old requisition.
     const movedFromReqs = new Set<string>();
-    let rateLimited = false;
     for (const accountId of requisition.accounts) {
       const existing = await db.account.findUnique({ where: { id: accountId }, select: { requisitionId: true } });
       if (existing?.requisitionId && existing.requisitionId !== id) movedFromReqs.add(existing.requisitionId);
@@ -94,16 +101,6 @@ connectRouter.post("/connect/:id/finalize", async (req, res, next) => {
           ownerName: details.account?.ownerName,
         },
       });
-      // Reconnect intent is "give me more history", so always pull the full
-      // window. If the bank's daily fetch limit (PSD2: ~4/day) is already spent,
-      // don't fail the whole link — the account is connected, and because no
-      // successful sync is recorded yet, the next sync still pulls full history.
-      try {
-        await syncAccount(accountId, undefined, { fullHistory: true });
-      } catch (e) {
-        if (e instanceof GoCardlessError && e.status === 429) { rateLimited = true; }
-        else throw e;
-      }
     }
     // Remove old requisitions left with no accounts after a reconnect, so the
     // bank doesn't appear twice on the accounts screen.
@@ -112,8 +109,55 @@ connectRouter.post("/connect/:id/finalize", async (req, res, next) => {
       try { await gc.deleteRequisition(oldReq); } catch (e) { console.error("Old requisition delete (GoCardless) failed", e); }
       await db.requisition.delete({ where: { id: oldReq } }).catch(() => {});
     }
-    res.json({ accounts: requisition.accounts.length, rateLimited });
+    res.json({ accounts: requisition.accounts.length, accountIds: requisition.accounts });
   } catch (err) {
     next(err);
+  }
+});
+
+// Stream the full-history import for a just-linked requisition. Reconnect intent
+// is "give me more history", so each account is pulled with `fullHistory: true`.
+// NDJSON keeps the connection alive with incremental writes, so the long pull
+// never trips a proxy/edge timeout (the failure mode that produced 502s when the
+// import ran inside finalize). A spent daily fetch limit (PSD2 ~4/day) degrades
+// gracefully — the account stays linked and the next sync resumes the history.
+connectRouter.post("/connect/:id/sync/stream", async (req, res) => {
+  res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders?.();
+  const stream: AuditFn = (e) => res.write(`${JSON.stringify(e)}\n`);
+  try {
+    await recordSyncRun("bank", stream, async (audit) => {
+      const id = req.params.id;
+      const requisition = await gc.getRequisition(id);
+      let totalNew = 0;
+      let rateLimited = false;
+      for (const accountId of requisition.accounts) {
+        try {
+          const r = await syncAccount(accountId, audit, { fullHistory: true });
+          totalNew += r.newCount ?? 0;
+        } catch (err) {
+          if (err instanceof GoCardlessError && err.status === 429) {
+            rateLimited = true;
+            audit({ kind: "log", text: `  rate limited (retry after ${err.retryAfter ?? "unknown"}) — history fills in on the next sync`, tone: "red" });
+            continue;
+          }
+          audit({ kind: "log", text: `  ✗ ${err instanceof Error ? err.message : String(err)}`, tone: "red" });
+        }
+      }
+      audit({
+        kind: "log",
+        text: rateLimited
+          ? `Imported what the bank allowed today — ${totalNew} transaction${totalNew === 1 ? "" : "s"}. The rest fills in on the next sync.`
+          : `History imported — ${totalNew} transaction${totalNew === 1 ? "" : "s"}.`,
+        tone: rateLimited ? "yellow" : "green",
+      });
+      return { accounts: requisition.accounts.length, newTransactions: totalNew, rateLimited };
+    });
+  } catch {
+    // already streamed + recorded
+  } finally {
+    res.end();
   }
 });

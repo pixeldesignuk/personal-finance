@@ -10,16 +10,27 @@ export default function Callback() {
   useEffect(() => {
     const ref = params.get("ref");
     if (!ref) { setStatus("Missing requisition reference."); return; }
-    fetch(`/api/connect/by-ref/${encodeURIComponent(ref)}`)
-      .then((r) => r.json())
-      .then(({ id }) => api.finalize(id))
-      .then((r) => {
-        setStatus(r.rateLimited
-          ? `Connected ${r.accounts} account(s). Your bank's daily refresh limit was reached, so transactions will fill in on the next sync.`
-          : `Connected ${r.accounts} account(s).`);
-        setTimeout(() => navigate("/"), r.rateLimited ? 3500 : 1200);
-      })
-      .catch((e) => setStatus(`Error: ${e.message}`));
+    let cancelled = false;
+    (async () => {
+      try {
+        const { id } = await fetch(`/api/connect/by-ref/${encodeURIComponent(ref)}`).then((r) => r.json());
+        // Linking is fast and returns immediately.
+        const r = await api.finalize(id);
+        if (cancelled) return;
+        setStatus(`Connected ${r.accounts} account${r.accounts === 1 ? "" : "s"}. Importing your history…`);
+        // The full-history import (up to ~2 years on a reconnect) streams its
+        // progress, so the long pull never trips a request timeout. Surface the
+        // latest audit line as status as it arrives.
+        await api.finalizeSyncStream(id, (e) => {
+          if (!cancelled && e.kind === "log" && e.text) setStatus(e.text.trim());
+        });
+        if (cancelled) return;
+        setTimeout(() => navigate("/"), 1200);
+      } catch (e) {
+        if (!cancelled) setStatus(`Error: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [params, navigate]);
 
   return (

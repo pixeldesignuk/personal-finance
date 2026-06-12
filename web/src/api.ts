@@ -51,6 +51,8 @@ export const api = {
   connect: (institutionId: string, maxHistoricalDays?: number) =>
     send<ConnectResponse>("POST", "/api/connect", { institutionId, ...(maxHistoricalDays ? { maxHistoricalDays } : {}) }),
   finalize: (id: string) => send<FinalizeResponse>("POST", `/api/connect/${id}/finalize`),
+  finalizeSyncStream: (id: string, onEvent: (e: AuditEvent) => void) =>
+    streamNdjson(`/api/connect/${id}/sync/stream`, {}, onEvent),
   sync: () => send<SyncResult[]>("POST", "/api/sync"),
   syncRuns: () => get<SyncRunDTO[]>("/api/sync/runs"),
   accounts: () => get<BankDTO[]>("/api/accounts"),
@@ -114,6 +116,7 @@ export const api = {
     send<{ ok: boolean }>("PATCH", `/api/merchants/${encodeURIComponent(token)}`, patch),
   settings: () => get<SettingsDTO>("/api/settings"),
   patchSettings: (patch: Record<string, boolean>) => send<Record<string, boolean>>("PATCH", "/api/settings", patch),
+  setDashboardOrder: (order: string[]) => send<{ order: string[] }>("PUT", "/api/settings/dashboard-order", { order }),
   pots: () => get<PotsDTO>("/api/pots"),
   createPot: (input: { name: string; target?: number | null; emoji?: string | null; balance?: number }) => send<{ id: number }>("POST", "/api/pots", input),
   patchPot: (id: number, patch: { name?: string; target?: number | null; balance?: number; emoji?: string | null; note?: string | null; archived?: boolean }) => send<{ id: number }>("PATCH", `/api/pots/${id}`, patch),

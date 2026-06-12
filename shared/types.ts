@@ -12,6 +12,7 @@ export interface ConnectResponse {
 
 export interface FinalizeResponse {
   accounts: number;
+  accountIds: string[]; // the linked accounts — the client then streams their full-history import
   rateLimited?: boolean; // bank's daily fetch limit was hit; history fills in on the next sync
 }
 
@@ -478,8 +479,10 @@ export interface SettingDef {
   group: string;
   type: "boolean";
   default: boolean;
+  hidden?: boolean; // not shown in the generic settings drawer (e.g. dashboard card toggles)
 }
 export interface SettingsDTO {
   defs: SettingDef[];
   values: Record<string, boolean>;
+  order: string[]; // dashboard section order (keys of DASHBOARD_BLOCKS)
 }
