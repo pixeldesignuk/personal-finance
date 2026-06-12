@@ -43,9 +43,11 @@ export function SettingsDrawer() {
             </div>
             <div className="drawer-body">
               <div className="drawer-section">
-                <div className="eyebrow">Navigation</div>
-                <NavLink to="/plugins" className="drawer-link" onClick={() => setOpen(false)}>Plugins</NavLink>
+                <div className="eyebrow">Manage</div>
+                <NavLink to="/merchants" className="drawer-link" onClick={() => setOpen(false)}>Merchants</NavLink>
+                <NavLink to="/orders" className="drawer-link" onClick={() => setOpen(false)}>Receipts</NavLink>
                 <NavLink to="/people" className="drawer-link" onClick={() => setOpen(false)}>People</NavLink>
+                <NavLink to="/plugins" className="drawer-link" onClick={() => setOpen(false)}>Plugins</NavLink>
               </div>
               {!data && <div className="drawer-section muted">Loading…</div>}
               {groups.map((g) => (

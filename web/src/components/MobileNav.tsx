@@ -3,18 +3,22 @@ import { createPortal } from "react-dom";
 import { NavLink, useLocation } from "react-router-dom";
 
 const GROUPS: { title: string; items: { to: string; label: string; end?: boolean }[] }[] = [
-  { title: "", items: [{ to: "/", label: "Dashboard", end: true }] },
+  { title: "", items: [
+    { to: "/", label: "Dashboard", end: true }, { to: "/transactions", label: "Transactions" },
+  ] },
   { title: "Budget", items: [
-    { to: "/budgets", label: "Budget" }, { to: "/transactions", label: "Transactions" },
-    { to: "/reports", label: "Reports" }, { to: "/recurring", label: "Recurring" },
+    { to: "/budgets", label: "Budget" }, { to: "/recurring", label: "Recurring" },
+    { to: "/reports", label: "Reports" },
+  ] },
+  { title: "Accounts", items: [
+    { to: "/accounts", label: "Accounts" }, { to: "/investments", label: "Investments" },
+    { to: "/savings", label: "Savings" }, { to: "/assets", label: "Assets" },
+    { to: "/debts", label: "Debts" },
+  ] },
+  { title: "Manage", items: [
     { to: "/merchants", label: "Merchants" }, { to: "/orders", label: "Receipts" },
-    { to: "/accounts", label: "Accounts" },
+    { to: "/people", label: "People" }, { to: "/plugins", label: "Plugins" },
   ] },
-  { title: "Wealth", items: [
-    { to: "/investments", label: "Investments" }, { to: "/savings", label: "Savings" },
-    { to: "/assets", label: "Assets" }, { to: "/debts", label: "Debts" },
-  ] },
-  { title: "Settings", items: [{ to: "/plugins", label: "Plugins" }, { to: "/people", label: "People" }] },
 ];
 
 export function MobileNav() {

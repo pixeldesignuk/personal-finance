@@ -26,15 +26,13 @@ export default function App() {
         <Link to="/" className="wordmark">Led<b>·</b>ger</Link>
         <div className="nav-right">
           <NavLink to="/" end>Dashboard</NavLink>
+          <NavLink to="/transactions">Transactions</NavLink>
           <NavMenu label="Budget" to="/budgets" items={[
-            { to: "/transactions", label: "Transactions" },
-            { to: "/reports", label: "Reports" },
             { to: "/recurring", label: "Recurring" },
-            { to: "/merchants", label: "Merchants" },
-            { to: "/orders", label: "Receipts" },
-            { to: "/accounts", label: "Accounts" },
+            { to: "/reports", label: "Reports" },
           ]} />
-          <NavMenu label="Wealth" items={[
+          <NavMenu label="Accounts" items={[
+            { to: "/accounts", label: "Accounts" },
             { to: "/investments", label: "Investments" },
             { to: "/savings", label: "Savings" },
             { to: "/assets", label: "Assets" },
