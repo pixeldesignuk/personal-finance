@@ -27,7 +27,8 @@ export default function App() {
         <div className="nav-right">
           <NavLink to="/" end>Dashboard</NavLink>
           <NavLink to="/transactions">Transactions</NavLink>
-          <NavMenu label="Budget" to="/budgets" items={[
+          <NavMenu label="Spending" items={[
+            { to: "/budgets", label: "Budget" },
             { to: "/recurring", label: "Recurring" },
             { to: "/reports", label: "Reports" },
           ]} />

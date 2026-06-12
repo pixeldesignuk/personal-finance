@@ -6,7 +6,7 @@ const GROUPS: { title: string; items: { to: string; label: string; end?: boolean
   { title: "", items: [
     { to: "/", label: "Dashboard", end: true }, { to: "/transactions", label: "Transactions" },
   ] },
-  { title: "Budget", items: [
+  { title: "Spending", items: [
     { to: "/budgets", label: "Budget" }, { to: "/recurring", label: "Recurring" },
     { to: "/reports", label: "Reports" },
   ] },
