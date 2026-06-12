@@ -362,6 +362,11 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
 .progress > i.ok   { background: linear-gradient(90deg, var(--jade-deep), var(--jade)); }
 .progress > i.warn { background: linear-gradient(90deg, #b9822a, var(--amber)); }
 .progress > i.over { background: linear-gradient(90deg, #b8412f, var(--coral)); }
+/* Stacked bar: spent (green) + upcoming bills (amber), side by side */
+.progress.stack { display: flex; }
+.progress.stack > i { border-radius: 0; }
+.progress.stack > i:first-child { border-radius: 99px 0 0 99px; }
+.progress > i.upcoming { background: linear-gradient(90deg, #b9822a, var(--amber)); }
 
 /* ---- list rows ----------------------------------------------------------- */
 .lrow { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--line); }
@@ -1012,17 +1017,14 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 .hero-breakdown .neg { color: var(--coral); }
 .hero-income { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 12.5px; color: var(--jade); }
 .hero-income strong { color: var(--ink); font-weight: 640; }
-.hero-side { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 16px; border-left: 1px solid var(--line); padding-left: clamp(18px, 4vw, 40px); }
-.hero-side-block { display: flex; flex-direction: column; gap: 4px; }
-.hero-side-label { display: flex; align-items: center; gap: 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-3); font-weight: 600; }
-.hero-side-figure { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: clamp(26px, 3.6vw, 32px); letter-spacing: -0.03em; line-height: 1; color: var(--ink); }
-.hero-side-figure.neg { color: var(--coral); }
-.hero-side-sub { font-size: 12.5px; }
-.hero-side-sub .neg { color: var(--coral); }
-/* Budget block sits below safe-to-spend, separated by a faint rule */
-.hero-budget { padding-top: 16px; border-top: 1px solid var(--line); gap: 8px; }
-.hero-bar-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 13px; }
-.hero-pace { font-size: 12px; }
+/* Right column = this-month budget. Mirrors the left's eyebrow + figure + line,
+   plus the thin progress bar — tuned to balance the left column's height. */
+.hero-side { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 11px; border-left: 1px solid var(--line); padding-left: clamp(18px, 4vw, 40px); }
+.hero-figure-sm { font-size: clamp(28px, 4.2vw, 40px); }
+.hero-figure-unit { font-family: var(--font); font-size: 0.4em; font-weight: 600; letter-spacing: 0; color: var(--ink-3); margin-left: 3px; }
+.hero-pace { font-size: 12.5px; }
+.hero-side .progress { margin-top: 0; }
+.upcoming-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--amber); margin-right: 5px; vertical-align: 0; }
 @media (max-width: 680px) {
   .hero-side { border-left: none; border-top: 1px solid var(--line); padding-left: 0; padding-top: 16px; }
 }

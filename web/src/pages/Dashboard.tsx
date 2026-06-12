@@ -92,14 +92,11 @@ export default function Dashboard() {
   const liquid = summary?.liquid ?? 0;           // bank + cash toward net worth
   const available = summary?.available ?? 0;     // spendable (excludes not-budgeted)
   const billsDue = upcoming?.billsDueThisMonth ?? 0;
-  const earmarked = pots?.allocated ?? 0;
-  const safeToSpend = available - billsDue - earmarked;
   const billsDueCount = useMemo(() => {
     if (!upcoming) return 0;
     const monthEnd = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0, 10);
     return upcoming.items.filter((i) => i.direction === "out" && i.date <= monthEnd).length;
   }, [upcoming]);
-  const safe = safeToSpend >= 0;
   // Pay-date reassurance: income still expected this month (shown on the stat cards).
   const incomeDue = upcoming?.incomeDueThisMonth ?? 0;
   const nextPay = upcoming?.items.find((i) => i.direction === "in") ?? null;
@@ -112,6 +109,11 @@ export default function Dashboard() {
   const income = budget?.summary.income ?? 0;
   const net = income - spent;
   const budgetPct = budgeted > 0 ? Math.round((spent / budgeted) * 100) : (spent > 0 ? 100 : 0);
+  const overBudget = budgeted > 0 && spent > budgeted;
+  const budgetLeft = budgeted - spent;
+  // Stacked budget bar: green = already spent, yellow = upcoming bills still due.
+  const spentW = budgeted > 0 ? Math.min(100, (spent / budgeted) * 100) : (spent > 0 ? 100 : 0);
+  const billsW = budgeted > 0 ? Math.min(100 - spentW, (billsDue / budgeted) * 100) : 0;
   const elapsed = monthElapsedPct();
 
   // Month-over-month reference for the stat cards.
@@ -163,7 +165,7 @@ export default function Dashboard() {
       />
       <AuditSheet open={syncOpen} title="Sync" run={syncRun} onClose={() => setSyncOpen(false)} onDone={reload} />
 
-      {/* ── Hero: net worth (what you're worth) + safe-to-spend / budget ──── */}
+      {/* ── Hero: net worth (left) · this-month budget (right) ───────────── */}
       {summary && (
         <div className="card hero">
           <div className="hero-main">
@@ -173,32 +175,23 @@ export default function Dashboard() {
             </span>
             <span className="hero-figure num">{formatGBP(netWorth)}</span>
             <span className="hero-breakdown">
-              {formatGBP(liquid)} in the bank
-              {summary.included.investments && summary.investments !== 0 && <> · {formatGBP(summary.investments)} invested</>}
-              {summary.included.assets && summary.assets !== 0 && <> · {formatGBP(summary.assets)} in assets</>}
-              {summary.included.debts && summary.debts > 0 && <> − <span className="neg">{formatGBP(summary.debts)}</span> debts</>}
+              {formatGBP(liquid)} in the bank <span className="muted">({gbp0(available)} available)</span>
             </span>
           </div>
           <div className="hero-side">
-            <div className="hero-side-block">
-              <span className="hero-side-label">
-                <span className={`hero-chip ${safe ? "ok" : "over"}`}>{safe ? <ShieldCheck size={12} strokeWidth={2.2} /> : <AlertTriangle size={12} strokeWidth={2.2} />}{safe ? "On track" : "Over"}</span>
-                Safe to spend
-              </span>
-              <span className={`hero-side-figure num ${safe ? "" : "neg"}`}>{formatGBP(safeToSpend)}</span>
-              <span className="hero-side-sub muted">{gbp0(available)} available{billsDue > 0 && <> · {gbp0(billsDue)} bills due</>}</span>
+            <span className="hero-eyebrow">
+              <span className={`hero-chip ${overBudget ? "over" : "ok"}`}>{overBudget ? <AlertTriangle size={13} strokeWidth={2.2} /> : <ShieldCheck size={13} strokeWidth={2.2} />}{overBudget ? "Over" : "On track"}</span>
+              {monthLabel} budget
+            </span>
+            <span className={`hero-figure hero-figure-sm num ${overBudget ? "neg" : ""}`}>{gbp0(Math.abs(budgetLeft))} <span className="hero-figure-unit">{overBudget ? "over" : "left"}</span></span>
+            <div className="progress stack">
+              <i className={barClass(budgetPct)} style={{ width: `${spentW}%` }} />
+              {billsW > 0 && <i className="upcoming" style={{ width: `${billsW}%` }} title="Upcoming bills" />}
             </div>
-            <div className="hero-side-block hero-budget">
-              <div className="hero-bar-head">
-                <span className="muted">Budget left</span>
-                <span className="num">{gbp0(Math.max(0, budgeted - spent))} <span className="muted">of {gbp0(budgeted)}</span></span>
-              </div>
-              <div className="progress"><i className={barClass(budgetPct)} style={{ width: `${Math.min(budgetPct, 100)}%` }} /></div>
-              <span className="hero-pace muted">
-                {budgeted > 0 ? `${budgetPct}% used · ${elapsed}% of month` : "No budget set yet"}
-                {billsDueCount > 0 && ` · ${billsDueCount} bill${billsDueCount === 1 ? "" : "s"} left`}
-              </span>
-            </div>
+            <span className="hero-pace muted">
+              {budgeted > 0 ? `${gbp0(spent)} of ${gbp0(budgeted)} · ${budgetPct}% used · ${elapsed}% of month` : "No budget set yet"}
+              {billsDue > 0 && <> · <span className="upcoming-dot" />{gbp0(billsDue)} bills due</>}
+            </span>
           </div>
         </div>
       )}
