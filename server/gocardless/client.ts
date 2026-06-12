@@ -1,6 +1,7 @@
 import { env } from "../env.ts";
 import { TokenManager, type Creds } from "./token.ts";
 import type {
+  GcAccount,
   GcAccountDetails,
   GcAgreement,
   GcBalances,
@@ -15,6 +16,13 @@ export class GoCardlessError extends Error {
   constructor(public status: number, public body: string, public retryAfter?: string) {
     super(`GoCardless API error ${status}: ${body}`);
   }
+}
+
+// A freshly-linked account returns 409 with `type: "AccountProcessing"` from
+// details/balances/transactions until its status is READY. This is transient —
+// poll the account endpoint and retry, don't treat it as a hard failure.
+export function isAccountProcessing(err: unknown): boolean {
+  return err instanceof GoCardlessError && err.status === 409 && /AccountProcessing/.test(err.body);
 }
 
 export class GoCardlessClient {
@@ -73,6 +81,12 @@ export class GoCardlessClient {
 
   deleteRequisition(id: string): Promise<unknown> {
     return this.request(`/api/v2/requisitions/${id}/`, { method: "DELETE" });
+  }
+
+  // Account metadata, incl. `status` — used to wait for READY before fetching
+  // details/balances/transactions on a freshly-linked account.
+  getAccount(id: string): Promise<GcAccount> {
+    return this.request(`/api/v2/accounts/${id}/`);
   }
 
   getAccountDetails(id: string): Promise<GcAccountDetails> {

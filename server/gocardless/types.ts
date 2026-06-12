@@ -30,6 +30,18 @@ export interface GcRequisition {
   reference: string;
 }
 
+// The account *metadata* endpoint (`/accounts/{id}/`). After a requisition links,
+// the account is PROCESSING until GoCardless finishes pulling it from the bank;
+// details/balances/transactions 409 ("AccountProcessing") until `status` is READY.
+export interface GcAccount {
+  id: string;
+  status: string; // "DISCOVERED" | "PROCESSING" | "READY" | "ERROR" | "EXPIRED" | "SUSPENDED"
+  institution_id?: string;
+  iban?: string;
+  owner_name?: string;
+  created?: string;
+}
+
 export interface GcAccountDetails {
   account?: {
     iban?: string;

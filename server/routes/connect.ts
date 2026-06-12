@@ -2,13 +2,38 @@ import { Router } from "express";
 import { z } from "zod";
 import { env } from "../env.ts";
 import { db } from "../lib/db.ts";
-import { GoCardlessClient, GoCardlessError } from "../gocardless/client.ts";
+import { GoCardlessClient, GoCardlessError, isAccountProcessing } from "../gocardless/client.ts";
 import { syncAccount } from "./sync.ts";
 import { recordSyncRun } from "../lib/syncRun.ts";
 import type { AuditFn } from "../categorise/audit.ts";
 
 export const connectRouter = Router();
 const gc = new GoCardlessClient();
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+// After linking, GoCardless pulls the account from the bank (PROCESSING) before
+// details/balances/transactions are available (READY). Poll the account-status
+// endpoint, surfacing progress, until it's READY or a budget/terminal state is
+// reached. Returns the final status. Up to ~20 × 3s ≈ 1min — fine inside a
+// streamed response; callers that must stay fast should not use this.
+async function waitForAccountReady(accountId: string, audit: AuditFn, tries = 20, delayMs = 3000): Promise<string> {
+  let status = "PROCESSING";
+  for (let i = 0; i < tries; i++) {
+    try {
+      status = (await gc.getAccount(accountId)).status;
+    } catch (e) {
+      // Some banks 409 the metadata endpoint too while processing; keep waiting.
+      if (!isAccountProcessing(e)) throw e;
+      status = "PROCESSING";
+    }
+    if (status === "READY") return status;
+    if (["ERROR", "EXPIRED", "SUSPENDED"].includes(status)) return status;
+    if (i === 0) audit({ kind: "log", text: "  waiting for the bank to finish preparing the account…", tone: "dim" });
+    await sleep(delayMs);
+  }
+  return status; // still PROCESSING after the budget — let the next sync resume
+}
 
 connectRouter.post("/connect", async (req, res, next) => {
   try {
@@ -82,23 +107,31 @@ connectRouter.post("/connect/:id/finalize", async (req, res, next) => {
     for (const accountId of requisition.accounts) {
       const existing = await db.account.findUnique({ where: { id: accountId }, select: { requisitionId: true } });
       if (existing?.requisitionId && existing.requisitionId !== id) movedFromReqs.add(existing.requisitionId);
-      const details = await gc.getAccountDetails(accountId);
+      // A just-linked account is usually still PROCESSING, so details 409. Don't
+      // block finalize on it — create the row now; the streamed import refreshes
+      // name/iban/currency once the account reaches READY.
+      let details;
+      try {
+        details = await gc.getAccountDetails(accountId);
+      } catch (e) {
+        if (!isAccountProcessing(e)) throw e;
+      }
       await db.account.upsert({
         where: { id: accountId },
         create: {
           id: accountId,
           requisitionId: id,
-          iban: details.account?.iban,
-          name: details.account?.name,
-          currency: details.account?.currency,
-          ownerName: details.account?.ownerName,
+          iban: details?.account?.iban,
+          name: details?.account?.name,
+          currency: details?.account?.currency,
+          ownerName: details?.account?.ownerName,
         },
         update: {
           requisitionId: id, // move the account onto the freshest consent
-          iban: details.account?.iban,
-          name: details.account?.name,
-          currency: details.account?.currency,
-          ownerName: details.account?.ownerName,
+          iban: details?.account?.iban,
+          name: details?.account?.name,
+          currency: details?.account?.currency,
+          ownerName: details?.account?.ownerName,
         },
       });
     }
@@ -133,7 +166,32 @@ connectRouter.post("/connect/:id/sync/stream", async (req, res) => {
       const requisition = await gc.getRequisition(id);
       let totalNew = 0;
       let rateLimited = false;
+      let processing = false;
       for (const accountId of requisition.accounts) {
+        // Don't fetch until the bank has finished preparing the account, else
+        // details/balances/transactions 409 ("AccountProcessing").
+        const status = await waitForAccountReady(accountId, audit);
+        if (status !== "READY") {
+          processing = status === "PROCESSING";
+          audit({
+            kind: "log",
+            text: processing
+              ? "  still preparing at the bank — history fills in on the next sync"
+              : `  account ${status.toLowerCase()} — skipped`,
+            tone: "yellow",
+          });
+          continue;
+        }
+        // Details are available now; backfill any the (fast) finalize couldn't get.
+        try {
+          const d = (await gc.getAccountDetails(accountId)).account;
+          await db.account.update({
+            where: { id: accountId },
+            data: { iban: d?.iban, name: d?.name, currency: d?.currency, ownerName: d?.ownerName },
+          });
+        } catch (e) {
+          if (!isAccountProcessing(e)) audit({ kind: "log", text: `  details: ${e instanceof Error ? e.message : String(e)}`, tone: "dim" });
+        }
         try {
           const r = await syncAccount(accountId, audit, { fullHistory: true });
           totalNew += r.newCount ?? 0;
@@ -146,14 +204,15 @@ connectRouter.post("/connect/:id/sync/stream", async (req, res) => {
           audit({ kind: "log", text: `  ✗ ${err instanceof Error ? err.message : String(err)}`, tone: "red" });
         }
       }
+      const incomplete = rateLimited || processing;
       audit({
         kind: "log",
-        text: rateLimited
-          ? `Imported what the bank allowed today — ${totalNew} transaction${totalNew === 1 ? "" : "s"}. The rest fills in on the next sync.`
+        text: incomplete
+          ? `Imported ${totalNew} transaction${totalNew === 1 ? "" : "s"} so far — the rest fills in on the next sync.`
           : `History imported — ${totalNew} transaction${totalNew === 1 ? "" : "s"}.`,
-        tone: rateLimited ? "yellow" : "green",
+        tone: incomplete ? "yellow" : "green",
       });
-      return { accounts: requisition.accounts.length, newTransactions: totalNew, rateLimited };
+      return { accounts: requisition.accounts.length, newTransactions: totalNew, rateLimited, processing };
     });
   } catch {
     // already streamed + recorded
