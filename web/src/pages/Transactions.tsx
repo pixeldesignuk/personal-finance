@@ -413,7 +413,9 @@ export default function Transactions() {
                         onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setNameEditId(null); }}
                       />
                     ) : (
-                      <span className="td-clip td-name-edit" title="Click to rename" onClick={() => startName(r)}>{r.name ?? r.remittanceInfo ?? "—"}</span>
+                      <span className="td-clip td-name-edit" title="Click to rename" onClick={() => startName(r)}>
+                        {r.name?.trim() || r.remittanceInfo?.trim() || <span className="td-name-empty">Add name</span>}
+                      </span>
                     )}
                     {r.order && (
                       <button type="button" className="order-tag" title="View line items" onClick={() => openOrder(r)}>
