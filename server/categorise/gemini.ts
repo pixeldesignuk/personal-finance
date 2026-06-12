@@ -113,21 +113,29 @@ export async function geminiGenerateJson(prompt: string, audit?: AuditFn, batch 
 // Parse a free-text cash expense/income message (e.g. "Spent £18 cash on Rajas
 // fast food for the office today") into structured fields. Returns null without
 // a key or if no amount is found.
-export async function geminiParseExpense(text: string): Promise<{ amount: number; isIncome: boolean; merchant: string | null; summary: string } | null> {
+export async function geminiParseExpense(
+  text: string,
+  categories: { key: string; name: string }[] = [],
+): Promise<{ amount: number; isIncome: boolean; merchant: string | null; summary: string; categoryKey: string | null } | null> {
   if (!env.GEMINI_API_KEY) return null;
+  const catList = categories.map((c) => `${c.key} (${c.name})`).join(", ");
   const prompt = `Extract a single personal cash transaction from this message. Respond with ONLY a JSON object:
-{"amount": the money amount as a positive number with no symbol (or null if there is no amount), "isIncome": true if money was received, false if spent, "merchant": short payee/merchant name or null, "summary": a short 3-6 word plain-text description, no emojis}
+{"amount": the total money amount as a positive number with no symbol (or null if there is no amount), "isIncome": true if money was received, false if spent, "merchant": the SHOP or PAYEE name only — a clean brand/store name (e.g. "Tesco", "Greggs"). NOT the items bought, NOT payment-method words like "cash". null if none, "summary": a short 3-6 word plain-text description of what was bought (e.g. "cat food & milk"), no emojis, "categoryKey": the single best-matching category key from the list below for what was bought, or "uncategorised" if genuinely unclear}
+Categories: ${catList || "(none provided — use \"uncategorised\")"}
 Message: ${JSON.stringify(text)}`;
   let raw: string;
   try { raw = await geminiGenerateJson(prompt); } catch { return null; }
   try {
     const o = JSON.parse(raw.replace(/^\s*```(?:json)?/i, "").replace(/```\s*$/i, "").trim());
     if (o == null || o.amount == null || !Number.isFinite(Number(o.amount)) || Number(o.amount) === 0) return null;
+    const validKeys = new Set([...categories.map((c) => c.key), "income", "transfer", "uncategorised"]);
+    const categoryKey = typeof o.categoryKey === "string" && validKeys.has(o.categoryKey) ? o.categoryKey : null;
     return {
       amount: Math.abs(Number(o.amount)),
       isIncome: Boolean(o.isIncome),
       merchant: typeof o.merchant === "string" && o.merchant.trim() ? o.merchant.trim() : null,
       summary: typeof o.summary === "string" ? o.summary.trim() : "",
+      categoryKey,
     };
   } catch { return null; }
 }

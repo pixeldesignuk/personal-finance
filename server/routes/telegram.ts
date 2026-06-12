@@ -14,14 +14,29 @@ export const telegramRouter = Router();
 const configured = () =>
   !!(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_WEBHOOK_SECRET && env.TELEGRAM_ALLOWED_CHAT_ID);
 
-async function activeCategories(): Promise<{ key: string; name: string }[]> {
-  const cats = await db.category.findMany({ where: { archived: false }, orderBy: { sortOrder: "asc" } });
-  return cats.map((c) => ({ key: c.key, name: c.name }));
+// Active categories, ordered by how often you actually use them, so the keyboard
+// surfaces your real spending categories (groceries, eating out, pets…) rather
+// than a fixed bill list.
+async function spendingCategories(): Promise<{ key: string; name: string }[]> {
+  const cats = await db.category.findMany({ where: { archived: false } });
+  const counts = await db.transaction.groupBy({ by: ["category"], _count: { _all: true } });
+  const cnt = new Map(counts.map((c) => [c.category, c._count._all]));
+  return cats
+    .sort((a, b) => (cnt.get(b.key) ?? 0) - (cnt.get(a.key) ?? 0))
+    .map((c) => ({ key: c.key, name: c.name }));
 }
 
-function categoryKeyboard(txId: string, cats: { key: string; name: string }[]) {
-  const rows = [];
-  const top = cats.slice(0, 9); // keep the keyboard small
+const nameOf = (key: string, cats: { key: string; name: string }[]) =>
+  cats.find((c) => c.key === key)?.name ?? key;
+
+// The inline category keyboard. The AI-suggested category is pinned first, then
+// your most-used categories; "Uncategorised" is always offered.
+function categoryKeyboard(txId: string, cats: { key: string; name: string }[], suggested?: string | null) {
+  let ordered = cats;
+  if (suggested) ordered = [...cats.filter((c) => c.key === suggested), ...cats.filter((c) => c.key !== suggested)];
+  let top = ordered.filter((c) => c.key !== "uncategorised").slice(0, 8);
+  top = [...top, { key: "uncategorised", name: "Uncategorised" }];
+  const rows: { text: string; callback_data: string }[][] = [];
   for (let i = 0; i < top.length; i += 3) {
     rows.push(top.slice(i, i + 3).map((c) => ({ text: c.name, callback_data: `cat:${c.key}:${txId}` })));
   }
@@ -57,16 +72,16 @@ telegramRouter.post("/telegram/webhook", async (req, res) => {
         if (chatId && messageId) await editMessageText(chatId, messageId, "↩︎ Removed.");
       } else if (data.startsWith("cat:")) {
         const [, category, id] = data.split(":");
-        const cats = await activeCategories();
+        const cats = await spendingCategories();
         if (cats.some((c) => c.key === category) || category === "income" || category === "transfer") {
           const tx = await db.transaction.findUnique({ where: { id } });
           if (tx) {
             await db.transaction.update({ where: { id }, data: { categoryOverride: category } });
-            await answerCallbackQuery(cq.id, `→ ${category}`);
+            await answerCallbackQuery(cq.id, `→ ${nameOf(category, cats)}`);
             if (chatId && messageId) {
               await editMessageText(chatId, messageId,
-                confirmText({ amount: tx.amount.toString(), category, note: tx.remittanceInfo ?? "", date: tx.bookingDate ?? "" }),
-                categoryKeyboard(id, cats));
+                confirmText({ amount: tx.amount.toString(), category: nameOf(category, cats), note: tx.note ?? tx.merchantName ?? "", date: tx.bookingDate ?? "" }),
+                categoryKeyboard(id, cats, category));
             }
           }
         }
@@ -100,16 +115,35 @@ telegramRouter.post("/telegram/webhook", async (req, res) => {
       return;
     }
     try {
+      const cats = await spendingCategories();
+      // A bare word with no amount → treat it as setting the category of the most
+      // recent cash expense (so you can just reply "Pets" to fix it).
+      if (!/\d/.test(msg.text)) {
+        const wanted = msg.text.trim().toLowerCase();
+        const matched = cats.find((c) => c.name.toLowerCase() === wanted || c.key === wanted);
+        const recent = await db.transaction.findFirst({
+          where: { account: { source: "MANUAL" }, createdAt: { gt: new Date(Date.now() - 15 * 60 * 1000) } },
+          orderBy: { createdAt: "desc" },
+        });
+        if (matched && recent) {
+          await db.transaction.update({ where: { id: recent.id }, data: { categoryOverride: matched.key } });
+          await sendMessage(chatId, `Updated to ${matched.name}.`);
+        } else {
+          await sendMessage(chatId, "Send an expense like '£12.50 lunch', or tap a category on your last one.");
+        }
+        return;
+      }
       const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
-      // Prefer AI parsing (natural language → clean summary); fall back to the
-      // free regex parser if no key / no parse.
-      const ai = await geminiParseExpense(msg.text).catch(() => null);
-      let amount: number, merchant: string | null, summary: string | null, income: boolean;
+      // Prefer AI parsing (clean merchant + summary + suggested category); fall
+      // back to the free regex parser if no key / no parse.
+      const ai = await geminiParseExpense(msg.text, cats).catch(() => null);
+      let amount: number, merchant: string | null, summary: string | null, income: boolean, aiCategory: string | null;
       if (ai) {
         income = ai.isIncome;
         amount = income ? Math.abs(ai.amount) : -Math.abs(ai.amount);
         merchant = ai.merchant;
         summary = ai.summary || null;
+        aiCategory = ai.categoryKey;
       } else {
         const parsed = parseTextExpense(msg.text);
         if (!parsed) { await sendMessage(chatId, "Couldn't read an amount — try e.g. '£12.50 lunch'."); return; }
@@ -117,10 +151,12 @@ telegramRouter.post("/telegram/webhook", async (req, res) => {
         amount = parsed.amount;
         merchant = parsed.merchant || null;
         summary = null;
+        aiCategory = null;
       }
       const ruleRows = await db.rule.findMany();
       const ruled = applyRules(msg.text, ruleRows.map((r) => ({ matchText: r.matchText, categoryKey: r.categoryKey, personKey: r.personKey, priority: r.priority }) as Rule));
-      const category = ruled.categoryKey ?? (income ? "income" : "uncategorised");
+      // Priority: a learned rule, then the AI's suggestion, then income/uncategorised.
+      const category = ruled.categoryKey ?? (aiCategory && aiCategory !== "uncategorised" ? aiCategory : (income ? "income" : "uncategorised"));
       const personKey = ruled.personKey ?? null;
       const accountId = await getOrCreateCashAccount();
       // Short id keeps the inline-button callback_data within Telegram's 64-byte limit.
@@ -132,7 +168,7 @@ telegramRouter.post("/telegram/webhook", async (req, res) => {
           category, personKey, status: "booked", raw: { telegram: true },
         },
       });
-      await sendMessage(chatId, confirmText({ amount: amount.toFixed(2), category, note: summary ?? merchant ?? "", date: today }), categoryKeyboard(id, await activeCategories()));
+      await sendMessage(chatId, confirmText({ amount: amount.toFixed(2), category: nameOf(category, cats), note: summary ?? merchant ?? "", date: today }), categoryKeyboard(id, cats, category));
     } catch (err) {
       console.error("telegram text error", err);
       await sendMessage(chatId, `⚠️ Couldn't log that: ${err instanceof Error ? err.message.slice(0, 150) : String(err)}`);

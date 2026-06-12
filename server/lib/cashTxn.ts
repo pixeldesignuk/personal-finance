@@ -43,5 +43,6 @@ export function isAllowed(chatId: number | undefined, allowed: string | undefine
 export function confirmText(t: NormalizedTxn): string {
   const n = Number(t.amount);
   const money = `${n < 0 ? "-" : ""}£${Math.abs(n).toFixed(2)}`;
-  return `Logged ${money} · ${t.category}${t.note ? ` · ${t.note}` : ""} → Cash`;
+  // `category` here is the display NAME (e.g. "Pets"); account is implied (Cash).
+  return `Logged ${money} · ${t.category}${t.note ? ` · ${t.note}` : ""}`;
 }

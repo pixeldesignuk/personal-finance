@@ -193,6 +193,7 @@ model Transaction {
   debtAccountId    String?  // links a repayment to a LIABILITY account
   status         String
   raw            Json
+  createdAt      DateTime @default(now())   // row insert time (for "recently added")
 
   @@index([accountId, bookingDate])
 }
