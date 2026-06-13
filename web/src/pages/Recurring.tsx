@@ -95,7 +95,7 @@ export default function Recurring() {
   return (
     <div>
       <PageHeader
-        title="Recurring"
+        title="Bills"
         subtitle="Bills and income detected from your spending. Confirm the ones that are real so your safe-to-spend and Upcoming are accurate."
         actions={<>
           <button onClick={openAdd}>+ Add</button>

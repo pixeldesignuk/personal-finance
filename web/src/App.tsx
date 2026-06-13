@@ -29,7 +29,7 @@ export default function App() {
           <NavLink to="/transactions">Transactions</NavLink>
           <NavMenu label="Spending" items={[
             { to: "/budgets", label: "Budget" },
-            { to: "/recurring", label: "Recurring" },
+            { to: "/recurring", label: "Bills" },
             { to: "/reports", label: "Reports" },
           ]} />
           <NavMenu label="Accounts" items={[
