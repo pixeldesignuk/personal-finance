@@ -42,7 +42,9 @@ pluginsRouter.get("/plugins", async (_req, res, next) => {
   try {
     const p = await db.plugin.findUnique({ where: { id: "gmail" } });
     const [orders, matched, receipts] = await Promise.all([
-      db.emailOrder.count(),
+      // Only surfaced (matched) orders are counted — unmatched ones stay hidden
+      // in the data layer, so the count reflects what's actually shown.
+      db.emailOrder.count({ where: { matched: true } }),
       db.emailOrder.count({ where: { matched: true } }),
       db.emailOrder.count({ where: { source: "telegram" } }),
     ]);
@@ -138,15 +140,16 @@ pluginsRouter.post("/plugins/gmail/sync/stream", async (_req, res) => {
   }
 });
 
-// Parsed orders with optional search (?q=) and filter (all|matched|unmatched|refunds).
+// Parsed orders with optional search (?q=) and filter (all|refunds).
+// Only orders matched to a real transaction are surfaced — an unmatched order
+// (e.g. a foreign-currency receipt that can never reconcile to a GBP charge)
+// stays in the data layer and only appears here if it later matches.
 pluginsRouter.get("/plugins/gmail/orders", async (req, res, next) => {
   try {
     const filter = String(req.query.filter ?? "all");
     const q = String(req.query.q ?? "").trim();
-    const where: Record<string, unknown> = { total: { not: null } };
-    if (filter === "matched") where.matched = true;
-    else if (filter === "unmatched") { where.matched = false; where.isRefund = false; }
-    else if (filter === "refunds") where.isRefund = true;
+    const where: Record<string, unknown> = { total: { not: null }, matched: true };
+    if (filter === "refunds") where.isRefund = true;
     const rows = await db.emailOrder.findMany({ where, orderBy: [{ emailDate: "desc" }, { createdAt: "desc" }], take: 600 });
     let orders = rows.map(toEmailOrderDTO);
     if (q) orders = orders.filter((o) => orderMatchesQuery(o, q));

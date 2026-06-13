@@ -5,10 +5,10 @@ import { Receipt, Camera } from "lucide-react";
 import { api } from "../api.ts";
 import type { EmailOrderDTO } from "../../../shared/types.ts";
 import { formatMoney, ccySymbol } from "../format.ts";
-import { PageHeader, Tabs, Modal, MatchBadge, type TabItem } from "../components/ui";
+import { PageHeader, Tabs, Modal, type TabItem } from "../components/ui";
 import { OrderDetail } from "../components/OrderDetail.tsx";
 
-const TABS: TabItem[] = [{ key: "all", label: "All" }, { key: "matched", label: "Matched" }, { key: "unmatched", label: "Unmatched" }, { key: "refunds", label: "Refunds" }];
+const TABS: TabItem[] = [{ key: "all", label: "All" }, { key: "refunds", label: "Refunds" }];
 
 export default function Orders() {
   const [tab, setTab] = useQueryState("tab", { defaultValue: "all", history: "replace" });
@@ -48,7 +48,6 @@ export default function Orders() {
             </span>
             <span className="order-side">
               {o.tags.slice(0, 2).map((t) => <span key={t} className="order-tag-pill">{t}</span>)}
-              <MatchBadge matched={o.matched} />
               <span className={`num${o.isRefund ? " pos" : ""}`}>{o.isRefund ? "+" : ""}{ccySymbol(o.currency)}{formatMoney(o.total ?? 0)}</span>
               <span className="muted order-date">{o.emailDate ? new Date(o.emailDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""}</span>
             </span>
