@@ -48,6 +48,11 @@ items marked `↓` are detailed in the P0/P1/P2 sections below; items marked `�
 - [ ] **Local API + docs** `↓P2`.
 - [ ] **Native mobile app** ★ — the only gap no competitor shares, but Telegram + responsive web soften it; high effort, deferred under the single-user constraint.
 
+## Ideas under review (2026-06-13 — from a budgeting-app video, Caleb Hammer / DollarWise)
+
+- [ ] **Relook at how we handle income.** Today income is *auto-detected* per account from income-categorised credits (median, outlier-resistant) with no way to just say "my income is £X/month". The video's app has a manual **Estimated Income** override (amount + frequency) that directly drives Safe-to-Spend. Consider: a user-set income baseline/override that takes precedence over (or seeds) detection, a clear "detected vs set" indicator, and frequency options (monthly/4-weekly/weekly). Ties into safe-to-spend accuracy — the north-star reassurance number.
+- [ ] **50/30/20 Needs/Wants/Savings overlay.** A presentation layer over budgets: tag each category group as Needs / Wants / Savings, set target percentages (default 50/30/20), show Plan vs Actual % with a donut. Not a new budgeting engine — it rides on the existing category groups. The 50/30/20 rule is a mainstream framework (Elizabeth Warren & Amelia Warren Tyagi, *All Your Worth*, 2005), not unique to any app, so it's safe to adopt as an optional lens. Decide whether it complements or competes with envelope/rollover budgeting before building.
+
 ## Architecture / platform (2026-06-12)
 
 Structural work to take Ledger from a single flat package to a proper monorepo
