@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { inferNextDue, occurrencesWithin, sameMonth, typicalDayOfMonth, incomeOccurrences, periodMonths, billTarget } from "./recurring.ts";
+import { inferNextDue, occurrencesWithin, sameMonth, typicalDayOfMonth, incomeOccurrences, periodMonths, billTarget, monthSpan, isMonthlyBill } from "./recurring.ts";
 
 test("inferNextDue: this month when the day hasn't passed", () => {
   const due = inferNextDue(15, new Date(2026, 5, 10)); // 10 Jun
@@ -116,4 +116,54 @@ test("billTarget: quarterly bill, 1 month into the cycle", () => {
 test("billTarget: monthly/weekly return null (nothing to spread)", () => {
   assert.equal(billTarget(50, "monthly", "2026-06-01", new Date(2026, 5, 11)), null);
   assert.equal(billTarget(20, "weekly", "2026-06-01", new Date(2026, 5, 11)), null);
+});
+
+test("monthSpan: inclusive month count between earliest and latest", () => {
+  assert.equal(monthSpan(["2026-03", "2026-05"]), 3); // Mar, Apr, May
+  assert.equal(monthSpan(["2026-06"]), 1);
+  assert.equal(monthSpan(["2025-12", "2026-02"]), 3); // across the year boundary
+  assert.equal(monthSpan([]), 1);
+});
+
+const today = new Date(2026, 5, 12); // 12 Jun 2026
+
+test("isMonthlyBill: a steady monthly subscription qualifies", () => {
+  assert.equal(isMonthlyBill(["2026-04-10", "2026-05-10", "2026-06-10"], today), true);
+});
+
+test("isMonthlyBill: sporadic spend across scattered months is NOT a bill", () => {
+  // Jan, Mar, Jun → 3 active months over a 6-month span → coverage 0.5
+  assert.equal(isMonthlyBill(["2026-01-05", "2026-03-05", "2026-06-05"], today), false);
+});
+
+test("isMonthlyBill: too few months is NOT a bill", () => {
+  assert.equal(isMonthlyBill(["2026-05-10", "2026-06-10"], today), false);
+});
+
+test("isMonthlyBill: heavy merchant (multiple charges per month) is NOT a bill", () => {
+  // 8 charges across 3 months → perMonth 2.67 (groceries-like)
+  const dates = ["2026-04-02", "2026-04-19", "2026-05-03", "2026-05-15", "2026-05-28", "2026-06-04", "2026-06-11", "2026-06-20"];
+  assert.equal(isMonthlyBill(dates, today), false);
+});
+
+test("isMonthlyBill: a bill that stopped 2+ months ago is NOT current", () => {
+  // Regular Jan–Mar, nothing since → last charge ~90 days ago (recency gate)
+  assert.equal(isMonthlyBill(["2026-01-10", "2026-02-10", "2026-03-10"], today), false);
+});
+
+test("isMonthlyBill: tolerates a single skipped month (5 of 6)", () => {
+  assert.equal(isMonthlyBill(["2026-01-10", "2026-02-10", "2026-03-10", "2026-04-10", "2026-06-08"], today), true);
+});
+
+test("isMonthlyBill: a bill that paused then RESUMED is judged on recent regularity", () => {
+  // United-Utilities pattern: a cluster in 2024/25, a long gap, then monthly again
+  // Apr–Jun 2026. Over all history coverage is ~0.3, but the recent window is
+  // regular + current → it IS a bill.
+  const dates = ["2024-10-08", "2024-11-08", "2024-12-08", "2025-01-08", "2026-04-08", "2026-05-08", "2026-06-08"];
+  assert.equal(isMonthlyBill(dates, today), true);
+});
+
+test("isMonthlyBill: regular only in ancient history (nothing recent) is NOT current", () => {
+  // Monthly through late 2024, then stopped → no charges in the trailing window
+  assert.equal(isMonthlyBill(["2024-09-08", "2024-10-08", "2024-11-08", "2024-12-08"], today), false);
 });

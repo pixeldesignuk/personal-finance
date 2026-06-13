@@ -107,6 +107,46 @@ export function incomeOccurrences(dayOfMonth: number, receivedThisMonth: boolean
     .sort((a, b) => a.getTime() - b.getTime());
 }
 
+// Inclusive count of calendar months from the earliest to the latest "YYYY-MM"
+// in a set (e.g. {2026-03, 2026-05} spans 3 months: Mar, Apr, May).
+export function monthSpan(months: string[]): number {
+  if (!months.length) return 1;
+  const idx = months.map((m) => { const [y, mo] = m.split("-").map(Number); return y * 12 + (mo - 1); });
+  return Math.max(...idx) - Math.min(...idx) + 1;
+}
+
+// Does a merchant's debits look like a genuine monthly *bill* rather than just
+// frequent/occasional spend at a merchant you happen to use across months?
+// Frequency alone is not enough — buying from Amazon or a takeaway once in each
+// of three scattered months is NOT a bill, and a subscription you cancelled a
+// year ago is no longer one. A bill is REGULAR and CURRENT.
+//
+// Judged over a trailing `windowMonths` window (default 6) so a bill that ran,
+// paused, and *resumed* is assessed on its present regularity — not penalised for
+// ancient history (e.g. a utility that lapsed in 2024 and restarted this spring).
+// Within that window, all four must hold:
+//   1. >= 3 active months    — enough recent history to call it recurring
+//   2. perMonth <= 1.5        — ~once a month (keeps groceries / heavy merchants out)
+//   3. coverage >= 0.7        — present in most months of its recent span (regular,
+//                               not sporadic: 3 consecutive = 1.0; every-other = ~0.5)
+//   4. last charge <= 45 days — still live
+// `dates` are the YYYY-MM-DD charge dates (duplicates fine). The user can force a
+// merchant on via recurring=fixed (caller) or off via "not recurring".
+export function isMonthlyBill(dates: string[], today: Date, windowMonths = 6): boolean {
+  const startIdx = today.getFullYear() * 12 + today.getMonth() - (windowMonths - 1);
+  const monthIdx = (ym: string) => { const [y, mo] = ym.split("-").map(Number); return y * 12 + (mo - 1); };
+  const recent = dates.filter((d) => d && monthIdx(d.slice(0, 7)) >= startIdx);
+  if (!recent.length) return false;
+  const months = new Set(recent.map((d) => d.slice(0, 7)));
+  const monthsActive = months.size;
+  if (monthsActive < 3) return false;
+  if (recent.length / monthsActive > 1.5) return false;
+  if (monthsActive / monthSpan([...months]) < 0.7) return false;
+  const last = recent.reduce((a, b) => (a > b ? a : b));
+  const days = (startOfDay(today).getTime() - new Date(`${last}T00:00:00`).getTime()) / 86_400_000;
+  return days <= 45;
+}
+
 // The most common day-of-month across a set of transaction dates (the typical
 // charge day), or null if none.
 export function typicalDayOfMonth(isoDates: (string | null)[]): number | null {

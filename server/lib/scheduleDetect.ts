@@ -2,7 +2,7 @@ import { db } from "./db.ts";
 import { merchantToken } from "../categorise/helpers.ts";
 import { effectiveCategory } from "./effectiveCategory.ts";
 import { analyzeRecurringAmounts, derivePayerName, median } from "./merchants.ts";
-import { inferNextDue, typicalDayOfMonth } from "./recurring.ts";
+import { inferNextDue, typicalDayOfMonth, isMonthlyBill } from "./recurring.ts";
 import { displayName } from "../../shared/displayName.ts";
 import { rawMerchantName } from "../../shared/merchantName.ts";
 
@@ -41,16 +41,16 @@ export async function detectSchedules(today: Date = new Date()): Promise<{ detec
   for (const [token, g] of groups) {
     const override = (overrides.get(token)?.recurring as string | undefined) ?? "auto";
     if (override === "ignore") continue;
-    const monthsActive = g.months.size;
-    const perMonth = g.amounts.length / Math.max(1, monthsActive);
     const med = median(g.amounts);
-    // A BILL recurs about once a month over ≥3 months — whether the amount is
-    // fixed (subscriptions) or variable (utilities, phone). The ~once-a-month
-    // gate (perMonth ≤ 1.5) keeps high-frequency spend (groceries) out. The user
-    // can force a merchant on via recurring=fixed. Recurring income (wages) has a
-    // varying payroll reference, so it's handled by the income streams below.
-    const isMonthly = monthsActive >= 3 && perMonth <= 1.5;
-    const qualifies = override === "fixed" || (override === "auto" && isMonthly);
+    // A BILL is a REGULAR monthly charge (fixed subscriptions OR variable
+    // utilities/phone) — not just any merchant seen across a few months. Frequency
+    // alone over-matched: occasional spend at a merchant you use most months
+    // (Amazon, takeaways) looked identical to a bill. isMonthlyBill adds the
+    // regularity + recency gates (see recurring.ts). The user can force a merchant
+    // on via recurring=fixed. Recurring income has a varying payroll reference, so
+    // it's handled by the income streams below.
+    const monthly = isMonthlyBill(g.dates, today);
+    const qualifies = override === "fixed" || (override === "auto" && monthly);
     if (!qualifies || med >= 0) continue;
 
     qualifying.add(token);
