@@ -5,6 +5,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import Transactions from "./pages/Transactions.tsx";
 import Accounts from "./pages/Accounts.tsx";
 import Budgets from "./pages/Budgets.tsx";
+import BudgetsV2 from "./pages/BudgetsV2.tsx";
 import Reports from "./pages/Reports.tsx";
 import Investments from "./pages/Investments.tsx";
 import Debts from "./pages/Debts.tsx";
@@ -49,6 +50,7 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/budgets" element={<Budgets />} />
+          <Route path="/budgets/v2" element={<BudgetsV2 />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/investments" element={<Investments />} />
           <Route path="/debts" element={<Debts />} />
