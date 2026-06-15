@@ -4,6 +4,14 @@
 
 Running todo of planned features. Newest ideas at the bottom; check off when shipped.
 
+## Painful things — daily-friction UX debt (2026-06-15)
+
+Bugs/gaps that bite on real use. High value (they block the core daily loop of
+reviewing + tidying transactions), so these jump the queue.
+
+- [ ] **Can't edit a merchant from the transaction list.** Renaming/recategorising the merchant of a row should be possible inline (or via the row's menu/drawer) without leaving the list. Today there's no path from a transaction to "fix this merchant". (See `Transactions.tsx`, `TxnDrawer.tsx`, merchant rename flow in `Merchants.tsx`.)
+- [ ] **Transaction list is unusable on mobile.** The table doesn't reflow for small screens — columns overflow / get cut off. Needs a proper mobile layout (card/stacked rows, not a wide table), touch-friendly row actions, and the drawer/menu working at phone widths. Highest-traffic page, so this is the priority mobile fix. (See `Transactions.tsx` + responsive table CSS in `styles.css`.)
+
 ## Value-ranked roadmap (2026-06-12)
 
 Single descending-value ordering from the competitive review (full analysis +
