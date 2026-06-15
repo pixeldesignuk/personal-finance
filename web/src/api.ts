@@ -3,7 +3,7 @@ import type {
   SyncResult, SyncRunDTO, DashboardDTO, TransactionDTO,
   BankDTO, RemoveBankResult, NicknameResult,
   SummaryDTO, ManualAccountInput, ManualTxnInput,
-  CategoryDTO, BudgetResponseDTO, CategoryInfoDTO, ReportDTO,
+  CategoryDTO, BudgetResponseDTO, CategoryInfoDTO, CategoryHistoryDTO, ReportDTO,
   PersonDTO, RuleDTO, CategoryNameDTO, ReconcileResult, AuditEvent, InvestmentsDTO, SettingsDTO, DebtsDTO, MerchantsDTO, AccountRecurringDTO, PotsDTO, PluginsDTO, EmailOrderDTO,
   RecurringScheduleDTO, UpcomingDTO,
 } from "../../shared/types.ts";
@@ -84,6 +84,10 @@ export const api = {
   categoryInfo: (key: string, month?: string, person?: string) => {
     const parts = [month ? `month=${month}` : "", person ? `person=${encodeURIComponent(person)}` : ""].filter(Boolean);
     return get<CategoryInfoDTO>(`/api/budget/category/${encodeURIComponent(key)}${parts.length ? `?${parts.join("&")}` : ""}`);
+  },
+  categoryHistory: (key: string, month?: string, months?: number, person?: string) => {
+    const parts = [month ? `month=${month}` : "", months ? `months=${months}` : "", person ? `person=${encodeURIComponent(person)}` : ""].filter(Boolean);
+    return get<CategoryHistoryDTO>(`/api/budget/category/${encodeURIComponent(key)}/history${parts.length ? `?${parts.join("&")}` : ""}`);
   },
   categoryNames: () => get<CategoryNameDTO[]>("/api/category-names"),
   people: () => get<PersonDTO[]>("/api/people"),

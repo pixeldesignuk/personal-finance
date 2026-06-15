@@ -52,7 +52,7 @@ export async function setSetting(key: string, value: boolean): Promise<void> {
 // Setting row. Default order is the canonical layout; getDashboardOrder always
 // returns every known key (stored order first, then any missing keys appended,
 // unknown keys dropped) so a stale stored order can't hide a block.
-export const DASHBOARD_BLOCKS = ["hero", "stats", "goals", "upcoming", "spending", "topMerchants", "recentActivity", "cashflow", "balances"] as const;
+export const DASHBOARD_BLOCKS = ["hero", "stats", "goals", "recentActivity", "upcoming", "spending", "topMerchants", "cashflow", "balances"] as const;
 const ORDER_KEY = "dashboard.order";
 
 export async function getDashboardOrder(): Promise<string[]> {

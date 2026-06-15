@@ -4,6 +4,7 @@ import { effectiveCategory } from "../lib/effectiveCategory.ts";
 import { classifyBatch, geminiEnabled } from "./gemini.ts";
 import { merchantToken } from "./helpers.ts";
 import { firstNonEmpty } from "../../shared/merchantName.ts";
+import { backfillRefunds, isRefundNote } from "../lib/refundDetect.ts";
 import type { AuditFn } from "./audit.ts";
 import type { ReconcileResult } from "../../shared/types.ts";
 
@@ -17,6 +18,7 @@ interface TxnRow {
   id: string;
   category: string;
   categoryOverride: string | null;
+  note: string | null;
   merchantName: string | null;
   creditorName: string | null;
   debtorName: string | null;
@@ -36,14 +38,16 @@ function learnName(t: TxnRow): string | null {
 // manual override or an already-categorised row. Scope to one account, or all.
 export async function reconcile(opts: ReconcileOpts = {}): Promise<ReconcileResult> {
   const { accountId, audit, dryRun = false } = opts;
+  // Detect & mark refunds first so they're never offered for categorisation.
+  if (!dryRun) await backfillRefunds();
   const rows = (await db.transaction.findMany({
     where: accountId ? { accountId } : {},
     select: {
-      id: true, category: true, categoryOverride: true,
+      id: true, category: true, categoryOverride: true, note: true,
       merchantName: true, creditorName: true, debtorName: true, remittanceInfo: true,
     },
   })) as TxnRow[];
-  const candidates = rows.filter((t) => effectiveCategory(t) === "uncategorised");
+  const candidates = rows.filter((t) => effectiveCategory(t) === "uncategorised" && !isRefundNote(t.note));
 
   // #1 Item-aware categorisation: a matched Gmail order tells us WHAT was bought,
   // which a bare merchant line can't. Fold the items into the text the LLM sees.

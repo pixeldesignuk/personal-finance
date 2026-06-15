@@ -11,6 +11,7 @@ import { recordSyncRun } from "../lib/syncRun.ts";
 import { cleanseData } from "../lib/cleanse.ts";
 import type { AuditFn } from "../categorise/audit.ts";
 import type { MerchantsDTO, MerchantDTO } from "../../shared/types.ts";
+import { logoUrlResolver } from "../lib/merchantDirectory.ts";
 
 export const merchantsRouter = Router();
 
@@ -87,6 +88,7 @@ merchantsRouter.get("/merchants", async (_req, res, next) => {
 
     const top = <T,>(m: Map<T, number>): T | null => [...m.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 
+    const logoFor = await logoUrlResolver();
     const merchants: MerchantDTO[] = [];
     for (const [token, g] of groups) {
       const totalSpent = g.amounts.reduce((a, b) => a + b, 0);
@@ -105,6 +107,10 @@ merchantsRouter.get("/merchants", async (_req, res, next) => {
         token,
         name: ov?.name ?? null,
         domain: ov?.domain ?? null,
+        // Explicit domain wins; otherwise a known directory brand. Persons get none.
+        logoUrl: (rule?.personKey ?? top(g.persons)) ? null
+          : ov?.domain ? `/api/logo/${encodeURIComponent(ov.domain)}`
+          : logoFor(ov?.name ?? statement),
         statement,
         accountName: bank?.name ?? null,
         accountLogo: bank?.logo ?? null,

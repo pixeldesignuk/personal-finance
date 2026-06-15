@@ -19,7 +19,7 @@ import { TopMerchants } from "../components/TopMerchants.tsx";
 import { PageHeader, Stat, StatPie, Toggle, Customizable, SortableBlock } from "../components/ui";
 
 // Canonical dashboard section order (fallback before settings load).
-const DEFAULT_ORDER = ["hero", "stats", "goals", "upcoming", "spending", "cashflow", "balances"];
+const DEFAULT_ORDER = ["hero", "stats", "goals", "recentActivity", "upcoming", "spending", "topMerchants", "cashflow", "balances"];
 
 const nowMonth = () => new Date().toLocaleDateString("en-CA").slice(0, 7);
 const addMonth = (ym: string, delta: number) => {
@@ -40,7 +40,7 @@ function monthElapsedPct(): number {
   return Math.round((now.getDate() / days) * 100);
 }
 
-export default function Dashboard() {
+export default function Dashboard({ minimal = false, editing: editingProp, onEditingChange }: { minimal?: boolean; editing?: boolean; onEditingChange?: (v: boolean) => void }) {
   const [params] = useSearchParams();
   const accountId = params.get("account") ?? undefined;
   const [month, setMonth] = useQueryState("month", { defaultValue: nowMonth(), history: "replace" });
@@ -91,7 +91,11 @@ export default function Dashboard() {
   const toggleHideSmall = (v: boolean) => { localStorage.setItem("dash.hideSmall", v ? "1" : "0"); setHideSmall(v); };
 
   // ── Customize mode: show/hide dashboard cards (persisted as dashboard.show.* settings).
-  const [editing, setEditing] = useState(false);
+  // Optionally controlled by the parent (v2 hoists this so the toggle can live in
+  // the account strip header); falls back to local state on the standalone page.
+  const [editingInternal, setEditingInternal] = useState(false);
+  const editing = editingProp ?? editingInternal;
+  const setEditing = (v: boolean) => (onEditingChange ?? setEditingInternal)(v);
   const show = (key: string) => settings?.values[key] ?? true; // default on while loading
   const settingsMut = useMutation({
     mutationFn: (patch: Record<string, boolean>) => api.patchSettings(patch),
@@ -187,8 +191,9 @@ export default function Dashboard() {
   const netMom = mom(net, prevIncome - prevSpent, true);
 
   // Savings rate: share of income kept this month, vs last month (in points).
-  const savingsRate = income > 0 ? Math.round((net / income) * 100) : 0;
-  const prevRate = prevIncome > 0 ? ((prevIncome - prevSpent) / prevIncome) * 100 : null;
+  // Floored at 0 — overspending shows as 0% saved, never a negative rate.
+  const savingsRate = income > 0 ? Math.max(0, Math.round((net / income) * 100)) : 0;
+  const prevRate = prevIncome > 0 ? Math.max(0, ((prevIncome - prevSpent) / prevIncome) * 100) : null;
   const savingsDelta: { node: string; tone: "muted" | "pos" | "neg" } = (() => {
     if (prevRate == null) return { node: net > 0 ? `${formatGBP(net)} saved` : "vs last month", tone: "muted" };
     const d = Math.round(savingsRate - prevRate);
@@ -244,19 +249,29 @@ export default function Dashboard() {
   // per-card <Customizable> toggles.
   const blocks: Record<string, ReactNode> = {
     hero: summary && (
-      <Customizable label="Net worth & budget" editing={editing} on={show("dashboard.show.hero")} onToggle={(v) => setCard("dashboard.show.hero", v)}>
-        <div className="card hero">
-          <div className="hero-main">
-            <span className="hero-eyebrow">
-              <span className="hero-chip ok"><Wallet size={13} strokeWidth={2.2} />Net worth</span>
-              Everything you're worth
-            </span>
-            <span className="hero-figure num">{formatGBP(netWorth)}</span>
-            <span className="hero-breakdown">
-              {formatGBP(liquid)} in the bank <span className="muted">({gbp0(available)} available)</span>
-            </span>
-          </div>
-          <div className="hero-side">
+      <Customizable label={minimal ? "Budget" : "Net worth & budget"} editing={editing} on={show("dashboard.show.hero")} onToggle={(v) => setCard("dashboard.show.hero", v)}>
+        <div className={`card hero${minimal ? " hero-budget" : ""}${minimal && overBudget ? " hero-over" : ""}`}>
+          {/* On v2 the net-worth column is dropped (net worth lives in the account
+              strip up top) and the budget becomes the focused, full-width figure. */}
+          {!minimal && (
+            <div className="hero-main">
+              <span className="hero-eyebrow">
+                <span className="hero-chip ok"><Wallet size={13} strokeWidth={2.2} />Net worth</span>
+                Everything you're worth
+              </span>
+              <span className="hero-figure num">{formatGBP(netWorth)}</span>
+              <span className="hero-breakdown">
+                {formatGBP(liquid)} in the bank <span className="muted">({gbp0(available)} available)</span>
+              </span>
+            </div>
+          )}
+          <div className={minimal ? "hero-main" : "hero-side"}>
+            {minimal && (
+              <span className="hero-eyebrow">
+                <span className={`hero-chip ${overBudget ? "over" : "ok"}`}><Wallet size={13} strokeWidth={2.2} />Budget</span>
+                {overBudget ? "Over budget this month" : "Left to spend this month"}
+              </span>
+            )}
             <span className={`hero-figure num ${overBudget ? "neg" : ""}`}>{gbp0(Math.abs(budgetLeft))}<span className="hero-figure-unit">{overBudget ? "over" : "left"}</span></span>
             <div className="progress stack">
               <i className={barClass(budgetPct)} style={{ width: `${spentW}%` }} />
@@ -400,7 +415,9 @@ export default function Dashboard() {
         </div>
       </Customizable>
     ),
-    balances: (
+    // On v2 the account strip up top already lists every balance, so this card is
+    // dropped to avoid duplication.
+    balances: minimal ? null : (
       <Customizable label="Balances by account" editing={editing} on={show("dashboard.show.balances")} onToggle={(v) => setCard("dashboard.show.balances", v)}>
         <div className="card">
           <div className="card-head">
@@ -442,16 +459,18 @@ export default function Dashboard() {
 
   return (
     <div>
-      <PageHeader
-        title="Dashboard"
-        actions={<>
-          <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: "auto" }} aria-label="Month" />
-          <AccountSelector />
-          <button className={editing ? "btn-primary" : ""} onClick={() => setEditing((e) => !e)}>{editing ? "Done" : "Customize"}</button>
-          <button className="btn-primary" onClick={() => setSyncOpen(true)} disabled={syncOpen}>Sync now</button>
-        </>}
-      />
-      <AuditSheet open={syncOpen} title="Sync" run={syncRun} onClose={() => setSyncOpen(false)} onDone={reload} />
+      {!minimal && (
+        <PageHeader
+          title="Dashboard"
+          actions={<>
+            <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: "auto" }} aria-label="Month" />
+            <AccountSelector />
+            <button className={editing ? "btn-primary" : ""} onClick={() => setEditing(!editing)}>{editing ? "Done" : "Customize"}</button>
+            <button className="btn-primary" onClick={() => setSyncOpen(true)} disabled={syncOpen}>Sync now</button>
+          </>}
+        />
+      )}
+      {!minimal && <AuditSheet open={syncOpen} title="Sync" run={syncRun} onClose={() => setSyncOpen(false)} onDone={reload} />}
       {editing && <p className="muted customize-hint">Drag the grip to reorder sections; use each card's switch to show or hide it.</p>}
 
       {editing ? (

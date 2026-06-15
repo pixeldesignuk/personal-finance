@@ -3,7 +3,7 @@ import { api } from "../api.ts";
 import type { BankDTO, AccountDTO } from "../../../shared/types.ts";
 import { Modal, Field, FieldRow } from "./ui";
 
-export function AddTransaction({ onAdded }: { onAdded: () => void }) {
+export function AddTransaction({ onAdded, renderTrigger }: { onAdded: () => void; renderTrigger?: (open: () => void) => React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [manual, setManual] = useState<AccountDTO[]>([]);
   const [accountId, setAccountId] = useState("");
@@ -27,7 +27,7 @@ export function AddTransaction({ onAdded }: { onAdded: () => void }) {
   useEffect(() => { if (catNames[0]) setCategory((p) => p === "uncategorised" ? catNames[0].key : p); }, [catNames]);
 
   const noAccounts = manual.length === 0;
-  const openDialog = () => { setMsg(null); setOpen(true); };
+  const openDialog = () => { if (noAccounts) { window.location.href = "/accounts"; return; } setMsg(null); setOpen(true); };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,13 +44,17 @@ export function AddTransaction({ onAdded }: { onAdded: () => void }) {
 
   return (
     <>
-      <button
-        className="btn-primary"
-        onClick={noAccounts ? () => { window.location.href = "/accounts"; } : openDialog}
-        title={noAccounts ? "Create a cash / manual account first" : "Add a manual transaction"}
-      >
-        + Add transaction
-      </button>
+      {renderTrigger
+        ? renderTrigger(openDialog)
+        : (
+          <button
+            className="btn-primary"
+            onClick={openDialog}
+            title={noAccounts ? "Create a cash / manual account first" : "Add a manual transaction"}
+          >
+            + Add transaction
+          </button>
+        )}
 
       <Modal open={open} onClose={() => setOpen(false)}>
         <form className="modal-body" onSubmit={submit}>

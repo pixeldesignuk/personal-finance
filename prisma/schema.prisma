@@ -229,17 +229,49 @@ model Person {
 // display name + recurring classification override; spend is aggregated from
 // transactions that match the token.
 model Merchant {
-  token       String  @id
-  name        String?
-  domain      String?
-  categoryKey String?
-  recurring   String  @default("auto") // auto | fixed | variable | ignore
+  token         String    @id
+  name          String?
+  domain        String?
+  categoryKey   String?
+  recurring     String    @default("auto") // auto | fixed | variable | ignore
+  logoCheckedAt DateTime? // background logo resolution has run for this merchant
 }
 
 // App config / feature flags (key/value).
 model Setting {
   key   String @id
   value String
+}
+
+// Curated, region-tenanted merchant directory (seeded from the Name Suggestion
+// Index + Wikidata). A matched merchant gets its domain + stored logo from here,
+// so we never guess a domain from a name (which mis-fires on people).
+model MerchantDirectory {
+  id        String   @id @default(cuid())
+  region    String   @default("UK")
+  name      String
+  slug      String
+  aliases   String[] @default([])
+  domain    String?
+  logoKey   String?
+  color     String?
+  wikidata  String?
+  updatedAt DateTime @default(now())
+
+  @@unique([region, slug])
+  @@index([region])
+}
+
+// Per-domain logo cache. Logos are resolved server-side from providers
+// (Brandfetch / logo.dev / DuckDuckGo), stored in the object bucket, and served
+// via /api/logo/:domain. `key` is the bucket object key; NULL means "resolved,
+// no logo" (negative cache, re-checked once `checkedAt` goes stale).
+model LogoCache {
+  domain    String   @id
+  key       String?
+  source    String?
+  color     String?
+  checkedAt DateTime @default(now())
 }
 
 model Rule {

@@ -6,7 +6,9 @@ import { api } from "../api.ts";
 import { formatGBP } from "../format.ts";
 import { categoryMeta, REMAINDER_COLOR } from "../categoryMeta.ts";
 import { BudgetFan, type FanSegment } from "../components/charts/BudgetFan.tsx";
-import { Tag } from "lucide-react";
+import { ProgressRing } from "../components/ProgressRing.tsx";
+import { BudgetSheet } from "../components/BudgetSheet.tsx";
+import { Tag, RotateCcw } from "lucide-react";
 
 const nowMonth = () => new Date().toLocaleDateString("en-CA").slice(0, 7);
 const addMonth = (ym: string, delta: number) => {
@@ -21,6 +23,7 @@ const TOP_FAN = 10;    // segments before lumping into "Other"
 export default function BudgetsV2() {
   const [month, setMonth] = useQueryState("month", { defaultValue: nowMonth(), history: "replace" });
   const [expanded, setExpanded] = useState(false);
+  const [sheetKey, setSheetKey] = useState<string | null>(null);
   const { data } = useQuery({ queryKey: ["budget", month], queryFn: () => api.budget(month) });
 
   const months = useMemo(() => Array.from({ length: 7 }, (_, i) => addMonth(month, i - 5)), [month]);
@@ -49,6 +52,7 @@ export default function BudgetsV2() {
 
   const spent = data?.summary.spent ?? 0;
   const budgeted = data?.summary.budgeted ?? 0;
+  const refunded = data?.summary.refunded ?? 0;
   const totalSpent = spendRows.reduce((s, r) => s + r.spent, 0) || 1;
   const shown = expanded ? [...spendRows, ...budgetOnly] : spendRows;
 
@@ -63,7 +67,9 @@ export default function BudgetsV2() {
       <div className="bv2-months">
         {months.map((m) => (
           <button key={m} type="button" className={`bv2-month${m === month ? " is-active" : ""}`} onClick={() => setMonth(m)}>
-            <span className="bv2-month-dot" />
+            {m === month && budgeted > 0
+              ? <ProgressRing value={spent / budgeted} size={26} stroke={3} />
+              : <span className="bv2-month-dot" />}
             <span className="bv2-month-label">{monthAbbr(m)}</span>
           </button>
         ))}
@@ -71,8 +77,12 @@ export default function BudgetsV2() {
 
       {/* Radial fan hero */}
       {segments.length > 0
-        ? <BudgetFan segments={segments} spent={spent} budgeted={budgeted} />
+        ? <BudgetFan segments={segments} spent={spent} budgeted={budgeted} onSelect={setSheetKey} />
         : <p className="empty bv2-empty">No spending recorded for {monthLong(month)}.</p>}
+
+      {refunded > 0 && (
+        <p className="bv2-refund"><RotateCcw size={13} strokeWidth={2.2} /> {formatGBP(refunded)} refunded this month</p>
+      )}
 
       {/* Category list */}
       <div className="bv2-list-head">
@@ -83,8 +93,8 @@ export default function BudgetsV2() {
         const { Icon, color } = categoryMeta(r.key, r.group);
         const pct = r.budgeted > 0 ? Math.min(100, (r.spent / r.budgeted) * 100) : (r.spent > 0 ? 100 : 0);
         const over = r.budgeted > 0 && r.spent > r.budgeted;
-        return (
-          <Link key={r.key} to={`/transactions?month=${month}`} className="bv2-row">
+        const inner = (
+          <>
             <span className="bv2-badge" style={{ background: color }}><Icon size={19} strokeWidth={2.1} color="#0c0d0e" /></span>
             <div className="bv2-row-main">
               <div className="bv2-row-top">
@@ -96,14 +106,21 @@ export default function BudgetsV2() {
               <div className="bv2-track"><i style={{ width: `${pct}%`, background: over ? "var(--coral)" : color }} /></div>
               <span className="bv2-row-share muted">{Math.round((r.spent / totalSpent) * 100)}% of spend{over ? " · over budget" : ""}</span>
             </div>
-          </Link>
+          </>
         );
+        // Real categories open the detail sheet; the synthetic "Uncategorised"
+        // lump (no editable budget) links straight to its transactions.
+        return r.key === "uncategorised"
+          ? <Link key={r.key} to={`/transactions?month=${month}`} className="bv2-row">{inner}</Link>
+          : <button key={r.key} type="button" className="bv2-row" onClick={() => setSheetKey(r.key)}>{inner}</button>;
       })}
       {budgetOnly.length > 0 && (
         <button type="button" className="bv2-more" onClick={() => setExpanded((e) => !e)}>
           {expanded ? "Show less" : `Show ${budgetOnly.length} budgeted (no spend yet)`}
         </button>
       )}
+
+      {sheetKey && <BudgetSheet categoryKey={sheetKey} month={month} onClose={() => setSheetKey(null)} />}
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { effectiveCategory } from "../lib/effectiveCategory.ts";
 import { displayName } from "../../shared/displayName.ts";
 import { merchantToken } from "../categorise/helpers.ts";
 import { rawMerchantName } from "../../shared/merchantName.ts";
+import { logoUrlResolver } from "../lib/merchantDirectory.ts";
 
 export const dashboardRouter = Router();
 
@@ -128,27 +129,33 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
       const tok = merchantToken(rawMerchantName(t));
       return (tok && merchantNames.get(tok)) || raw;
     };
-    const dto: TransactionDTO[] = txns.map((t) => ({
-      id: t.id,
-      accountId: t.accountId,
-      accountName: displayName(t.account),
-      bookingDate: t.bookingDate,
-      amount: t.amount.toString(),
-      currency: t.currency,
-      name: friendlyName(t),
-      remittanceInfo: t.remittanceInfo,
-      category: effectiveCategory(t),
-      autoCategory: t.category,
-      personKey: t.personKey,
-      personName: personName(t.personKey),
-      note: t.note,
-      flag: (t.flag as "red" | "orange" | "yellow" | null) ?? null,
-      debtAccountId: t.debtAccountId,
-      source: t.account.source,
-      origin: txnOrigin(t),
-      status: t.status,
-      order: orderByTxn.get(t.id) ?? null,
-    }));
+    const logoFor = await logoUrlResolver();
+    const dto: TransactionDTO[] = txns.map((t) => {
+      const nm = friendlyName(t);
+      return {
+        id: t.id,
+        accountId: t.accountId,
+        accountName: displayName(t.account),
+        bookingDate: t.bookingDate,
+        amount: t.amount.toString(),
+        currency: t.currency,
+        name: nm,
+        remittanceInfo: t.remittanceInfo,
+        category: effectiveCategory(t),
+        autoCategory: t.category,
+        personKey: t.personKey,
+        personName: personName(t.personKey),
+        note: t.note,
+        flag: (t.flag as "red" | "orange" | "yellow" | null) ?? null,
+        debtAccountId: t.debtAccountId,
+        source: t.account.source,
+        origin: txnOrigin(t),
+        status: t.status,
+        order: orderByTxn.get(t.id) ?? null,
+        // Only a known directory brand gets a logo — a person/transfer stays a monogram.
+        logoUrl: t.personKey ? null : logoFor(nm),
+      };
+    });
     res.json(dto);
   } catch (err) {
     next(err);

@@ -3,6 +3,8 @@ import { db } from "../lib/db.ts";
 import { GoCardlessClient, GoCardlessError } from "../gocardless/client.ts";
 import { applyRules, type Rule } from "../lib/rules.ts";
 import { reconcile } from "../categorise/reconcile.ts";
+import { spendBrandSet, brandKey, financeCharge } from "../lib/refundDetect.ts";
+import { rawMerchantName } from "../../shared/merchantName.ts";
 import { syncAllInvestments } from "../investments/sync.ts";
 import { syncGmail, rematchOpenOrders, reconcileReceiptProvisionals, ensureGmailWatch } from "../plugins/gmailSync.ts";
 import { ensureReceiptTransactions } from "../lib/receiptTxn.ts";
@@ -101,6 +103,11 @@ export async function syncAccount(accountId: string, audit?: AuditFn, opts: { fu
   await db.transaction.deleteMany({ where: { accountId, status: "pending" } });
   const ruleRows = await db.rule.findMany();
   const rules: Rule[] = ruleRows.map((r) => ({ matchText: r.matchText, categoryKey: r.categoryKey, personKey: r.personKey, priority: r.priority }));
+  // Brands you spend at (existing debits + this batch's debits), so an incoming
+  // credit from one of them is recognised as a refund, not income — and never
+  // enters review.
+  const batchFields = rows.map(({ t }) => ({ amount: Number(t.transactionAmount.amount), merchantName: t.merchantName, creditorName: t.creditorName, debtorName: t.debtorName, remittanceInfo: t.remittanceInformationUnstructured }));
+  const spendBrands = await spendBrandSet(batchFields);
   let added = 0;
   const newTxns: { name: string; amount: number; date: string | null }[] = [];
   for (const { t, status } of rows) {
@@ -109,7 +116,14 @@ export async function syncAccount(accountId: string, audit?: AuditFn, opts: { fu
     const amount = Number(t.transactionAmount.amount);
     const text = [t.merchantName, t.creditorName, t.debtorName, t.remittanceInformationUnstructured].filter(Boolean).join(" ");
     const ruled = applyRules(text, rules);
-    const category = ruled.categoryKey ?? (amount > 0 ? "income" : "uncategorised");
+    const fields = { merchantName: t.merchantName, creditorName: t.creditorName, debtorName: t.debtorName, remittanceInfo: t.remittanceInformationUnstructured, amount };
+    const brand = amount > 0 ? brandKey(rawMerchantName(fields)) : null;
+    // Interest/finance lines: a charge → Fees, a credit → refund. Otherwise a
+    // credit from a brand you spend at is a refund; other credits are income.
+    const fin = !ruled.categoryKey ? financeCharge(fields) : null;
+    const isRefund = !ruled.categoryKey && (fin === "refund" || (amount > 0 && Boolean(brand && spendBrands.has(brand))));
+    const category = ruled.categoryKey ?? (fin === "fee" ? "fees" : isRefund ? "uncategorised" : amount > 0 ? "income" : "uncategorised");
+    const refundNote = isRefund ? `refund — ${rawMerchantName(fields) ?? "merchant"}`.slice(0, 140) : undefined;
     if (!existingIds.has(id)) {
       newTxns.push({ name: t.merchantName ?? t.creditorName ?? t.debtorName ?? t.remittanceInformationUnstructured ?? id, amount, date: t.bookingDate ?? null });
     }
@@ -128,6 +142,7 @@ export async function syncAccount(accountId: string, audit?: AuditFn, opts: { fu
         merchantName: t.merchantName,
         category,
         personKey: ruled.personKey ?? null,
+        note: refundNote,
         status,
         raw: t as object,
       },

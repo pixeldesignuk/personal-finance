@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 // Deterministic hue from a string so the same merchant always gets the same colour.
 function hashHue(s: string): number {
@@ -14,18 +14,23 @@ function initials(name: string): string {
   return (words[0][0] + words[words.length - 1][0]).toUpperCase();
 }
 
-// A brand avatar: shows a real logo image when `src` is given (banks have
-// GoCardless logos), otherwise — or if the image 404s — a tasteful monogram
-// tile coloured deterministically from the name.
-export function BrandLogo({ name, src, size = 34 }: { name: string; src?: string | null; size?: number }) {
-  const [broken, setBroken] = useState(false);
-  const showImg = Boolean(src) && !broken;
+// A brand avatar: a real logo image when one resolves (filling the whole circle),
+// otherwise a monogram tile coloured deterministically from the name. `src` may
+// be a single URL or an ordered candidate list, each tried before the monogram.
+export function BrandLogo({ name, src, size = 34 }: { name: string; src?: string | null | string[]; size?: number }) {
+  const candidates = (Array.isArray(src) ? src : src ? [src] : []).filter(Boolean);
+  const key = candidates.join("|");
+  const [idx, setIdx] = useState(0);
+  // Reset to the first candidate whenever the set of URLs changes (e.g. domain edit).
+  useEffect(() => { setIdx(0); }, [key]);
+
+  const current = candidates[idx];
   const hue = hashHue(name || "?");
 
   return (
     <span
-      className={`brand-logo${showImg ? " has-img" : ""}`}
-      style={showImg ? { width: size, height: size } : {
+      className={`brand-logo${current ? " has-img" : ""}`}
+      style={current ? { width: size, height: size } : {
         width: size, height: size,
         background: `linear-gradient(140deg, hsl(${hue} 42% 24%), hsl(${hue} 38% 14%))`,
         color: `hsl(${hue} 65% 74%)`,
@@ -33,8 +38,8 @@ export function BrandLogo({ name, src, size = 34 }: { name: string; src?: string
       }}
       aria-hidden
     >
-      {showImg
-        ? <img src={src!} alt="" width={size} height={size} loading="lazy" onError={() => setBroken(true)} />
+      {current
+        ? <img src={current} alt="" width={size} height={size} loading="lazy" onError={() => setIdx((i) => i + 1)} />
         : <span className="brand-mono" style={{ fontSize: Math.round(size * 0.4) }}>{initials(name || "?")}</span>}
     </span>
   );

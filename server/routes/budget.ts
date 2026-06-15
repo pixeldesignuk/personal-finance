@@ -7,7 +7,8 @@ import { currentBalance, excludedBalance } from "../lib/balance.ts";
 import { manualTxnSums } from "../lib/manualBalance.ts";
 import { buildBudgetRows, type BudgetCategory } from "../lib/budgetView.ts";
 import { billTarget } from "../lib/recurring.ts";
-import type { BudgetResponseDTO, BillTargetDTO, CategoryInfoDTO } from "../../shared/types.ts";
+import { isRefundNote } from "../../shared/refund.ts";
+import type { BudgetResponseDTO, BillTargetDTO, CategoryInfoDTO, CategoryHistoryDTO } from "../../shared/types.ts";
 
 function prevMonth(m: string): string {
   const [y, mo] = m.split("-").map(Number);
@@ -32,12 +33,17 @@ budgetRouter.get("/budget", async (req, res, next) => {
     const categories: BudgetCategory[] = cats.map((c) => ({ id: c.id, key: c.key, name: c.name, group: c.group, monthlyAmount: Number(c.monthlyAmount.toString()) }));
     const rows = buildBudgetRows(categories, spent);
 
-    // Top-of-page summary.
+    // Top-of-page summary. Refunds (credits noted "refund …") are counted on
+    // their own line, not as income.
+    const isRefundTxn = (t: { amount: unknown; note: string | null }) => Number(t.amount) > 0 && isRefundNote(t.note);
     let income = 0;
+    let refunded = 0;
     for (const t of filtered) {
       if (!t.bookingDate || monthOf(t.bookingDate) !== month) continue;
       const amt = Number(t.amount);
-      if (amt > 0 && effectiveCategory(t) !== "transfer") income += amt;
+      if (amt <= 0) continue;
+      if (isRefundTxn(t)) refunded += amt;
+      else if (effectiveCategory(t) !== "transfer") income += amt;
     }
     const budgeted = categories.reduce((s, c) => s + c.monthlyAmount, 0);
 
@@ -86,6 +92,7 @@ budgetRouter.get("/budget", async (req, res, next) => {
         budgeted: round2(budgeted),
         setAside: round2(setAside),
         income: round2(income),
+        refunded: round2(refunded),
         pendingCount,
       },
     };
@@ -144,6 +151,45 @@ budgetRouter.get("/budget/category/:key", async (req, res, next) => {
       spentLastMonth,
       carriedForward: round2(monthlyAmount - spentLastMonth),
       goalAmount: null,
+    };
+    res.json(dto);
+  } catch (err) { next(err); }
+});
+
+// Per-category monthly spend history (for the budget detail sheet bar chart).
+// Returns a chronological window of the last `months` months ending at `month`.
+budgetRouter.get("/budget/category/:key/history", async (req, res, next) => {
+  try {
+    const q = z.object({
+      month: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+      person: z.string().optional(),
+      months: z.coerce.number().int().min(1).max(24).optional(),
+    }).parse(req.query);
+    const anchor = q.month ?? currentMonth();
+    const count = q.months ?? 7;
+
+    const cat = await db.category.findUnique({ where: { key: req.params.key } });
+    if (!cat) { res.status(404).json({ error: "Category not found" }); return; }
+
+    const personal = await db.account.findMany({ where: { type: "PERSONAL", informational: false }, select: { id: true } });
+    const ids = personal.map((a) => a.id);
+    const txns = await db.transaction.findMany({ where: { accountId: { in: ids } } });
+    const filtered = q.person ? txns.filter((t) => (q.person === "none" ? t.personKey == null : t.personKey === q.person)) : txns;
+    const budgetTxns: BudgetTx[] = filtered.map((t) => ({ amount: Number(t.amount), category: effectiveCategory(t), bookingDate: t.bookingDate }));
+
+    // Window of months [anchor-(count-1) … anchor], chronological.
+    const window: string[] = [];
+    let m = anchor;
+    for (let i = 0; i < count; i++) { window.unshift(m); m = prevMonth(m); }
+    const months = window.map((mo) => ({ month: mo, spent: round2(personalSpendByCategory(budgetTxns, mo)[req.params.key] ?? 0) }));
+
+    const dto: CategoryHistoryDTO = {
+      key: req.params.key,
+      categoryId: cat.id,
+      name: cat.name,
+      group: cat.group,
+      monthlyAmount: Number(cat.monthlyAmount.toString()),
+      months,
     };
     res.json(dto);
   } catch (err) { next(err); }

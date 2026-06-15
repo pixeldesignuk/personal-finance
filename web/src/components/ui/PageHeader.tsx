@@ -5,14 +5,14 @@ import type { ReactNode } from "react";
 // `<div className="row-between"><h1>…</h1>…</div>` + `<p className="muted"
 // style={{ marginTop: -6 }}>` pattern on every page.
 export function PageHeader({ title, subtitle, actions }: {
-  title: ReactNode;
+  title?: ReactNode;
   subtitle?: ReactNode;
   actions?: ReactNode;
 }) {
   return (
     <>
-      <div className="page-head">
-        <h1>{title}</h1>
+      <div className={`page-head${title == null ? " no-title" : ""}`}>
+        {title != null && <h1>{title}</h1>}
         {actions != null && <div className="toolbar">{actions}</div>}
       </div>
       {subtitle != null && <p className="page-subtitle">{subtitle}</p>}

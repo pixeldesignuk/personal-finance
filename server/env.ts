@@ -28,6 +28,13 @@ const schema = z.object({
   BITGET_API_SECRET: z.string().optional(),
   BITGET_PASSPHRASE: z.string().optional(),
   BITGET_USD_GBP: z.string().optional(),
+  // Merchant-logo providers (server-side). Brandfetch publishable client ID and
+  // an optional logo.dev token. DuckDuckGo favicons need no key.
+  BRANDFETCH_CLIENT_ID: z.string().optional(),
+  LOGODEV_TOKEN: z.string().optional(),
+  // Brandfetch Brand API (Bearer key, separate from the client ID, rate-limited)
+  // — real brand colours for avatar tinting.
+  BRANDFETCH_API_KEY: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -43,4 +50,7 @@ export const env = {
   ...parsed.data,
   // Accept TELEGRAM_BOT_KEY as an alias for TELEGRAM_BOT_TOKEN (env naming drift).
   TELEGRAM_BOT_TOKEN: parsed.data.TELEGRAM_BOT_TOKEN ?? process.env.TELEGRAM_BOT_KEY,
+  // The Brandfetch ID moved server-side; still honour the old VITE_ name so an
+  // existing .env keeps working.
+  BRANDFETCH_CLIENT_ID: parsed.data.BRANDFETCH_CLIENT_ID ?? process.env.VITE_BRANDFETCH_CLIENT_ID,
 };

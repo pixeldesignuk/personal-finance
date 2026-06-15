@@ -74,6 +74,7 @@ export interface TransactionDTO {
   source: AccountSource;
   origin: "bank" | "telegram" | "receipt" | "manual"; // how it got here (upload method)
   status: string;
+  logoUrl: string | null; // brand logo URL when the merchant is a known directory brand (else null → monogram)
   order: { id: string; hasAttachment: boolean; merchant: string | null; total: number | null; currency: string | null; orderNumber: string | null; date: string | null; items: EmailOrderItem[] } | null; // matched email order / receipt (Gmail or Telegram)
 }
 
@@ -112,6 +113,7 @@ export interface MerchantDTO {
   token: string;
   name: string | null; // human-readable name layered on top (editable); null if unset
   domain: string | null; // brand domain for the logo (e.g. tesco.com), editable
+  logoUrl: string | null; // brand logo URL from the merchant directory (else null → monogram)
   statement: string;   // raw bank statement line — immutable source of truth
   accountName: string | null; // the account/bank it's mostly paid from
   accountLogo: string | null; // that bank's logo URL (null for manual/cash)
@@ -374,6 +376,7 @@ export interface BudgetSummaryDTO {
   budgeted: number;      // total of category monthly budgets
   setAside: number;      // monthly reserve for non-monthly (quarterly/annual) bills
   income: number;        // income this month (reference)
+  refunded: number;      // money returned to spend categories this month (refunds), shown as a separate line — NOT netted into spend
   pendingCount: number;  // pending transactions
 }
 
@@ -404,6 +407,17 @@ export interface CategoryInfoDTO {
   spentLastMonth: number;
   carriedForward: number;   // budgetedLastMonth − spentLastMonth
   goalAmount: number | null; // not tracked in the flat model → null (N/A)
+}
+
+// Per-category spend history for the budget detail sheet — a window of recent
+// months (chronological) plus the category's identity/budget.
+export interface CategoryHistoryDTO {
+  key: string;
+  categoryId: number;
+  name: string;
+  group: string | null;
+  monthlyAmount: number;
+  months: { month: string; spent: number }[];
 }
 
 export interface ReportRowDTO {

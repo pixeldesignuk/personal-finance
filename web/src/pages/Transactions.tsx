@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useQueryState, parseAsBoolean } from "nuqs";
 import { api } from "../api.ts";
 import type { TransactionDTO, CategoryNameDTO, PersonDTO, AuditEvent } from "../../../shared/types.ts";
 import { formatMoney, relativeDate } from "../format.ts";
+import { isRefundNote } from "../../../shared/refund.ts";
 import { useToast } from "../components/Toasts.tsx";
 import { AccountSelector } from "../components/AccountSelector.tsx";
 import { AddTransaction } from "../components/AddTransaction.tsx";
@@ -304,7 +305,7 @@ export default function Transactions() {
     [rows, catFilter, flaggedOnly],
   );
   const drawerTxn = useMemo(() => visible.find((t) => t.id === drawerId) ?? null, [visible, drawerId]);
-  const unreconciledCount = useMemo(() => rows.filter((r) => r.category === "uncategorised").length, [rows]);
+  const unreconciledCount = useMemo(() => rows.filter((r) => r.category === "uncategorised" && !isRefundNote(r.note)).length, [rows]);
   const flaggedCount = useMemo(() => rows.filter((r) => r.flag != null).length, [rows]);
   const showingUnreconciled = catFilter === "uncategorised";
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -330,6 +331,7 @@ export default function Transactions() {
           {people.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
         </select></>}
         actions={<>
+          <Link to="/transactions/v2" className="btn-sm">Try v2 →</Link>
           <button className={showingUnreconciled ? "btn-primary" : undefined} onClick={() => setCatFilter(showingUnreconciled ? "" : "uncategorised")}>
             {showingUnreconciled ? "Show all" : `Unreconciled (${unreconciledCount})`}
           </button>

@@ -2,7 +2,10 @@ import { Link, NavLink, Route, Routes } from "react-router-dom";
 import Connect from "./pages/Connect.tsx";
 import Callback from "./pages/Callback.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
+import DashboardV2 from "./pages/DashboardV2.tsx";
 import Transactions from "./pages/Transactions.tsx";
+import TransactionsV2 from "./pages/TransactionsV2.tsx";
+import TransactionReview from "./pages/TransactionReview.tsx";
 import Accounts from "./pages/Accounts.tsx";
 import Budgets from "./pages/Budgets.tsx";
 import BudgetsV2 from "./pages/BudgetsV2.tsx";
@@ -48,7 +51,10 @@ export default function App() {
       <div className="container">
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/v2" element={<DashboardV2 />} />
           <Route path="/transactions" element={<Transactions />} />
+          <Route path="/transactions/v2" element={<TransactionsV2 />} />
+          <Route path="/transactions/review" element={<TransactionReview />} />
           <Route path="/budgets" element={<Budgets />} />
           <Route path="/budgets/v2" element={<BudgetsV2 />} />
           <Route path="/reports" element={<Reports />} />
