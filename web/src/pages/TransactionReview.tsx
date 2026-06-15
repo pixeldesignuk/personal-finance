@@ -206,7 +206,7 @@ export default function TransactionReview() {
   return (
     <div className="rev">
       <header className="rev-head">
-        <button type="button" className="rev-back" onClick={() => nav("/transactions/v2")} aria-label="Back"><ChevronLeft size={24} strokeWidth={2.2} /></button>
+        <button type="button" className="rev-back" onClick={() => nav("/transactions")} aria-label="Back"><ChevronLeft size={24} strokeWidth={2.2} /></button>
         <div className="rev-title">
           <h1>Review Transactions</h1>
           {dateRange && <span className="rev-range">{dateRange}</span>}
@@ -219,7 +219,7 @@ export default function TransactionReview() {
           <p className="rev-done-emoji">✓</p>
           <h2>All caught up</h2>
           <p className="muted">{history.filter((h) => h.action !== "skip").length} categorised{history.some((h) => h.action === "skip") ? ` · ${history.filter((h) => h.action === "skip").length} skipped` : ""}.</p>
-          <button type="button" className="btn-primary" onClick={() => nav("/transactions/v2")}>Back to transactions</button>
+          <button type="button" className="btn-primary" onClick={() => nav("/transactions")}>Back to transactions</button>
         </div>
       ) : (
         <>

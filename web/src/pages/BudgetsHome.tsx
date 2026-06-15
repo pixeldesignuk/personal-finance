@@ -8,7 +8,7 @@ import { categoryMeta, REMAINDER_COLOR } from "../categoryMeta.ts";
 import { BudgetFan, type FanSegment } from "../components/charts/BudgetFan.tsx";
 import { ProgressRing } from "../components/ProgressRing.tsx";
 import { BudgetSheet } from "../components/BudgetSheet.tsx";
-import { Tag, RotateCcw } from "lucide-react";
+import { Tag } from "lucide-react";
 
 const nowMonth = () => new Date().toLocaleDateString("en-CA").slice(0, 7);
 const addMonth = (ym: string, delta: number) => {
@@ -20,7 +20,7 @@ const monthLong = (ym: string) => new Date(`${ym}-01T00:00:00`).toLocaleDateStri
 
 const TOP_FAN = 10;    // segments before lumping into "Other"
 
-export default function BudgetsV2() {
+export default function BudgetsHome() {
   const [month, setMonth] = useQueryState("month", { defaultValue: nowMonth(), history: "replace" });
   const [expanded, setExpanded] = useState(false);
   const [sheetKey, setSheetKey] = useState<string | null>(null);
@@ -52,7 +52,6 @@ export default function BudgetsV2() {
 
   const spent = data?.summary.spent ?? 0;
   const budgeted = data?.summary.budgeted ?? 0;
-  const refunded = data?.summary.refunded ?? 0;
   const totalSpent = spendRows.reduce((s, r) => s + r.spent, 0) || 1;
   const shown = expanded ? [...spendRows, ...budgetOnly] : spendRows;
 
@@ -60,7 +59,6 @@ export default function BudgetsV2() {
     <div className="bv2">
       <div className="bv2-head">
         <h1>Budget</h1>
-        <Link to="/budgets" className="amount-link">Classic →</Link>
       </div>
 
       {/* Month strip (Wise-style dots) */}
@@ -79,10 +77,6 @@ export default function BudgetsV2() {
       {segments.length > 0
         ? <BudgetFan segments={segments} spent={spent} budgeted={budgeted} onSelect={setSheetKey} />
         : <p className="empty bv2-empty">No spending recorded for {monthLong(month)}.</p>}
-
-      {refunded > 0 && (
-        <p className="bv2-refund"><RotateCcw size={13} strokeWidth={2.2} /> {formatGBP(refunded)} refunded this month</p>
-      )}
 
       {/* Category list */}
       <div className="bv2-list-head">

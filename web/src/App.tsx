@@ -2,13 +2,13 @@ import { Link, NavLink, Route, Routes } from "react-router-dom";
 import Connect from "./pages/Connect.tsx";
 import Callback from "./pages/Callback.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
-import DashboardV2 from "./pages/DashboardV2.tsx";
+import DashboardHome from "./pages/DashboardHome.tsx";
 import Transactions from "./pages/Transactions.tsx";
-import TransactionsV2 from "./pages/TransactionsV2.tsx";
+import TransactionsHome from "./pages/TransactionsHome.tsx";
 import TransactionReview from "./pages/TransactionReview.tsx";
 import Accounts from "./pages/Accounts.tsx";
 import Budgets from "./pages/Budgets.tsx";
-import BudgetsV2 from "./pages/BudgetsV2.tsx";
+import BudgetsHome from "./pages/BudgetsHome.tsx";
 import Reports from "./pages/Reports.tsx";
 import Investments from "./pages/Investments.tsx";
 import Debts from "./pages/Debts.tsx";
@@ -50,13 +50,13 @@ export default function App() {
       </nav>
       <div className="container">
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/v2" element={<DashboardV2 />} />
-          <Route path="/transactions" element={<Transactions />} />
-          <Route path="/transactions/v2" element={<TransactionsV2 />} />
+          <Route path="/" element={<DashboardHome />} />
+          <Route path="/v1" element={<Dashboard />} />
+          <Route path="/transactions" element={<TransactionsHome />} />
+          <Route path="/transactions/v1" element={<Transactions />} />
           <Route path="/transactions/review" element={<TransactionReview />} />
-          <Route path="/budgets" element={<Budgets />} />
-          <Route path="/budgets/v2" element={<BudgetsV2 />} />
+          <Route path="/budgets" element={<BudgetsHome />} />
+          <Route path="/budgets/v1" element={<Budgets />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/investments" element={<Investments />} />
           <Route path="/debts" element={<Debts />} />

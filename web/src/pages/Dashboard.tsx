@@ -91,8 +91,8 @@ export default function Dashboard({ minimal = false, editing: editingProp, onEdi
   const toggleHideSmall = (v: boolean) => { localStorage.setItem("dash.hideSmall", v ? "1" : "0"); setHideSmall(v); };
 
   // ── Customize mode: show/hide dashboard cards (persisted as dashboard.show.* settings).
-  // Optionally controlled by the parent (v2 hoists this so the toggle can live in
-  // the account strip header); falls back to local state on the standalone page.
+  // Optionally controlled by the parent (the home view hoists this so the toggle
+  // can live in the account strip header); falls back to local state otherwise.
   const [editingInternal, setEditingInternal] = useState(false);
   const editing = editingProp ?? editingInternal;
   const setEditing = (v: boolean) => (onEditingChange ?? setEditingInternal)(v);
@@ -251,8 +251,8 @@ export default function Dashboard({ minimal = false, editing: editingProp, onEdi
     hero: summary && (
       <Customizable label={minimal ? "Budget" : "Net worth & budget"} editing={editing} on={show("dashboard.show.hero")} onToggle={(v) => setCard("dashboard.show.hero", v)}>
         <div className={`card hero${minimal ? " hero-budget" : ""}${minimal && overBudget ? " hero-over" : ""}`}>
-          {/* On v2 the net-worth column is dropped (net worth lives in the account
-              strip up top) and the budget becomes the focused, full-width figure. */}
+          {/* In the home view the net-worth column is dropped (net worth lives in
+              the account strip up top) and the budget becomes the focused figure. */}
           {!minimal && (
             <div className="hero-main">
               <span className="hero-eyebrow">
@@ -415,8 +415,8 @@ export default function Dashboard({ minimal = false, editing: editingProp, onEdi
         </div>
       </Customizable>
     ),
-    // On v2 the account strip up top already lists every balance, so this card is
-    // dropped to avoid duplication.
+    // In the home view the account strip up top already lists every balance, so
+    // this card is dropped to avoid duplication.
     balances: minimal ? null : (
       <Customizable label="Balances by account" editing={editing} on={show("dashboard.show.balances")} onToggle={(v) => setCard("dashboard.show.balances", v)}>
         <div className="card">

@@ -100,7 +100,6 @@ export default function Budgets() {
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: "auto" }} />
           <Toggle checked={hideEmpty} onChange={toggleHideEmpty} label="Hide empty" title="Hide categories with no budget and no spend" />
           <button onClick={autoPopulate} title="Set budgets automatically from your spending history">Auto-budget</button>
-          <Link to="/budgets/v2" className="btn-sm">Try v2 →</Link>
           <button className="btn-primary" onClick={openNew}>Add category</button>
         </>}
       />

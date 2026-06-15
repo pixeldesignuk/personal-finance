@@ -331,7 +331,6 @@ export default function Transactions() {
           {people.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
         </select></>}
         actions={<>
-          <Link to="/transactions/v2" className="btn-sm">Try v2 →</Link>
           <button className={showingUnreconciled ? "btn-primary" : undefined} onClick={() => setCatFilter(showingUnreconciled ? "" : "uncategorised")}>
             {showingUnreconciled ? "Show all" : `Unreconciled (${unreconciledCount})`}
           </button>

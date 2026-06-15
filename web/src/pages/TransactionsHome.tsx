@@ -25,7 +25,7 @@ const txnName = (r: TransactionDTO) => r.name?.trim() || r.remittanceInfo?.trim(
 // Day key + heading. Bank txns are dateless-of-time, so we group by the date.
 const dayKey = (iso: string | null) => iso ?? "—";
 
-export default function TransactionsV2() {
+export default function TransactionsHome() {
   const [params] = useSearchParams();
   const accountId = params.get("account") ?? undefined;
 
@@ -95,7 +95,6 @@ export default function TransactionsV2() {
     <div className="txnv2">
       <div className="txnv2-head">
         <h1>Transactions</h1>
-        <Link to="/transactions" className="amount-link">Classic →</Link>
       </div>
 
       {/* Search + Review */}
