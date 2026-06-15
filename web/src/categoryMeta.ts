@@ -21,9 +21,11 @@ const ICONS: Record<string, LucideIcon> = {
 };
 
 const GROUP_ICONS: Record<string, LucideIcon> = {
-  Needs: Home,
-  Wants: Sparkles,
-  "Savings & Debt": PiggyBank,
+  "Home & Bills": Home,
+  Living: ShoppingCart,
+  "Family & Health": HeartPulse,
+  Lifestyle: Sparkles,
+  Money: PiggyBank,
 };
 
 // Vibrant, distinct hues that read well on the dark theme.
@@ -37,3 +39,18 @@ export function categoryMeta(key: string, group?: string | null): { Icon: Lucide
 }
 
 export const REMAINDER_COLOR = "#5b5f66"; // the lumped "Other" fan segment
+
+// The 50/30/20 classification — a SEPARATE dimension from the category's
+// functional group. Categories are grouped by theme (Home & Bills, Living, …);
+// this map rolls spending up into Needs / Wants / Savings at the transaction
+// level for the 50/30/20 view. (Fees count as a Need — unavoidable cost.)
+export type SpendClass = "needs" | "wants" | "savings";
+const CLASS: Record<string, SpendClass> = {
+  housing: "needs", utilities: "needs", groceries: "needs", transport: "needs",
+  "family-care": "needs", "health-fitness": "needs", education: "needs", fees: "needs",
+  "dining-out": "wants", shopping: "wants", entertainment: "wants", subscriptions: "wants",
+  "travel-holidays": "wants", pets: "wants", "gifts-charities": "wants",
+  "savings-investments": "savings", "debt-payments": "savings",
+};
+export const categoryClass = (key: string): SpendClass | null => CLASS[key] ?? null;
+export const CLASS_TARGET: Record<SpendClass, number> = { needs: 50, wants: 30, savings: 20 };

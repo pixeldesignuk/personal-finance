@@ -13,27 +13,33 @@ import { db } from "../server/lib/db.ts";
 
 interface Target { group: string; key: string; name: string }
 
+// Categories are grouped by BROAD FUNCTIONAL THEME (how you think about the
+// spend), NOT by Needs/Wants/Savings. The 50/30/20 needs/wants/savings split is a
+// separate classification that rolls up at the transaction level — see
+// `categoryClass` in web/src/categoryMeta.ts.
 const TARGET: Target[] = [
-  // Needs
-  { group: "Needs", key: "housing", name: "Housing" },
-  { group: "Needs", key: "utilities", name: "Utilities & Bills" },
-  { group: "Needs", key: "groceries", name: "Groceries" },
-  { group: "Needs", key: "transport", name: "Transport" },
-  { group: "Needs", key: "health-fitness", name: "Health & Fitness" },
-  { group: "Needs", key: "family-care", name: "Family & Care" },
-  { group: "Needs", key: "education", name: "Education" },
-  // Wants
-  { group: "Wants", key: "dining-out", name: "Dining Out" },
-  { group: "Wants", key: "shopping", name: "Shopping" },
-  { group: "Wants", key: "subscriptions", name: "Subscriptions" },
-  { group: "Wants", key: "entertainment", name: "Entertainment" },
-  { group: "Wants", key: "travel-holidays", name: "Travel & Holidays" },
-  { group: "Wants", key: "gifts-charities", name: "Gifts & Charities" },
-  { group: "Wants", key: "pets", name: "Pets" },
-  // Savings & Debt (the 50/30/20 "20%")
-  { group: "Savings & Debt", key: "savings-investments", name: "Savings & Investing" },
-  { group: "Savings & Debt", key: "debt-payments", name: "Debt Payments" },
-  { group: "Savings & Debt", key: "fees", name: "Fees" },
+  // Home & Bills
+  { group: "Home & Bills", key: "housing", name: "Housing" },
+  { group: "Home & Bills", key: "utilities", name: "Utilities & Bills" },
+  // Living
+  { group: "Living", key: "groceries", name: "Groceries" },
+  { group: "Living", key: "dining-out", name: "Dining Out" },
+  { group: "Living", key: "transport", name: "Transport" },
+  { group: "Living", key: "shopping", name: "Shopping" },
+  // Family & Health
+  { group: "Family & Health", key: "family-care", name: "Family & Care" },
+  { group: "Family & Health", key: "health-fitness", name: "Health & Fitness" },
+  { group: "Family & Health", key: "education", name: "Education" },
+  // Lifestyle
+  { group: "Lifestyle", key: "entertainment", name: "Entertainment" },
+  { group: "Lifestyle", key: "subscriptions", name: "Subscriptions" },
+  { group: "Lifestyle", key: "travel-holidays", name: "Travel & Holidays" },
+  { group: "Lifestyle", key: "pets", name: "Pets" },
+  { group: "Lifestyle", key: "gifts-charities", name: "Gifts & Charities" },
+  // Money
+  { group: "Money", key: "savings-investments", name: "Savings & Investing" },
+  { group: "Money", key: "debt-payments", name: "Debt Payments" },
+  { group: "Money", key: "fees", name: "Fees" },
 ];
 
 // Every old key -> its new key. Self-maps (groceries -> groceries) are listed so
@@ -138,7 +144,8 @@ async function main() {
     if (ex) await db.category.delete({ where: { id: ex.id } });
   }
   const total = await db.category.count({ where: { key: { not: "uncategorised" } } });
-  console.log(`\nApplied. ${total} categories across 3 groups.`);
+  const groups = new Set(TARGET.map((t) => t.group)).size;
+  console.log(`\nApplied. ${total} categories across ${groups} groups.`);
   await db.$disconnect();
 }
 
