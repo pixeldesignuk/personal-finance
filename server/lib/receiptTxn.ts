@@ -11,6 +11,7 @@ interface OrderLike {
   emailDate: Date | null;
   items: unknown;
   summary?: string | null;
+  categoryKey?: string | null;
 }
 
 // Create a provisional cash transaction for a receipt with no bank charge yet,
@@ -28,7 +29,7 @@ export async function createReceiptTransaction(o: OrderLike): Promise<string> {
       id: txnId, accountId,
       bookingDate: o.emailDate ? o.emailDate.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
       amount: `-${Number(o.total!.toString())}`, currency: o.currency ?? "GBP", merchantName: o.merchantName,
-      category: ruled.categoryKey ?? "uncategorised", personKey: ruled.personKey ?? null,
+      category: ruled.categoryKey ?? o.categoryKey ?? "uncategorised", personKey: ruled.personKey ?? null,
       note, status: "booked", raw: { telegramReceipt: true, emailOrderId: o.id },
     },
   });

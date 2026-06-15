@@ -19,16 +19,29 @@ export async function handleReceiptPhoto(fileId: string, fileUniqueId: string): 
   if (!path) return "Couldn't fetch that file from Telegram.";
   const { base64, mimeType } = await downloadFile(path);
 
+  // Load categories so the same scan call can also suggest a category (no extra
+  // Gemini quota — it's folded into the one extraction request).
+  const categories = await db.category.findMany({ where: { archived: false }, select: { key: true, name: true } });
+
   let raw: string;
-  try { raw = await geminiExtractReceiptImage(base64, mimeType); }
+  try { raw = await geminiExtractReceiptImage(base64, mimeType, categories); }
   catch (err) { return `⚠️ Scan failed: ${err instanceof Error ? err.message.slice(0, 200) : String(err)}`; }
   if (!raw) return "Receipt scanning needs GEMINI_API_KEY set.";
   // Defensive: strip ```json fences the model sometimes adds.
   const clean = raw.replace(/^\s*```(?:json)?/i, "").replace(/```\s*$/i, "").trim();
-  let o: { merchant?: string | null; total?: number | null; currency?: string | null; orderNumber?: string | null; date?: string | null; items?: unknown; tags?: unknown; summary?: string | null };
+  let o: { merchant?: string | null; total?: number | null; currency?: string | null; orderNumber?: string | null; date?: string | null; items?: unknown; tags?: unknown; summary?: string | null; categoryKey?: string | null };
   try { o = JSON.parse(clean); } catch { return `⚠️ Couldn't parse the scan output: ${clean.slice(0, 180) || "(empty)"}`; }
   if (Array.isArray(o)) o = o[0] ?? {};
-  if (!o || o.total == null || !o.merchant) return `⚠️ Not recognised as a receipt — model returned: ${JSON.stringify(o).slice(0, 180)}`;
+  // A total is the real "this is a receipt" signal. Don't require a merchant —
+  // some slips have no nameable brand (just a location/order no), and the model
+  // honestly returns merchant:null for those. merchantName is nullable end-to-end.
+  if (!o || o.total == null) return `⚠️ Not recognised as a receipt — model returned: ${JSON.stringify(o).slice(0, 180)}`;
+  const merchant = typeof o.merchant === "string" && o.merchant.trim() ? o.merchant.trim() : null;
+  const merchantLabel = merchant ?? "Unknown merchant";
+  // Validate the suggested category against the real keys (guard against the model
+  // inventing one). "uncategorised" is treated as no suggestion.
+  const validKeys = new Set(categories.map((c) => c.key));
+  const aiCategory = typeof o.categoryKey === "string" && o.categoryKey !== "uncategorised" && validKeys.has(o.categoryKey) ? o.categoryKey : null;
 
   const messageId = `telegram-${fileUniqueId}`;
   if (await db.emailOrder.findUnique({ where: { messageId } })) return "Already saved that receipt.";
@@ -57,10 +70,10 @@ export async function handleReceiptPhoto(fileId: string, fileUniqueId: string): 
   await db.emailOrder.create({
     data: {
       messageId, source: "telegram", emailDate,
-      merchantName: o.merchant, merchantToken: merchantToken(o.merchant),
+      merchantName: merchant, merchantToken: merchantToken(merchant),
       total: o.total, currency: o.currency ?? "GBP", orderNumber: o.orderNumber ?? null,
       items: items as unknown as object, tags: tags as unknown as object, summary,
-      subject: `Receipt — ${o.merchant}`, isRefund: false, matched: false, attachmentKey,
+      subject: `Receipt — ${merchantLabel}`, isRefund: false, matched: false, attachmentKey,
     },
   });
 
@@ -72,11 +85,11 @@ export async function handleReceiptPhoto(fileId: string, fileUniqueId: string): 
   // (it moves to the bank charge later if one syncs — see reconcileReceiptProvisionals).
   let createdTxn = false;
   if (saved && !saved.matched) {
-    await createReceiptTransaction({ id: saved.id, merchantName: o.merchant ?? null, total: o.total, currency: o.currency ?? "GBP", emailDate, items, summary });
+    await createReceiptTransaction({ id: saved.id, merchantName: merchant, total: o.total, currency: o.currency ?? "GBP", emailDate, items, summary, categoryKey: aiCategory });
     createdTxn = true;
   }
 
-  const head = `🧾 ${o.merchant} — ${sym(o.currency ?? "GBP")}${Number(o.total).toFixed(2)}${items.length ? ` · ${items.length} item${items.length === 1 ? "" : "s"}` : ""}`;
+  const head = `🧾 ${merchantLabel} — ${sym(o.currency ?? "GBP")}${Number(o.total).toFixed(2)}${items.length ? ` · ${items.length} item${items.length === 1 ? "" : "s"}` : ""}`;
   const status = createdTxn
     ? "\n💸 added as a cash transaction (moves to your bank charge if one lands)"
     : "\n✓ matched to a transaction";

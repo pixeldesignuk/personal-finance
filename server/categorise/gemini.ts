@@ -142,11 +142,13 @@ Message: ${JSON.stringify(text)}`;
 
 // Extract a purchase from a receipt photo (Gemini vision). Returns the raw JSON
 // string (same shape as the email order extractor) or "" without a key.
-export async function geminiExtractReceiptImage(base64: string, mimeType: string): Promise<string> {
+export async function geminiExtractReceiptImage(base64: string, mimeType: string, categories: { key: string; name: string }[] = []): Promise<string> {
   if (!env.GEMINI_API_KEY) return "";
   const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+  const catList = categories.map((c) => `${c.key} (${c.name})`).join(", ");
   const prompt = `This is a photo of a purchase receipt. Extract it and respond with ONLY a JSON object:
-{"merchant": clean brand/store name or null, "total": grand total paid as a number with no currency symbol or null, "currency": "GBP"|"USD"|"EUR"|null, "orderNumber": string or null, "date": "YYYY-MM-DD" or null, "items": [{"name": string, "qty": number|null, "price": number|null}], "tags": 1-4 short lowercase category tags (e.g. ["groceries"],["fuel"],["clothing"]), "summary": a short 3-6 word plain-text description of the purchase (e.g. "weekly grocery shop", "takeaway dinner", "kids clothes & toiletries") — no emojis}
+{"merchant": clean brand/store name or null, "total": grand total paid as a number with no currency symbol or null, "currency": "GBP"|"USD"|"EUR"|null, "orderNumber": string or null, "date": "YYYY-MM-DD" or null, "items": [{"name": string, "qty": number|null, "price": number|null}], "tags": 1-4 short lowercase category tags (e.g. ["groceries"],["fuel"],["clothing"]), "summary": a short 3-6 word plain-text description of the purchase (e.g. "weekly grocery shop", "takeaway dinner", "kids clothes & toiletries") — no emojis, "categoryKey": the single best-matching category key from the list below for what was bought, or "uncategorised" if genuinely unclear}
+Categories: ${catList || "(none provided — use \"uncategorised\")"}
 If it is not a legible purchase receipt, return {"merchant": null, "total": null}.`;
   for (let attempt = 1; ; attempt++) {
     try {
