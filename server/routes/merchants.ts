@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { db } from "../lib/db.ts";
 import { merchantToken } from "../categorise/helpers.ts";
+import { ruleMatchText } from "../lib/rules.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
 import { monthOf } from "../lib/budget.ts";
 import { classifyMerchant, coefficientOfVariation, median, type RecurType } from "../lib/merchants.ts";
@@ -175,7 +176,7 @@ merchantsRouter.post("/merchants/confirm-detected", async (_req, res, next) => {
     for (const [token, m] of cats) {
       const detected = [...m.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
       if (!detected) continue;
-      await db.rule.create({ data: { matchText: token, merchantId: token, categoryKey: detected, priority: 50 } });
+      await db.rule.create({ data: { matchText: ruleMatchText(token), merchantId: token, categoryKey: detected, priority: 50 } });
       created++;
     }
     res.json({ created });
@@ -214,7 +215,7 @@ merchantsRouter.patch("/merchants/:token", async (req, res, next) => {
       const personKey = b.personKey !== undefined ? b.personKey : (existing?.personKey ?? null);
       const priority = b.priority !== undefined ? b.priority : (existing?.priority ?? 50);
       if (categoryKey || personKey) {
-        const data = { matchText: token, merchantId: token, categoryKey, personKey, priority };
+        const data = { matchText: ruleMatchText(token), merchantId: token, categoryKey, personKey, priority };
         if (existing) await db.rule.update({ where: { id: existing.id }, data });
         else await db.rule.create({ data });
       } else if (existing) {

@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "../lib/db.ts";
 import { merchantToken } from "../categorise/helpers.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
-import { normalizeText } from "../lib/rules.ts";
+import { normalizeText, ruleMatchText } from "../lib/rules.ts";
 
 export const transactionsRouter = Router();
 
@@ -94,7 +94,9 @@ function deriveToken(tx: {
 }): string | null {
   for (const c of [tx.merchantName, tx.creditorName, tx.debtorName, tx.remittanceInfo]) {
     const t = merchantToken(c);
-    if (t) return t;
+    // Strip any international-card marker so the token both finds matches and
+    // serves as a matchText the live statement line actually contains.
+    if (t) return ruleMatchText(t);
   }
   const raw = [tx.merchantName, tx.creditorName, tx.debtorName, tx.remittanceInfo]
     .filter(Boolean).join(" ").toLowerCase().replace(/\s+/g, " ").trim();

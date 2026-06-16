@@ -1,5 +1,5 @@
 import { db } from "../lib/db.ts";
-import { applyRules, type Rule } from "../lib/rules.ts";
+import { applyRules, ruleMatchText, type Rule } from "../lib/rules.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
 import { classifyBatch, geminiEnabled } from "./gemini.ts";
 import { merchantToken } from "./helpers.ts";
@@ -110,10 +110,14 @@ export async function reconcile(opts: ReconcileOpts = {}): Promise<ReconcileResu
       audit?.({ kind: "assign", id, name: nameById.get(id) ?? textById.get(id) ?? id, to: key, via: "llm" });
       byLlm++;
       const token = merchantToken(nameById.get(id) ?? null);
-      if (token && !existingMatch.has(token) && !learnedThisRun.has(token)) {
-        if (!dryRun) await db.rule.create({ data: { matchText: token, categoryKey: key, personKey: null, priority: 0, auto: true } });
-        audit?.({ kind: "learn", matchText: token, categoryKey: key });
-        learnedThisRun.add(token);
+      // Strip any international-card processor marker so the learned rule matches
+      // the live line (e.g. a bank that drops "INT'L <ref> OBSIDIAN" into a name
+      // field would otherwise mint a matchText the reference splits apart).
+      const mt = token ? ruleMatchText(token) : null;
+      if (mt && !existingMatch.has(mt.toLowerCase()) && !learnedThisRun.has(mt)) {
+        if (!dryRun) await db.rule.create({ data: { matchText: mt, categoryKey: key, personKey: null, priority: 0, auto: true } });
+        audit?.({ kind: "learn", matchText: mt, categoryKey: key });
+        learnedThisRun.add(mt);
         rulesLearned++;
       }
     }
