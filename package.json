@@ -12,7 +12,7 @@
     "start": "prisma migrate deploy && tsx server/index.ts",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "test": "node --import tsx --test server/**/*.test.ts"
+    "test": "node --import tsx --test 'server/**/*.test.ts'"
   },
   "keywords": [],
   "author": "",

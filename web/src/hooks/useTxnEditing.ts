@@ -114,7 +114,7 @@ export function useTxnEditing() {
     onError: (_e, _v, ctx) => { if (ctx) restoreTxns(ctx.snap); notify("Couldn't update flag", { tone: "error" }); },
   });
 
-  const invalidateAfterDebt = useCallback(() => { invalidateTxns(); qc.invalidateQueries({ queryKey: ["accounts"] }); qc.invalidateQueries({ queryKey: ["summary"] }); }, [invalidateTxns, qc]);
+  const invalidateAfterDebt = useCallback(() => { invalidateTxns(); qc.invalidateQueries({ queryKey: ["accounts"] }); qc.invalidateQueries({ queryKey: ["summary"] }); qc.invalidateQueries({ queryKey: ["accounts-health"] }); }, [invalidateTxns, qc]);
   const linkMut = useMutation({
     mutationFn: ({ id, debtAccountId }: { id: string; debtAccountId: string }) => api.linkDebt(id, debtAccountId),
     onSuccess: () => { invalidateAfterDebt(); notify("Linked as repayment — debt reduced", { tone: "success" }); },

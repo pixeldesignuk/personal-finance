@@ -49,9 +49,9 @@ export default function Accounts() {
   // Account settings dialog — balance figure, exclude-from-budget, funds-not-mine,
   // and (for cash) the balance — all in one tidy place instead of crowding the menu.
   const [settingsFor, setSettingsFor] = useState<AccountDTO | null>(null);
-  const [sForm, setSForm] = useState({ balanceType: "", informational: false, excluded: "", balance: "" });
+  const [sForm, setSForm] = useState({ balanceType: "", informational: false, creditCard: false, excluded: "", balance: "" });
   const openSettings = (a: AccountDTO) => {
-    setSForm({ balanceType: a.balanceType ?? "", informational: a.informational, excluded: a.excludedBalance ? String(a.excludedBalance) : "", balance: String(a.currentBalance) });
+    setSForm({ balanceType: a.balanceType ?? "", informational: a.informational, creditCard: a.isCreditCard, excluded: a.excludedBalance ? String(a.excludedBalance) : "", balance: String(a.currentBalance) });
     setSettingsFor(a);
   };
   const saveSettings = (e: React.FormEvent) => {
@@ -61,6 +61,7 @@ export default function Accounts() {
     const patch: Parameters<typeof api.patchAccount>[1] = {};
     if ((a.balanceType ?? "") !== sForm.balanceType) patch.balanceType = sForm.balanceType || null;
     if (a.informational !== sForm.informational) patch.informational = sForm.informational;
+    if (a.isCreditCard !== sForm.creditCard) patch.creditCard = sForm.creditCard;
     const excluded = sForm.excluded.trim();
     if (excluded !== (a.excludedBalance ? String(a.excludedBalance) : "")) patch.excludedBalance = numOk(excluded) && Number(excluded) > 0 ? excluded : null;
     if (a.source === "MANUAL" && numOk(sForm.balance) && Number(sForm.balance) !== a.currentBalance) patch.manualBalance = sForm.balance.trim();
@@ -205,6 +206,12 @@ export default function Accounts() {
               <Toggle checked={sForm.informational} onChange={(v) => setSForm({ ...sForm, informational: v })} label="Exclude from budget" />
               <p className="muted settings-hint">Kept in net worth, but left out of income, spending & safe-to-spend. For shared / non-personal accounts.</p>
             </div>
+            {settingsFor.source === "BANK" && (
+              <div className="settings-toggle">
+                <Toggle checked={sForm.creditCard} onChange={(v) => setSForm({ ...sForm, creditCard: v })} label="Credit card" />
+                <p className="muted settings-hint">In account health, a negative balance is treated as card debt, not an overdraft.</p>
+              </div>
+            )}
             <Field label="Funds not mine (£)" hint="A fixed amount held for someone else — carved out of net worth. Leave blank or 0 if none.">
               <input inputMode="decimal" value={sForm.excluded} placeholder="0.00" onChange={(e) => setSForm({ ...sForm, excluded: e.target.value })} />
             </Field>

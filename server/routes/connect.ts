@@ -125,6 +125,7 @@ connectRouter.post("/connect/:id/finalize", async (req, res, next) => {
           name: details?.account?.name,
           currency: details?.account?.currency,
           ownerName: details?.account?.ownerName,
+          cashAccountType: details?.account?.cashAccountType,
         },
         update: {
           requisitionId: id, // move the account onto the freshest consent
@@ -132,6 +133,7 @@ connectRouter.post("/connect/:id/finalize", async (req, res, next) => {
           name: details?.account?.name,
           currency: details?.account?.currency,
           ownerName: details?.account?.ownerName,
+          cashAccountType: details?.account?.cashAccountType,
         },
       });
     }
@@ -187,7 +189,7 @@ connectRouter.post("/connect/:id/sync/stream", async (req, res) => {
           const d = (await gc.getAccountDetails(accountId)).account;
           await db.account.update({
             where: { id: accountId },
-            data: { iban: d?.iban, name: d?.name, currency: d?.currency, ownerName: d?.ownerName },
+            data: { iban: d?.iban, name: d?.name, currency: d?.currency, ownerName: d?.ownerName, cashAccountType: d?.cashAccountType },
           });
         } catch (e) {
           if (!isAccountProcessing(e)) audit({ kind: "log", text: `  details: ${e instanceof Error ? e.message : String(e)}`, tone: "dim" });

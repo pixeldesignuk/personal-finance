@@ -210,6 +210,46 @@ export interface AccountRecurringDTO {
   items: { name: string; monthly: number }[];  // the recurring merchants, biggest first
 }
 
+// Funding gauge for an account chip: is the balance covering the bills committed
+// to this account before the next payday, and (for the income account) does the
+// incoming paycheck close any gap. See docs/superpowers/specs/2026-06-16-account-funding-rings-design.md
+export type FundingState = "none" | "funded" | "partial" | "short" | "rescued" | "overdue";
+
+export interface AccountFundingDTO {
+  accountId: string;
+  committed: number;       // bills due in the window (today..nextPayday) attributed to this account
+  balance: number;         // currentBalance snapshot used
+  solidFraction: number;   // 0..1 — balance coverage (the solid arc)
+  dashedFraction: number;  // 0..1 — incoming-income top-up (the translucent arc); 0 if not income account / no shortfall
+  incomeIncoming: number;  // expected paycheck for this account at nextPayday (0 once it has landed)
+  isIncomeAccount: boolean;
+  state: FundingState;
+  windowDays: number;      // days in the funding window (today..nextPayday), or 30 fallback
+}
+
+// Account health: a verdict per spendable account, backed by independent checks
+// that each carry a reason and a recommendation. See
+// docs/superpowers/specs/2026-06-16-account-health-design.md
+export type HealthSeverity = "ok" | "attention" | "urgent";
+export type HealthCheckKey = "runway" | "cashflow" | "buffer" | "trend";
+
+export interface HealthCheckResultDTO {
+  key: HealthCheckKey;
+  severity: HealthSeverity;
+  title: string;          // short label, e.g. "Runway to payday"
+  why: string;            // the diagnosis
+  recommendation: string | null; // the fix, or null
+}
+
+export interface AccountHealthDTO {
+  accountId: string;
+  verdict: HealthSeverity;        // worst severity across checks
+  color: "green" | "amber" | "red";
+  headline: string;              // "Healthy" | "Needs attention" | "Unhealthy"
+  checks: HealthCheckResultDTO[]; // triggered checks, plus ok ones for the positive panel
+  ring: { solidFraction: number; dashedFraction: number }; // runway arc geometry
+}
+
 // A detected recurring payment (bill) or income.
 export interface RecurringScheduleDTO {
   token: string;            // merchant token (stable id)
@@ -294,6 +334,7 @@ export interface AccountDTO {
   excludedBalance: number | null; // part of the balance that isn't yours (held for others)
   informational: boolean;         // tracked & visible, but excluded from all totals
   balanceType: string | null;
+  isCreditCard: boolean;
   balances: AccountBalanceDTO[];
 }
 

@@ -34,7 +34,7 @@ export default function Debts() {
   const [payFor, setPayFor] = useState<DebtDTO | null>(null);
   const [pay, setPay] = useState({ amount: "", date: new Date().toLocaleDateString("en-CA"), accountId: "" });
 
-  const refresh = () => { qc.invalidateQueries({ queryKey: ["debts"] }); qc.invalidateQueries({ queryKey: ["summary"] }); qc.invalidateQueries({ queryKey: ["accounts"] }); };
+  const refresh = () => { qc.invalidateQueries({ queryKey: ["debts"] }); qc.invalidateQueries({ queryKey: ["summary"] }); qc.invalidateQueries({ queryKey: ["accounts"] }); qc.invalidateQueries({ queryKey: ["accounts-health"] }); };
 
   const saveDebt = useMutation({
     mutationFn: async () => {

@@ -511,6 +511,7 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
   display: flex; flex-direction: column; align-items: center; gap: 8px;
   width: 92px; padding: 4px 4px 2px; text-decoration: none;
   color: var(--ink); text-align: center;
+  background: none; border: none; font: inherit; cursor: pointer;
 }
 .acct-chip:hover { text-decoration: none; }
 .acct-chip:hover .acct-chip-ico { transform: translateY(-2px); border-color: color-mix(in srgb, var(--jade) 32%, var(--line-strong)); }
@@ -532,7 +533,45 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
 }
 .acct-chip.active .acct-chip-ico { border-color: var(--jade); box-shadow: 0 0 0 1px var(--jade), 0 0 18px -6px var(--jade); }
 .acct-chip.active .acct-chip-name { color: var(--ink); }
-@media (max-width: 640px) { .acct-strip { margin-left: calc(-1 * var(--pad, 16px)); margin-right: calc(-1 * var(--pad, 16px)); padding-left: 16px; padding-right: 16px; } }
+/* Mobile: bleed the scroller to the screen edges but keep its content gutter
+   aligned to the container padding (14px, see .container @ ≤760px). The
+   scroll-padding is essential — without it the snap scroller auto-scrolls by
+   padding-left on load, dragging the first chip to the viewport edge so the
+   net-worth value spills out of the gutter. */
+@media (max-width: 640px) {
+  .acct-strip {
+    margin-left: -14px; margin-right: -14px;
+    padding-left: 14px; padding-right: 14px;
+    scroll-padding-left: 14px;
+  }
+}
+/* Health ring overlaid on an account avatar (see HealthRing.tsx). Color by verdict. */
+.health-ring { position: absolute; inset: 0; pointer-events: none; }
+.health-ring .track { stroke: color-mix(in srgb, var(--line-strong) 70%, transparent); }
+.health-ring .solid { transition: stroke-dasharray 0.45s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.health-ring.green .solid, .health-ring.green .incoming { stroke: var(--jade); }
+.health-ring.amber .solid, .health-ring.amber .incoming { stroke: var(--gold); }
+.health-ring.red .solid, .health-ring.red .incoming { stroke: var(--coral); }
+.health-ring .incoming { opacity: 0.4; }
+/* Tint the track by verdict so an empty arc (e.g. overdrawn, 0 coverage) still reads. */
+.health-ring.amber .track { stroke: color-mix(in srgb, var(--gold) 35%, transparent); }
+.health-ring.red .track { stroke: color-mix(in srgb, var(--coral) 45%, transparent); }
+
+/* Account health panel (drawer) */
+.health-verdict { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 680; margin-bottom: 16px; }
+.health-verdict .health-dot { width: 10px; height: 10px; border-radius: 50%; }
+.health-verdict.green { color: var(--jade); } .health-verdict.green .health-dot { background: var(--jade); }
+.health-verdict.amber { color: var(--gold); } .health-verdict.amber .health-dot { background: var(--gold); }
+.health-verdict.red { color: var(--coral); } .health-verdict.red .health-dot { background: var(--coral); }
+.health-checks { list-style: none; padding: 0; margin: 0 0 18px; display: flex; flex-direction: column; gap: 12px; }
+.health-check { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); border-left: 3px solid var(--line-strong); }
+.health-check.attention { border-left-color: var(--gold); }
+.health-check.urgent { border-left-color: var(--coral); }
+.health-check.ok { border-left-color: var(--jade); }
+.health-check-title { font-size: 11px; font-weight: 640; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); }
+.health-check-why { font-size: 14px; color: var(--ink); }
+.health-check-rec { font-size: 13px; color: var(--jade); font-weight: 560; }
+.health-view-txns { align-self: flex-start; }
 
 /* brand avatar (real logo or deterministic monogram) */
 .brand-logo {

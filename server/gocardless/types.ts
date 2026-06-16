@@ -48,6 +48,7 @@ export interface GcAccountDetails {
     name?: string;
     currency?: string;
     ownerName?: string;
+    cashAccountType?: string;
   };
 }
 

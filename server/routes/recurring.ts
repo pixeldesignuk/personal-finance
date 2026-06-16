@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "../lib/db.ts";
 import { detectSchedules } from "../lib/scheduleDetect.ts";
 import { inferNextDue, occurrencesWithin, incomeOccurrences } from "../lib/recurring.ts";
+import { tallyIncomeByAccount } from "../lib/funding.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
 
 const slug = (s: string) => s.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "item";
@@ -142,15 +143,9 @@ recurringRouter.get("/upcoming", async (req, res, next) => {
     const ym = today.toISOString().slice(0, 7);
     const monthCredits = (await db.transaction.findMany({ where: { amount: { gt: 0 }, bookingDate: { startsWith: ym } }, select: { amount: true, category: true, categoryOverride: true, accountId: true } }))
       .filter((t) => effectiveCategory(t) === "income");
-    const incomeByAccount = new Map<string, { total: number; max: number }>();
-    for (const t of monthCredits) {
-      const v = num(t.amount);
-      const e = incomeByAccount.get(t.accountId) ?? { total: 0, max: 0 };
-      e.total += v; e.max = Math.max(e.max, v);
-      incomeByAccount.set(t.accountId, e);
-    }
-    const totalAll = monthCredits.reduce((s, t) => s + num(t.amount), 0);
-    const maxAll = monthCredits.reduce((m, t) => Math.max(m, num(t.amount)), 0);
+    const { byAccount: incomeByAccount, totalAll, maxAll } = tallyIncomeByAccount(
+      monthCredits.map((t) => ({ amount: num(t.amount), accountId: t.accountId })),
+    );
 
     const items: UpcomingItemDTO[] = [];
     for (const s of schedules) {

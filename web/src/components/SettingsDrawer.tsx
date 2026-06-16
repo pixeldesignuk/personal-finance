@@ -19,7 +19,7 @@ export function SettingsDrawer() {
       return { prev };
     },
     onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(["settings"], ctx.prev); },
-    onSettled: () => { qc.invalidateQueries({ queryKey: ["settings"] }); qc.invalidateQueries({ queryKey: ["summary"] }); },
+    onSettled: () => { qc.invalidateQueries({ queryKey: ["settings"] }); qc.invalidateQueries({ queryKey: ["summary"] }); qc.invalidateQueries({ queryKey: ["accounts-health"] }); },
   });
 
   useEffect(() => {

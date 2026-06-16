@@ -177,6 +177,7 @@ export default function TransactionReview() {
     qc.invalidateQueries({ queryKey: ["transactions"] });
     qc.invalidateQueries({ queryKey: ["budget"] });
     qc.invalidateQueries({ queryKey: ["summary"] });
+    qc.invalidateQueries({ queryKey: ["accounts-health"] });
   }, [qc]);
 
   // ── Drag handlers (top card) ────────────────────────────────────────────

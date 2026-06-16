@@ -130,6 +130,8 @@ model Account {
   excludedBalance Decimal?     // portion of the balance that isn't yours (held for others) — carved out of net worth & safe-to-spend
   informational Boolean  @default(false) // excluded from BUDGETING (income, expense, available, safe-to-spend) but still counts toward net worth
   balanceType   String?
+  cashAccountType String?      // ISO 20022 cash-account type from GoCardless ("CARD", "CACC"…)
+  creditCard    Boolean?       // manual override: is this a credit card? null = defer to cashAccountType
   interestRate  Decimal?       // annual % APR, for debts (projections / avalanche)
   priority      Int?           // manual debt payoff order (lower = pay first)
   targetPayment Decimal?       // planned next payment toward a debt (may be partial)

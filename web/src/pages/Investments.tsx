@@ -20,6 +20,7 @@ export default function Investments() {
       if (ctx) update(ctx.tid, msg, { tone: r.results.length ? "success" : "error" });
       qc.invalidateQueries({ queryKey: ["investments"] });
       qc.invalidateQueries({ queryKey: ["summary"] });
+      qc.invalidateQueries({ queryKey: ["accounts-health"] });
     },
     onError: (e: Error, _v, ctx) => { if (ctx) update(ctx.tid, e.message, { tone: "error" }); },
   });

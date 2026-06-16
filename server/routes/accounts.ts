@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "../lib/db.ts";
 import { GoCardlessClient } from "../gocardless/client.ts";
 import { displayName } from "../../shared/displayName.ts";
+import { isCreditCard } from "../../shared/accountKind.ts";
 import { currentBalance } from "../lib/balance.ts";
 import { manualTxnSums, accountTxnSum } from "../lib/manualBalance.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
@@ -11,7 +12,9 @@ import { merchantToken } from "../categorise/helpers.ts";
 import { monthOf } from "../lib/budget.ts";
 import { classifyMerchant, coefficientOfVariation, median, type RecurType } from "../lib/merchants.ts";
 import { rawMerchantName } from "../../shared/merchantName.ts";
-import type { AccountDTO, BankDTO, AccountRecurringDTO } from "../../shared/types.ts";
+import type { AccountDTO, BankDTO, AccountRecurringDTO, AccountHealthDTO } from "../../shared/types.ts";
+import { computeFunding, tallyIncomeByAccount } from "../lib/funding.ts";
+import { computeAccountHealth, avgMonthlyNetFlow } from "../lib/health/index.ts";
 
 export const accountsRouter = Router();
 const gc = new GoCardlessClient();
@@ -23,6 +26,8 @@ type AccountWithBalances = {
   excludedBalance: { toString(): string } | null;
   informational: boolean;
   balanceType: string | null;
+  cashAccountType: string | null;
+  creditCard: boolean | null;
   balances: { type: string; amount: { toString(): string }; currency: string }[];
 };
 
@@ -46,6 +51,7 @@ function toAccountDTO(a: AccountWithBalances, txnSum = 0): AccountDTO {
     ),
     excludedBalance: a.excludedBalance != null ? Number(a.excludedBalance.toString()) : null,
     informational: a.informational,
+    isCreditCard: isCreditCard({ creditCard: a.creditCard, cashAccountType: a.cashAccountType }),
     balances: a.balances.map((b) => ({ type: b.type, amount: b.amount.toString(), currency: b.currency })),
   };
 }
@@ -172,6 +178,75 @@ accountsRouter.get("/accounts/recurring", async (_req, res, next) => {
   }
 });
 
+// Per-account health: a verdict (green/amber/red) backed by composable checks
+// (runway, cashflow, overdraft, trend), each with a reason + recommendation.
+// Computation lives in server/lib/health/. Powers the chip ring + health panel.
+accountsRouter.get("/accounts/health", async (_req, res, next) => {
+  try {
+    const today = new Date();
+    const sums = await manualTxnSums();
+    const rows = await db.account.findMany({ where: { source: { in: ["BANK", "MANUAL"] } }, include: { balances: true } });
+    const accounts = rows.map((a) => ({
+      id: a.id,
+      name: displayName(a),
+      informational: a.informational,
+      isCreditCard: isCreditCard({ creditCard: a.creditCard, cashAccountType: a.cashAccountType }),
+      balance: currentBalance(
+        a.source,
+        a.manualBalance != null ? Number(a.manualBalance.toString()) : null,
+        a.balances.map((b) => ({ type: b.type, amount: Number(b.amount.toString()) })),
+        a.balanceType,
+        sums.get(a.id) ?? 0,
+      ),
+    }));
+
+    const scheds = await db.recurringSchedule.findMany({ where: { status: { not: "ignored" } } });
+    const fundingSchedules = scheds.map((s) => ({
+      accountId: s.accountId,
+      direction: s.direction === "in" ? ("in" as const) : ("out" as const),
+      amount: Number(s.amount.toString()),
+      cadence: s.cadence,
+      dayOfMonth: s.dayOfMonth,
+      nextDue: s.nextDue,
+    }));
+
+    const ym = today.toISOString().slice(0, 7); // matches /upcoming; prod runs UTC
+    const credits = (await db.transaction.findMany({
+      where: { amount: { gt: 0 }, bookingDate: { startsWith: ym } },
+      select: { amount: true, category: true, categoryOverride: true, accountId: true },
+    }))
+      .filter((t) => effectiveCategory(t) === "income")
+      .map((t) => ({ amount: Number(t.amount.toString()), accountId: t.accountId }));
+    const income = tallyIncomeByAccount(credits);
+
+    // Trailing 3 complete months of signed flow per account (transfers included).
+    const cutoff = new Date(today.getFullYear(), today.getMonth() - 3, 1).toISOString().slice(0, 10);
+    const flowTxns = await db.transaction.findMany({
+      where: { bookingDate: { gte: cutoff } },
+      select: { accountId: true, amount: true, bookingDate: true },
+    });
+    const byAccount = new Map<string, { amount: number; month: string | null }[]>();
+    for (const t of flowTxns) {
+      const arr = byAccount.get(t.accountId) ?? [];
+      arr.push({ amount: Number(t.amount.toString()), month: monthOf(t.bookingDate) });
+      byAccount.set(t.accountId, arr);
+    }
+    const netFlowByAccount = new Map(accounts.map((a) => [a.id, avgMonthlyNetFlow(byAccount.get(a.id) ?? [], today)]));
+
+    const fundingByAccount = new Map(
+      computeFunding(accounts.map((a) => ({ id: a.id, currentBalance: a.balance })), fundingSchedules, income, today)
+        .map((f) => [f.accountId, f]),
+    );
+
+    const health: AccountHealthDTO[] = computeAccountHealth({
+      today, accounts, schedules: fundingSchedules, income, netFlowByAccount, fundingByAccount,
+    });
+    res.json(health);
+  } catch (err) {
+    next(err);
+  }
+});
+
 accountsRouter.post("/accounts/manual", async (req, res, next) => {
   try {
     const body = z
@@ -217,6 +292,7 @@ accountsRouter.patch("/accounts/:id", async (req, res, next) => {
         priority: z.number().int().nullable().optional(),
         targetPayment: z.string().regex(/^\d+(\.\d+)?$/).nullable().optional(),
         debtExcluded: z.boolean().optional(),
+        creditCard: z.boolean().nullable().optional(),
       })
       .parse(req.body);
     const account = await db.account.findUnique({ where: { id: req.params.id } });
@@ -251,6 +327,7 @@ accountsRouter.patch("/accounts/:id", async (req, res, next) => {
     if (body.priority !== undefined) data.priority = body.priority;
     if (body.targetPayment !== undefined) data.targetPayment = body.targetPayment;
     if (body.debtExcluded !== undefined) data.debtExcluded = body.debtExcluded;
+    if (body.creditCard !== undefined) data.creditCard = body.creditCard;
     const updated = await db.account.update({ where: { id: req.params.id }, data });
     res.json({ id: updated.id, displayName: displayName(updated) });
   } catch (err) {

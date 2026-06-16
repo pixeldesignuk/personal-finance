@@ -64,6 +64,7 @@ export default function Dashboard({ minimal = false, editing: editingProp, onEdi
 
   const reload = () => {
     qc.invalidateQueries({ queryKey: ["summary"] });
+    qc.invalidateQueries({ queryKey: ["accounts-health"] });
     qc.invalidateQueries({ queryKey: ["dashboard"] });
     qc.invalidateQueries({ queryKey: ["budget"] });
     qc.invalidateQueries({ queryKey: ["pots"] });
