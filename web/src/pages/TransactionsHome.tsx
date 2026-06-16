@@ -6,13 +6,13 @@ import { useQueryState } from "nuqs";
 import { api } from "../api.ts";
 import type { TransactionDTO } from "../../../shared/types.ts";
 import { formatGBP, relativeDate } from "../format.ts";
-import { categoryClass, categoryMeta, type SpendClass } from "../categoryMeta.ts";
+import { categoryClass, type SpendClass } from "../categoryMeta.ts";
 import { isRefundNote } from "../../../shared/refund.ts";
 import { BrandLogo } from "../components/BrandLogo.tsx";
 import { AddTransaction } from "../components/AddTransaction.tsx";
 import { TxnDrawer } from "../components/TxnDrawer.tsx";
 import { useTxnEditing } from "../hooks/useTxnEditing.ts";
-import { Plus, SlidersHorizontal } from "lucide-react";
+import { Plus, SlidersHorizontal, Clock } from "lucide-react";
 
 type Sort = "newest" | "oldest" | "largest" | "smallest";
 const CLASS_PILLS: { key: SpendClass; label: string }[] = [
@@ -22,6 +22,10 @@ const CLASS_PILLS: { key: SpendClass; label: string }[] = [
 ];
 
 const txnName = (r: TransactionDTO) => r.name?.trim() || r.remittanceInfo?.trim() || "Unknown";
+// "Due to come out" — a pending bank entry or a future-dated debit that hasn't
+// actually left the account yet. Today in UK-local YYYY-MM-DD to compare dates.
+const todayISO = () => new Date().toLocaleDateString("en-CA");
+const isDue = (r: TransactionDTO, today: string) => r.status === "pending" || (r.bookingDate != null && r.bookingDate > today);
 // Day key + heading. Bank txns are dateless-of-time, so we group by the date.
 const dayKey = (iso: string | null) => iso ?? "—";
 
@@ -90,6 +94,7 @@ export default function TransactionsHome() {
   const drawerTxn = useMemo(() => visible.find((t) => t.id === drawerId) ?? null, [visible, drawerId]);
 
   const isLoading = txnQuery.isLoading;
+  const today = todayISO();
 
   return (
     <div className="txnv2">
@@ -161,18 +166,18 @@ export default function TransactionsHome() {
                 const cls = income ? null : categoryClass(r.category);
                 const name = txnName(r);
                 const catName = catNames.find((c) => c.key === r.category)?.name ?? "";
-                const accent = income ? "var(--jade)" : categoryMeta(r.category).color;
+                const due = isDue(r, today);
                 return (
                   <button
                     key={r.id}
                     type="button"
-                    className={`txnv2-card${income ? " is-income" : cls ? ` cls-${cls}` : ""}${r.flag ? ` flag-${r.flag}` : ""}`}
-                    style={{ "--cat": accent } as React.CSSProperties}
+                    className={`txnv2-card${income ? " is-income" : cls ? ` cls-${cls}` : ""}${r.flag ? ` flag-${r.flag}` : ""}${due ? " is-due" : ""}`}
                     onClick={() => setDrawerId(r.id)}
                   >
                     <div className="txnv2-card-top">
                       <span className="txnv2-avatar">
-                        <BrandLogo name={name} src={r.logoUrl} size={40} />
+                        <BrandLogo name={name} src={r.logoUrl} size={34} />
+                        {due && <span className="txnv2-due-badge" title="Not yet settled"><Clock size={11} strokeWidth={2.6} /></span>}
                       </span>
                       <span className={`num txnv2-amt${income ? " pos" : ""}`}>{income ? "+" : ""}{formatGBP(amt)}</span>
                     </div>

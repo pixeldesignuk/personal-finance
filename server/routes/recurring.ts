@@ -5,6 +5,8 @@ import { detectSchedules } from "../lib/scheduleDetect.ts";
 import { inferNextDue, occurrencesWithin, incomeOccurrences } from "../lib/recurring.ts";
 import { tallyIncomeByAccount } from "../lib/funding.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
+import { merchantToken } from "../categorise/helpers.ts";
+import { rawMerchantName } from "../../shared/merchantName.ts";
 
 const slug = (s: string) => s.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "item";
 import type { RecurringScheduleDTO, UpcomingDTO, UpcomingItemDTO } from "../../shared/types.ts";
@@ -147,11 +149,34 @@ recurringRouter.get("/upcoming", async (req, res, next) => {
       monthCredits.map((t) => ({ amount: num(t.amount), accountId: t.accountId })),
     );
 
+    // Recurring schedules carry only a merchant token, not a category. Derive each
+    // token's category from its transactions (the modal effective category) so the
+    // budget sheet can show a category's upcoming bills. One scan, built into a map.
+    const catTxns = await db.transaction.findMany({ select: { merchantName: true, creditorName: true, debtorName: true, remittanceInfo: true, category: true, categoryOverride: true } });
+    const tokenCatCounts = new Map<string, Map<string, number>>();
+    for (const t of catTxns) {
+      const tok = merchantToken(rawMerchantName(t));
+      if (!tok) continue;
+      const cat = effectiveCategory(t);
+      if (cat === "transfer" || cat === "uncategorised") continue;
+      let m = tokenCatCounts.get(tok);
+      if (!m) { m = new Map(); tokenCatCounts.set(tok, m); }
+      m.set(cat, (m.get(cat) ?? 0) + 1);
+    }
+    const categoryForToken = (token: string): string | null => {
+      const m = tokenCatCounts.get(token);
+      if (!m) return null;
+      let best: string | null = null, bestN = -1;
+      for (const [cat, n] of m) if (n > bestN) { best = cat; bestN = n; }
+      return best;
+    };
+
     const items: UpcomingItemDTO[] = [];
     for (const s of schedules) {
       const status = (s.status as UpcomingItemDTO["status"]) ?? "auto";
       const kind = s.kind === "variable" ? "variable" : "fixed";
       const prevAmount = s.prevAmount != null ? num(s.prevAmount) : null;
+      const category = categoryForToken(s.merchantToken);
       if (s.direction === "in") {
         const amt = num(s.amount);
         const got = s.accountId ? incomeByAccount.get(s.accountId) ?? { total: 0, max: 0 } : { total: totalAll, max: maxAll };
@@ -163,11 +188,11 @@ recurringRouter.get("/upcoming", async (req, res, next) => {
         // Project the FULL typical amount for each future occurrence; this month's
         // occurrence is dropped only once the payment has actually arrived.
         for (const d of incomeOccurrences(s.dayOfMonth ?? 28, arrived, today, days)) {
-          if (amt >= 1) items.push({ token: s.merchantToken, name: s.name ?? s.merchantToken, amount: amt, direction: "in", kind, prevAmount: null, date: d.toISOString().slice(0, 10), status });
+          if (amt >= 1) items.push({ token: s.merchantToken, name: s.name ?? s.merchantToken, amount: amt, direction: "in", kind, prevAmount: null, date: d.toISOString().slice(0, 10), status, category });
         }
       } else if (s.nextDue) {
         for (const d of occurrencesWithin(s.nextDue, s.cadence, today, days)) {
-          items.push({ token: s.merchantToken, name: s.name ?? s.merchantToken, amount: num(s.amount), direction: "out", kind, prevAmount, date: d.toISOString().slice(0, 10), status });
+          items.push({ token: s.merchantToken, name: s.name ?? s.merchantToken, amount: num(s.amount), direction: "out", kind, prevAmount, date: d.toISOString().slice(0, 10), status, category });
         }
       }
     }

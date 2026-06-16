@@ -1,12 +1,12 @@
 // Money display formatting. Accepts a number or a decimal string and renders it
 // with thousands separators and exactly 2 decimals, e.g. 4539.36 -> "4,539.36",
 // -12.5 -> "-12.50". Falls back to the raw input if it isn't a finite number.
-export function formatMoney(value: number | string): string {
+export function formatMoney(value: number | string, round = false): string {
   const n = typeof value === "string" ? Number(value) : value;
   if (!Number.isFinite(n)) return String(value);
   return n.toLocaleString("en-GB", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: round ? 0 : 2,
+    maximumFractionDigits: round ? 0 : 2,
   });
 }
 
@@ -32,10 +32,10 @@ export function relativeDate(iso: string | null): string {
 }
 
 // With a "£" prefix (sign kept on the number, e.g. "£1,234.50", "-£5.00").
-export function formatGBP(value: number | string): string {
+export function formatGBP(value: number | string, round = false): string {
   const n = typeof value === "string" ? Number(value) : value;
   if (!Number.isFinite(n)) return `£${value}`;
-  return n < 0 ? `-£${formatMoney(-n)}` : `£${formatMoney(n)}`;
+  return n < 0 ? `-£${formatMoney(-n, round)}` : `£${formatMoney(n, round)}`;
 }
 
 // The symbol for a currency code (defaults to £). Single source of truth — the
@@ -49,9 +49,9 @@ export function ccySymbol(currency: string | null | undefined): string {
 }
 
 // Like formatGBP but honouring the given currency, e.g. ("12.5","USD") -> "$12.50".
-export function formatCcy(value: number | string, currency?: string | null): string {
+export function formatCcy(value: number | string, currency?: string | null, round = false): string {
   const n = typeof value === "string" ? Number(value) : value;
   const sym = ccySymbol(currency);
   if (!Number.isFinite(n)) return `${sym}${value}`;
-  return n < 0 ? `-${sym}${formatMoney(-n)}` : `${sym}${formatMoney(n)}`;
+  return n < 0 ? `-${sym}${formatMoney(-n, round)}` : `${sym}${formatMoney(n, round)}`;
 }

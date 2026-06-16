@@ -68,7 +68,7 @@ export function AccountsStrip({ editing, onToggleEditing }: { editing?: boolean;
       <div className="acct-strip" role="list">
       <Link to={to()} className={`acct-chip net${!activeId ? " active" : ""}`} role="listitem">
         <span className="acct-chip-ico net"><TrendingUp size={20} strokeWidth={2.2} /></span>
-        <span className="acct-chip-val num">{formatGBP(summary?.netWorth ?? 0)}</span>
+        <span className="acct-chip-val num">{formatGBP(summary?.netWorth ?? 0, true)}</span>
         <span className="acct-chip-name">Net worth</span>
       </Link>
 
@@ -85,11 +85,11 @@ export function AccountsStrip({ editing, onToggleEditing }: { editing?: boolean;
           >
             <span className="acct-chip-ico">
               {isCash
-                ? <span className="acct-chip-cash"><Wallet size={18} strokeWidth={2} /></span>
-                : <BrandLogo name={bank.institutionName} src={bank.institutionLogo} size={44} />}
+                ? <span className="acct-chip-cash"><Wallet size={20} strokeWidth={2} /></span>
+                : <BrandLogo name={bank.institutionName} src={bank.institutionLogo} size={50} />}
               <HealthRing health={healthByAcct.get(a.id)} />
             </span>
-            <span className={`acct-chip-val num${a.currentBalance < 0 ? " neg" : ""}`}>{formatCcy(a.currentBalance, a.currency)}</span>
+            <span className={`acct-chip-val num${a.currentBalance < 0 ? " neg" : ""}`}>{formatCcy(a.currentBalance, a.currency, true)}</span>
             <span className="acct-chip-name" title={name}>{name}</span>
           </button>
         );

@@ -558,12 +558,13 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
   background: var(--surface-2); border: 1px solid var(--line-strong);
   transition: transform 0.18s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
-.acct-chip-ico .brand-logo { width: 44px; height: 44px; }
+/* Logo fills up to the health ring — no stroke on the logo, no gap to the ring. */
+.acct-chip-ico .brand-logo { width: 50px; height: 50px; border: none; }
 .acct-chip-ico.net { color: var(--jade); background: color-mix(in srgb, var(--jade) 14%, var(--surface-2)); border-color: color-mix(in srgb, var(--jade) 32%, var(--line-strong)); }
-.acct-chip-cash { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%; color: var(--gold); background: color-mix(in srgb, var(--gold) 14%, var(--surface-2)); }
+.acct-chip-cash { display: inline-flex; align-items: center; justify-content: center; width: 50px; height: 50px; border-radius: 50%; color: var(--gold); background: color-mix(in srgb, var(--gold) 14%, var(--surface-2)); }
 .acct-chip-ico.add { color: var(--ink-3); background: transparent; border-style: dashed; }
 .acct-chip.add:hover .acct-chip-ico { color: var(--jade); border-color: color-mix(in srgb, var(--jade) 42%, var(--line-strong)); }
-.acct-chip-val { font-size: 14px; font-weight: 640; letter-spacing: -0.02em; color: var(--ink); white-space: nowrap; }
+.acct-chip-val { font-size: 15px; font-weight: 640; letter-spacing: -0.02em; color: var(--ink); white-space: nowrap; }
 .acct-chip-name {
   font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: var(--ink-3);
   max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -1339,16 +1340,69 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 .v2-fan-sub { font-size: 13px; color: var(--ink-3); }
 .bv2-empty { text-align: center; padding: 36px 0; }
 /* List */
-.bv2-list-head { display: flex; justify-content: space-between; font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-3); font-weight: 600; padding: 0 2px 6px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
+.bv2-list-head { display: flex; align-items: center; justify-content: space-between; font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-3); font-weight: 600; padding: 0 2px 6px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
+/* Sort selector — a quiet native select that inherits the list-head styling but
+   keeps the caret chevron (reusing the global select's chevron SVG) so it reads
+   as a dropdown. */
+.bv2-sort {
+  font: inherit; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;
+  color: var(--ink-2); background-color: transparent; border: 0; cursor: pointer;
+  padding: 2px 16px 2px 2px; text-align: right; -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9' fill='none' stroke='%237e7c74' stroke-width='1.8'%3E%3Cpath d='M1.5 3L4.5 6 7.5 3'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 2px center;
+}
+.bv2-sort:hover { color: var(--ink); }
+.bv2-sort option { text-transform: none; letter-spacing: normal; color: var(--ink); background: var(--surface-2); }
 .bv2-row { display: flex; align-items: center; gap: 14px; padding: 12px 8px; margin: 0 -8px; border-radius: 12px; text-decoration: none; color: inherit; transition: background 0.12s ease; }
 .bv2-row:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
 .bv2-badge { flex: none; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; }
+/* Overspent category: red-ringed badge + bold red "over" amount (Snoop-style). */
+.bv2-row.is-over .bv2-badge { box-shadow: 0 0 0 2px var(--coral); }
+.bv2-row.is-over .bv2-row-name { color: var(--coral); }
+.bv2-over { color: var(--coral); font-weight: 700; }
+/* Top-of-page overspend alert (YNAB-style "N over budget"). The wrap holds the red
+   container; the header toggles an expandable list of every overspent category. */
+.bv2-alert-wrap {
+  margin: 0 0 18px; border-radius: 14px; overflow: hidden;
+  background: color-mix(in srgb, var(--coral) 14%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--coral) 40%, transparent);
+}
+.bv2-alert {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  padding: 12px 14px; cursor: pointer; font: inherit; color: var(--ink);
+  background: transparent; border: 0; transition: background 0.12s ease;
+}
+.bv2-alert:hover { background: color-mix(in srgb, var(--coral) 12%, transparent); }
+.bv2-alert-chev { flex: none; color: var(--ink-3); transition: transform 0.18s ease; }
+.bv2-alert-wrap.is-open .bv2-alert-chev { transform: rotate(180deg); }
+.bv2-alert-list { display: flex; flex-direction: column; padding: 2px 8px 8px; }
+.bv2-alert-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%;
+  padding: 9px 10px; border-radius: 9px; cursor: pointer; font: inherit; text-align: left;
+  color: var(--ink); background: transparent; border: 0; transition: background 0.12s ease;
+}
+.bv2-alert-item:hover { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.bv2-alert-item-name { min-width: 0; font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bv2-alert-ico { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; color: var(--coral); background: color-mix(in srgb, var(--coral) 22%, transparent); }
+.bv2-alert-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.bv2-alert-txt strong { font-size: 14px; font-weight: 650; }
+.bv2-alert-sub { font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bv2-alert-amt { flex: none; font-size: 16px; font-weight: 700; color: var(--coral); }
+.bv2-alert-unit { font-size: 12px; font-weight: 600; }
 .bv2-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
 .bv2-row-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .bv2-row-name { font-size: 15px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bv2-row-amt { font-size: 13.5px; white-space: nowrap; }
-.bv2-track { height: 6px; border-radius: 99px; background: rgba(233,230,223,0.08); overflow: hidden; }
-.bv2-track > i { display: block; height: 100%; border-radius: 99px; transition: width 0.5s cubic-bezier(0.2,0.8,0.2,1); }
+.bv2-track { display: flex; height: 6px; border-radius: 99px; background: rgba(233,230,223,0.08); overflow: hidden; }
+.bv2-track > i { display: block; height: 100%; transition: width 0.5s cubic-bezier(0.2,0.8,0.2,1); }
+/* The shaded slice of a budget bar = upcoming bills still due this month —
+   diagonally hatched in the bar's own colour (via --shade) so it reads as
+   "projected, not yet spent" while staying on-tone with the spent fill. */
+.up-shade {
+  background-color: color-mix(in srgb, var(--shade, var(--amber)) 20%, transparent);
+  background-image: repeating-linear-gradient(45deg,
+    color-mix(in srgb, var(--shade, var(--amber)) 62%, transparent) 0 3px, transparent 3px 7px);
+}
 .bv2-row-share { font-size: 11.5px; }
 .bv2-more { width: 100%; margin-top: 14px; padding: 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; color: var(--ink-2); font-size: 14px; cursor: pointer; transition: background 0.12s ease; }
 .bv2-more:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
@@ -1395,9 +1449,15 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 /* Card grid */
 .txnv2-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 @media (min-width: 520px) { .txnv2-grid { grid-template-columns: repeat(3, 1fr); } }
-.txnv2-card { display: flex; flex-direction: column; justify-content: space-between; gap: 14px; min-height: 96px; min-width: 0; padding: 13px 14px; text-align: left; border-radius: var(--r); border: 2px solid var(--cat, var(--line-strong)); background: var(--surface-2); color: var(--ink); cursor: pointer; transition: transform 0.1s ease, border-color 0.12s ease, background 0.12s ease; }
+.txnv2-card { display: flex; flex-direction: column; justify-content: space-between; gap: 9px; min-height: 74px; min-width: 0; padding: 10px 11px; text-align: left; border-radius: var(--r); border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); cursor: pointer; transition: transform 0.1s ease, border-color 0.12s ease, background 0.12s ease; }
 .txnv2-card:hover { border-color: var(--ink-3); }
 .txnv2-card:active { transform: scale(0.985); }
+/* Due / upcoming — a pending or future-dated debit that hasn't left the account
+   yet. Dashed, faded border + dimmed contents so it reads as "not real yet". */
+.txnv2-card.is-due { border-style: dashed; border-color: var(--line-strong); background: transparent; opacity: 0.78; }
+.txnv2-card.is-due:hover { opacity: 1; border-color: var(--ink-3); }
+/* Clock badge on the avatar marks a not-yet-settled (pending/future) entry. */
+.txnv2-due-badge { position: absolute; right: -3px; bottom: -3px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--surface-3, var(--surface-2)); color: var(--ink-2); box-shadow: 0 0 0 1.5px var(--bg); }
 .txnv2-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 /* Merchant avatar with the owning account's logo as a small corner badge */
 .txnv2-avatar { position: relative; flex: none; line-height: 0; }
@@ -1407,7 +1467,7 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 .txnv2-card.cls-wants .txnv2-acct { background: color-mix(in srgb, var(--c-wants) 9%, var(--surface-2)); }
 .txnv2-card.cls-savings .txnv2-acct { background: color-mix(in srgb, var(--c-savings) 9%, var(--surface-2)); }
 .txnv2-card.is-income .txnv2-acct { background: color-mix(in srgb, var(--jade) 7%, var(--surface-2)); }
-.txnv2-amt { font-size: 17px; letter-spacing: -0.02em; white-space: nowrap; }
+.txnv2-amt { font-size: 15.5px; letter-spacing: -0.02em; white-space: nowrap; }
 .txnv2-amt.pos { color: var(--jade); }
 .txnv2-card-bottom { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .txnv2-name { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1469,7 +1529,7 @@ button.bv2-row { width: 100%; font: inherit; text-align: left; border: 0; backgr
 .bsheet-bar-val { font-size: 10.5px; color: var(--ink-3); margin-top: 3px; white-space: nowrap; }
 .bsheet-col.is-active .bsheet-bar-val { color: var(--ink); font-weight: 700; }
 .bsheet-bar-track { flex: 1; width: 60%; max-width: 30px; display: flex; align-items: flex-end; }
-.bsheet-bar { width: 100%; min-height: 4px; border-radius: 7px; background: var(--surface-2); transition: height 0.4s cubic-bezier(0.2,0.8,0.2,1); }
+.bsheet-bar { width: 100%; min-height: 4px; border-radius: 16px; background: var(--surface-2); transition: height 0.4s cubic-bezier(0.2,0.8,0.2,1); }
 .bsheet-bar-x { font-size: 12px; color: var(--ink-3); margin-top: 8px; }
 .bsheet-col.is-active .bsheet-bar-x { color: var(--ink); font-weight: 600; }
 
@@ -1486,8 +1546,8 @@ button.bv2-row { width: 100%; font: inherit; text-align: left; border: 0; backgr
 .bsheet-progress-row { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin-top: 14px; font-size: 13px; }
 .bsheet-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
 .bsheet-progress-meta { grid-column: 1 / -1; font-size: 12px; margin-top: 2px; }
-.bsheet-track { grid-column: 1 / -1; height: 8px; border-radius: 99px; background: rgba(233,230,223,0.08); overflow: hidden; margin-top: 8px; }
-.bsheet-track > i { display: block; height: 100%; border-radius: 99px; transition: width 0.5s cubic-bezier(0.2,0.8,0.2,1); }
+.bsheet-track { grid-column: 1 / -1; display: flex; height: 8px; border-radius: 99px; background: rgba(233,230,223,0.08); overflow: hidden; margin-top: 8px; }
+.bsheet-track > i { display: block; height: 100%; transition: width 0.5s cubic-bezier(0.2,0.8,0.2,1); }
 
 /* This-month transactions */
 .bsheet-txns { margin-top: 24px; }
@@ -1499,6 +1559,8 @@ button.bv2-row { width: 100%; font: inherit; text-align: left; border: 0; backgr
 .bsheet-txn-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bsheet-txn-date { font-size: 12px; }
 .bsheet-txn-amt { font-size: 14.5px; }
+/* Upcoming (not-yet-spent) bills read a touch quieter than booked spend. */
+.bsheet-upcoming .bsheet-txn-amt, .bsheet-upcoming h3 { color: var(--ink-2); }
 
 /* Budget v2 refunds line */
 .bv2-refund { display: flex; align-items: center; gap: 7px; margin: -16px 0 18px; font-size: 13px; color: var(--jade); }

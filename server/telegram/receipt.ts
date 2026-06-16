@@ -55,7 +55,20 @@ export async function handleReceiptPhoto(fileId: string, fileUniqueId: string): 
     : [];
   const tags = Array.isArray(o.tags) ? (o.tags as unknown[]).map((t) => String(t).toLowerCase().trim()).filter(Boolean).slice(0, 4) : [];
   const summary = typeof o.summary === "string" && o.summary.trim() ? o.summary.trim() : null;
-  const emailDate = o.date ? new Date(`${o.date}T12:00:00`) : new Date();
+  // A receipt photo is for a recent purchase, but Gemini sometimes misreads the
+  // date (e.g. the year as 2016) which would bury the transaction years away in
+  // the list. Trust the extracted date only if it's recent and not in the future;
+  // otherwise fall back to today (the photo date). Anchored at local noon so the
+  // bookingDate slice is stable across timezones (see CLAUDE.md BST gotcha).
+  const todayNoon = new Date();
+  todayNoon.setHours(12, 0, 0, 0);
+  const parsed = o.date ? new Date(`${o.date}T12:00:00`) : null;
+  const plausible =
+    parsed != null &&
+    !Number.isNaN(parsed.getTime()) &&
+    parsed.getTime() <= todayNoon.getTime() + 86_400_000 && // not in the future (1-day skew)
+    parsed.getTime() >= todayNoon.getTime() - 30 * 86_400_000; // within the last 30 days
+  const emailDate = plausible ? parsed : todayNoon;
 
   // Keep the original document in object storage (best-effort).
   let attachmentKey: string | null = null;

@@ -276,6 +276,7 @@ export interface UpcomingItemDTO {
   prevAmount: number | null;    // prior amount when the bill recently increased
   date: string;             // ISO date of this occurrence
   status: "auto" | "confirmed" | "ignored";
+  category: string | null;  // derived from the merchant's transactions (modal effective category)
 }
 
 export interface UpcomingDTO {

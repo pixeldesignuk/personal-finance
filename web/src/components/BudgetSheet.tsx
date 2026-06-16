@@ -29,6 +29,24 @@ export function BudgetSheet({ categoryKey, month, onClose }: { categoryKey: stri
     [txns, categoryKey],
   );
 
+  // Upcoming bills for this category — only shown on the current month, and only
+  // occurrences that still fall within this month. Deduped to the nearest
+  // occurrence per merchant so a recurring bill shows once.
+  const isCurrentMonth = month === new Date().toLocaleDateString("en-CA").slice(0, 7);
+  const monthEnd = useMemo(() => {
+    const [y, m] = month.split("-").map(Number);
+    return new Date(y, m, 0).toLocaleDateString("en-CA"); // last day of `month`, YYYY-MM-DD
+  }, [month]);
+  const { data: upcoming } = useQuery({ queryKey: ["upcoming", 30], queryFn: () => api.upcoming(30), enabled: isCurrentMonth });
+  const upcomingForCat = useMemo(() => {
+    if (!isCurrentMonth) return [];
+    const seen = new Set<string>();
+    return (upcoming?.items ?? [])
+      .filter((u) => u.direction === "out" && u.category === categoryKey && u.date <= monthEnd)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .filter((u) => (seen.has(u.token) ? false : (seen.add(u.token), true)));
+  }, [upcoming, categoryKey, isCurrentMonth, monthEnd]);
+
   const months = hist?.months ?? [];
   const spent = months.length ? months[months.length - 1].spent : 0;
   const average = months.length ? months.reduce((s, m) => s + m.spent, 0) / months.length : 0;
@@ -40,6 +58,9 @@ export function BudgetSheet({ categoryKey, month, onClose }: { categoryKey: stri
   const left = budget - spent;
   const pct = budget > 0 ? Math.min(100, (spent / budget) * 100) : spent > 0 ? 100 : 0;
   const over = budget > 0 && spent > budget;
+  // Upcoming bills still to land this month → the shaded slice of the budget bar.
+  const upcomingTotal = useMemo(() => upcomingForCat.reduce((s, u) => s + u.amount, 0), [upcomingForCat]);
+  const upW = budget > 0 ? Math.max(0, Math.min(100 - pct, (upcomingTotal / budget) * 100)) : 0;
 
   const saveBudget = useMutation({
     mutationFn: (amount: number) => api.patchCategory(hist!.categoryId, { monthlyAmount: amount }),
@@ -114,9 +135,29 @@ export function BudgetSheet({ categoryKey, month, onClose }: { categoryKey: stri
             <span className="bsheet-dot" style={{ background: over ? "var(--coral)" : color }} />
             <span className="muted">{formatGBP(spent)} spent of {formatGBP(budget)} budget{over ? " · over" : ""}</span>
           </div>
-          <div className="bsheet-progress-meta muted">{budget > 0 ? `${Math.round((spent / budget) * 100)}% of budget` : "No budget set"}</div>
-          <div className="bsheet-track"><i style={{ width: `${pct}%`, background: over ? "var(--coral)" : color }} /></div>
+          <div className="bsheet-progress-meta muted">{budget > 0 ? `${Math.round((spent / budget) * 100)}% of budget` : "No budget set"}{upcomingTotal > 0 ? ` · +${formatGBP(upcomingTotal)} upcoming` : ""}</div>
+          <div className="bsheet-track">
+            <i style={{ width: `${pct}%`, background: over ? "var(--coral)" : color }} />
+            {upW > 0 && <i className="up-shade" style={{ width: `${upW}%`, "--shade": color } as React.CSSProperties} />}
+          </div>
         </div>
+
+        {/* Upcoming bills for this category, pinned above the month's spend. */}
+        {upcomingForCat.length > 0 && (
+          <div className="bsheet-txns bsheet-upcoming">
+            <h3>Upcoming</h3>
+            {upcomingForCat.map((u) => (
+              <div key={`${u.token}-${u.date}`} className="bsheet-txn">
+                <BrandLogo name={u.name} src={merchantLogo(u.name, null)} size={28} />
+                <div className="bsheet-txn-main">
+                  <span className="bsheet-txn-name">{u.name}</span>
+                  <span className="bsheet-txn-date muted">{dayShort(u.date)}{u.kind === "variable" ? " · est." : ""}</span>
+                </div>
+                <span className="num bsheet-txn-amt">{u.kind === "variable" ? "~" : ""}{formatGBP(u.amount)}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* This month's transactions */}
         <div className="bsheet-txns">
