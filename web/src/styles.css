@@ -102,8 +102,6 @@ nav {
   border-bottom: 1px solid var(--line);
 }
 .nav-right { display: flex; align-items: center; gap: 26px; }
-.nav-mobile-btn { display: none; margin-left: auto; background: transparent; border: 1px solid var(--line-strong); border-radius: var(--r-sm); width: 38px; height: 38px; padding: 0; font-size: 18px; color: var(--ink); }
-.nav-mobile-btn:hover { transform: none; border-color: var(--jade); }
 .wordmark {
   font-family: var(--font-display);
   font-style: normal;
@@ -246,13 +244,52 @@ nav a.active:not(.nav-cta)::after {
 .mnav-link:hover, .mnav-link.active { background: var(--surface-2); color: var(--ink); }
 .mnav-link.active { color: var(--jade); }
 .mnav-cta { text-align: center; margin-top: 16px; padding: 11px; }
+.mnav-head-actions { display: flex; align-items: center; gap: 10px; }
+
+/* Floating bottom tab bar (mobile only; shown via the responsive block below). */
+.mobile-tabbar {
+  display: none;
+  position: fixed; z-index: 60;
+  top: auto; /* cancel the base nav's top:0 so only `bottom` positions the bar */
+  left: 50%; transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 26px);
+  width: min(440px, calc(100vw - 24px));
+  padding: 6px;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  backdrop-filter: blur(18px) saturate(1.3);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  box-shadow: 0 18px 40px -12px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,0,0,0.2);
+  justify-content: space-around; gap: 2px;
+}
+.mtab {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  padding: 8px 4px; border-radius: 999px;
+  background: none; border: none; cursor: pointer;
+  color: var(--ink-3); text-decoration: none;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.01em;
+  transition: color 0.16s ease, background 0.16s ease;
+}
+.mtab span { line-height: 1; }
+.mobile-tabbar a::after { content: none; } /* suppress the desktop nav active-underline */
+.mtab:hover { color: var(--ink-2); text-decoration: none; }
+.mtab.active { color: var(--jade); background: color-mix(in srgb, var(--jade) 12%, transparent); }
+.mtab.active svg { filter: drop-shadow(0 0 8px color-mix(in srgb, var(--jade) 45%, transparent)); }
 
 /* ---- responsive ---------------------------------------------------------- */
 @media (max-width: 760px) {
   .nav-right { display: none; }
-  .nav-mobile-btn { display: inline-flex; align-items: center; justify-content: center; }
+  /* Mobile uses a floating bottom tab bar instead of the top header. */
+  nav { display: none; }
+  .mobile-tabbar { display: flex; }
   h1 { font-size: 24px; }
-  .container { padding-left: 14px; padding-right: 14px; }
+  .container {
+    padding-left: 14px; padding-right: 14px;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
+    /* room for the floating tab bar so content never hides behind it */
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 106px);
+  }
   .row-between { gap: 10px; }
   .toolbar { flex-wrap: wrap; }
   .card { padding: 15px 15px; }

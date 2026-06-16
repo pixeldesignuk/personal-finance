@@ -21,7 +21,7 @@ import Recurring from "./pages/Recurring.tsx";
 import People from "./pages/People.tsx";
 import { NavMenu } from "./components/NavMenu.tsx";
 import { SettingsDrawer } from "./components/SettingsDrawer.tsx";
-import { MobileNav } from "./components/MobileNav.tsx";
+import { MobileTabBar } from "./components/MobileTabBar.tsx";
 
 export default function App() {
   return (
@@ -46,7 +46,6 @@ export default function App() {
           <SettingsDrawer />
           <NavLink to="/connect" className="btn-primary nav-cta">Connect</NavLink>
         </div>
-        <MobileNav />
       </nav>
       <div className="container">
         <Routes>
@@ -73,6 +72,7 @@ export default function App() {
           <Route path="/callback" element={<Callback />} />
         </Routes>
       </div>
+      <MobileTabBar />
     </>
   );
 }
