@@ -6,13 +6,13 @@ import { useQueryState } from "nuqs";
 import { api } from "../api.ts";
 import type { TransactionDTO } from "../../../shared/types.ts";
 import { formatGBP, relativeDate } from "../format.ts";
-import { categoryClass, type SpendClass } from "../categoryMeta.ts";
+import { categoryClass, categoryMeta, type SpendClass } from "../categoryMeta.ts";
 import { isRefundNote } from "../../../shared/refund.ts";
 import { BrandLogo } from "../components/BrandLogo.tsx";
 import { AddTransaction } from "../components/AddTransaction.tsx";
 import { TxnDrawer } from "../components/TxnDrawer.tsx";
 import { useTxnEditing } from "../hooks/useTxnEditing.ts";
-import { Plus, Send, SlidersHorizontal, Wallet } from "lucide-react";
+import { Plus, SlidersHorizontal } from "lucide-react";
 
 type Sort = "newest" | "oldest" | "largest" | "smallest";
 const CLASS_PILLS: { key: SpendClass; label: string }[] = [
@@ -43,7 +43,7 @@ export default function TransactionsHome() {
   const navigate = useNavigate();
 
   const edit = useTxnEditing();
-  const { catNames, people, liabilities, debtName, nameOptions, bankByAccount, invalidateTxns } = edit;
+  const { catNames, people, liabilities, debtName, nameOptions, invalidateTxns } = edit;
 
   const txnQuery = useQuery({
     queryKey: ["transactions", debouncedQ, accountId, personFilter, month, merchant] as const,
@@ -161,28 +161,18 @@ export default function TransactionsHome() {
                 const cls = income ? null : categoryClass(r.category);
                 const name = txnName(r);
                 const catName = catNames.find((c) => c.key === r.category)?.name ?? "";
-                const bank = bankByAccount[r.accountId];
+                const accent = income ? "var(--jade)" : categoryMeta(r.category).color;
                 return (
                   <button
                     key={r.id}
                     type="button"
                     className={`txnv2-card${income ? " is-income" : cls ? ` cls-${cls}` : ""}${r.flag ? ` flag-${r.flag}` : ""}`}
+                    style={{ "--cat": accent } as React.CSSProperties}
                     onClick={() => setDrawerId(r.id)}
                   >
                     <div className="txnv2-card-top">
                       <span className="txnv2-avatar">
-                        {r.origin === "telegram" || r.origin === "receipt"
-                          ? <span className="tg-avatar" title="Added via Telegram"><Send size={13} strokeWidth={2.2} /></span>
-                          : <BrandLogo name={name} src={r.logoUrl} size={28} />}
-                        {r.source === "MANUAL" ? (
-                          <span className="txnv2-acct" title={r.accountName}>
-                            <span className="txnv2-acct-cash"><Wallet size={10} strokeWidth={2.4} /></span>
-                          </span>
-                        ) : bank && (
-                          <span className="txnv2-acct" title={r.accountName}>
-                            <BrandLogo name={bank.name} src={bank.logo} size={15} />
-                          </span>
-                        )}
+                        <BrandLogo name={name} src={r.logoUrl} size={40} />
                       </span>
                       <span className={`num txnv2-amt${income ? " pos" : ""}`}>{income ? "+" : ""}{formatGBP(amt)}</span>
                     </div>

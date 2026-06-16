@@ -69,7 +69,18 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
     // Friendly merchant names (Merchant table) override the raw statement line —
     // needed up front so search can match the name the user actually SEES
     // (e.g. "Council Tax") and not just the raw line ("OLDHAM MBC").
-    const merchantNames = new Map((await db.merchant.findMany({ where: { NOT: { name: null } } })).map((m) => [m.token, m.name] as const));
+    const merchantRows = await db.merchant.findMany();
+    const merchantNames = new Map(merchantRows.filter((m) => m.name).map((m) => [m.token, m.name] as const));
+    const merchantDomains = new Map(merchantRows.filter((m) => m.domain).map((m) => [m.token, m.domain as string] as const));
+    // A merchant name often fragments into many tokens (e.g. "AMERICAN EXP 3773
+    // PB5284…") and only some carry a resolved domain. Map friendly-name → domain
+    // so EVERY token of a known merchant gets the logo, not just the resolved one.
+    const nameDomains = new Map<string, string>();
+    for (const m of merchantRows) {
+      if (!m.domain || !m.name) continue;
+      const k = m.name.toLowerCase().trim();
+      if (!nameDomains.has(k)) nameDomains.set(k, m.domain);
+    }
     let txns = await db.transaction.findMany({
       where: {
         ...accountScope(q.accountId),
@@ -132,6 +143,8 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
     const logoFor = await logoUrlResolver();
     const dto: TransactionDTO[] = txns.map((t) => {
       const nm = friendlyName(t);
+      const tok = merchantToken(rawMerchantName(t));
+      const domain = (tok ? merchantDomains.get(tok) : undefined) ?? (nm ? nameDomains.get(nm.toLowerCase().trim()) : undefined);
       return {
         id: t.id,
         accountId: t.accountId,
@@ -152,8 +165,9 @@ dashboardRouter.get("/transactions", async (req, res, next) => {
         origin: txnOrigin(t),
         status: t.status,
         order: orderByTxn.get(t.id) ?? null,
-        // Only a known directory brand gets a logo — a person/transfer stays a monogram.
-        logoUrl: t.personKey ? null : logoFor(nm),
+        // Matches the Merchants route: an explicit merchant domain wins, then a
+        // known directory brand; a person/transfer stays a monogram.
+        logoUrl: t.personKey ? null : (domain ? `/api/logo/${encodeURIComponent(domain)}` : logoFor(nm)),
       };
     });
     res.json(dto);
