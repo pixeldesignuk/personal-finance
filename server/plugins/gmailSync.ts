@@ -98,6 +98,9 @@ interface TxnLite { id: string; abs: number; date: string | null; token: string 
 // Best transaction for an order. The merchant MUST match (raw statement token or
 // the friendly name) — amount+date alone is not enough, or unrelated purchases of
 // the same value would mis-match. Among merchant matches, pick closest amount/date.
+// Best transaction for an order. The merchant MUST match (raw statement token or
+// the friendly name) — amount+date alone is not enough, or unrelated purchases of
+// the same value would mis-match. Among merchant matches, pick closest amount/date.
 export function matchTransaction(order: { total: number; date: string | null; token: string | null }, txns: TxnLite[], taken: Set<string>): TxnLite | null {
   const emailMs = order.date ? new Date(order.date).getTime() : null;
   let best: { t: TxnLite; score: number } | null = null;
@@ -171,6 +174,10 @@ export async function rematchOpenOrders(audit?: AuditFn): Promise<{ matched: num
   audit?.({ kind: "log", text: `● Matching ${open.length} open order${open.length === 1 ? "" : "s"} to transactions`, tone: "bold" });
   let matched = 0;
   for (const o of open) {
+    // Telegram receipts are CASH purchases — they must never be reconciled against
+    // card/bank transactions (a cash chaii has no card charge; matching one to a
+    // same-merchant card visit double-merges two unrelated purchases).
+    if (o.source === "telegram") continue;
     const pool = o.isRefund ? credits : debits;
     const txn = matchTransaction(
       { total: Number(o.total!.toString()), date: o.emailDate?.toISOString() ?? null, token: o.merchantToken },
@@ -188,32 +195,14 @@ export async function rematchOpenOrders(audit?: AuditFn): Promise<{ matched: num
   return { matched };
 }
 
-// A Telegram cash receipt creates a provisional manual transaction so the spend
-// shows immediately. If the real bank charge later syncs, move the receipt onto
-// it and delete the provisional (so card purchases don't double-count); genuine
-// cash purchases keep their provisional transaction.
-export async function reconcileReceiptProvisionals(audit?: AuditFn): Promise<{ moved: number }> {
-  const provs = await db.transaction.findMany({ where: { raw: { path: ["telegramReceipt"], equals: true } }, select: { id: true } });
-  if (!provs.length) return { moved: 0 };
-  const bank = await loadTxnLites(false, true); // real bank debits only
-  const taken = new Set(
-    (await db.emailOrder.findMany({ where: { transactionId: { not: null } }, select: { transactionId: true } }))
-      .map((e) => e.transactionId!).filter(Boolean),
-  );
-  let moved = 0;
-  for (const p of provs) {
-    const order = await db.emailOrder.findFirst({ where: { transactionId: p.id, total: { not: null } } });
-    if (!order) continue;
-    const txn = matchTransaction({ total: Number(order.total!.toString()), date: order.emailDate?.toISOString() ?? null, token: order.merchantToken }, bank, taken);
-    if (!txn) continue;
-    taken.add(txn.id);
-    await db.emailOrder.update({ where: { id: order.id }, data: { transactionId: txn.id, matched: true } });
-    await maybeSetNote(txn.id, orderNote(order.merchantName, order.summary));
-    await db.transaction.delete({ where: { id: p.id } });
-    moved++;
-  }
-  if (audit && moved) audit({ kind: "log", text: `  ${moved} cash receipt${moved === 1 ? "" : "s"} reconciled to a bank charge`, tone: "green" });
-  return { moved };
+// Telegram receipts are CASH transactions and are intentionally NOT reconciled to
+// bank/card charges: a cash purchase has no card charge, so merging a cash receipt
+// into a same-merchant card visit double-counts two unrelated purchases. The
+// provisional cash transaction created from the receipt is therefore permanent.
+// Kept as a no-op so the sync pipeline's call sites stay intact (and so a future
+// card-receipt flow, gated on an extracted payment method, can re-enable it).
+export async function reconcileReceiptProvisionals(_audit?: AuditFn): Promise<{ moved: number }> {
+  return { moved: 0 };
 }
 
 // Re-arm the Gmail push watch if it's missing or close to expiry. No-op unless a

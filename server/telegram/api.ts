@@ -11,12 +11,31 @@ async function call<T>(method: string, body: unknown): Promise<T> {
   return (await res.json()) as T;
 }
 
-export function sendMessage(chatId: number, text: string, replyMarkup?: unknown) {
-  return call("sendMessage", { chat_id: chatId, text, reply_markup: replyMarkup });
+type SendResult = { ok: boolean; result?: { message_id: number } };
+
+export function sendMessage(chatId: number, text: string, replyMarkup?: unknown): Promise<SendResult> {
+  return call<SendResult>("sendMessage", { chat_id: chatId, text, reply_markup: replyMarkup });
 }
 
 export function editMessageText(chatId: number, messageId: number, text: string, replyMarkup?: unknown) {
   return call("editMessageText", { chat_id: chatId, message_id: messageId, text, reply_markup: replyMarkup });
+}
+
+// Remove one of the bot's own messages (e.g. the interim "reading receipt…" note,
+// once the final result is posted). Best-effort — ignore failures.
+export function deleteMessage(chatId: number, messageId: number) {
+  return call("deleteMessage", { chat_id: chatId, message_id: messageId });
+}
+
+// React to a user's message with a single emoji to signal processing state
+// (👀 reading → 🎉 saved / 🤔 couldn't read). Pass null to clear. Only emojis in
+// Telegram's allowed reaction set work; failures are non-fatal.
+export function setMessageReaction(chatId: number, messageId: number, emoji: string | null) {
+  return call("setMessageReaction", {
+    chat_id: chatId,
+    message_id: messageId,
+    reaction: emoji ? [{ type: "emoji", emoji }] : [],
+  });
 }
 
 export function answerCallbackQuery(id: string, text?: string) {

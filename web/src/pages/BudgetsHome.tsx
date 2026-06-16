@@ -100,10 +100,6 @@ export default function BudgetsHome() {
 
   return (
     <div className="bv2">
-      <div className="bv2-head">
-        <h1>Budget</h1>
-      </div>
-
       {/* Overspent alert — clear and red, pinned above the month selector; tap to
           expand the full list of offenders, each opening its own sheet to fix. */}
       {overRows.length > 0 && (

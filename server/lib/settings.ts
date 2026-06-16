@@ -30,6 +30,9 @@ export const SETTING_DEFS: SettingDef[] = [
   { key: "dashboard.show.statSavingsRate", label: "Savings rate", group: "Dashboard", type: "boolean", default: true, hidden: true },
   { key: "dashboard.show.topMerchants", label: "Top merchants", group: "Dashboard", type: "boolean", default: true, hidden: true },
   { key: "dashboard.show.recentActivity", label: "Recent activity", group: "Dashboard", type: "boolean", default: true, hidden: true },
+  // Per-card view option: render Recent activity as the Transactions-page card grid
+  // instead of the default list rows. Off by default (keeps the compact list).
+  { key: "dashboard.recentActivity.cards", label: "Recent activity · card view", group: "Dashboard", type: "boolean", default: false, hidden: true },
   { key: "dashboard.show.cashflow", label: "Spending", group: "Dashboard", type: "boolean", default: true, hidden: true },
   { key: "dashboard.show.balances", label: "Balances by account", group: "Dashboard", type: "boolean", default: true, hidden: true },
 ];

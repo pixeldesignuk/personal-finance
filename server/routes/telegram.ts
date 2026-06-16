@@ -5,7 +5,7 @@ import { db } from "../lib/db.ts";
 import { isAllowed, confirmText, parseTextExpense } from "../lib/cashTxn.ts";
 import { geminiParseExpense } from "../categorise/gemini.ts";
 import { applyRules, type Rule } from "../lib/rules.ts";
-import { sendMessage, editMessageText, answerCallbackQuery } from "../telegram/api.ts";
+import { sendMessage, editMessageText, answerCallbackQuery, deleteMessage, setMessageReaction } from "../telegram/api.ts";
 import { getOrCreateCashAccount } from "../telegram/cashAccount.ts";
 import { handleReceiptPhoto } from "../telegram/receipt.ts";
 
@@ -100,11 +100,22 @@ telegramRouter.post("/telegram/webhook", async (req, res) => {
     const doc = msg.document && /^(image\/|application\/pdf)/.test(String(msg.document.mime_type ?? "")) ? msg.document : null;
     const file = photo ?? doc;
     if (file?.file_id) {
-      await sendMessage(chatId, "📸 Reading your receipt…");
+      const userMsgId: number | undefined = msg.message_id;
+      // React 👀 on the photo while we read it; the interim "reading…" note is
+      // deleted once the result lands, and the reaction flips to reflect the outcome.
+      if (userMsgId) await setMessageReaction(chatId, userMsgId, "👀").catch(() => undefined);
+      const reading = await sendMessage(chatId, "📸 Reading your receipt…");
+      const readingId = reading?.result?.message_id;
       try {
-        await sendMessage(chatId, await handleReceiptPhoto(file.file_id, file.file_unique_id ?? file.file_id));
+        const result = await handleReceiptPhoto(file.file_id, file.file_unique_id ?? file.file_id);
+        if (readingId) await deleteMessage(chatId, readingId).catch(() => undefined);
+        const ok = result.startsWith("🧾");
+        if (userMsgId) await setMessageReaction(chatId, userMsgId, ok ? "🎉" : "🤔").catch(() => undefined);
+        await sendMessage(chatId, result);
       } catch (err) {
         console.error("telegram receipt error", err);
+        if (readingId) await deleteMessage(chatId, readingId).catch(() => undefined);
+        if (userMsgId) await setMessageReaction(chatId, userMsgId, "🤔").catch(() => undefined);
         await sendMessage(chatId, "Couldn't read that receipt — try a clearer, well-lit photo.");
       }
       return;

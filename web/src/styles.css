@@ -1277,7 +1277,17 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 .customizable.is-off > .card { opacity: 0.4; filter: grayscale(0.5); pointer-events: none; }
 /* Switch pinned to the card's top-right corner; stays interactive over a
    disabled card (it's a sibling of .card, so the dimming doesn't reach it). */
-.customize-toggle { position: absolute; top: 10px; right: 12px; z-index: 6; display: inline-flex; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 999px; padding: 3px 5px; box-shadow: var(--shadow); }
+.customize-toggle { position: absolute; top: 10px; right: 12px; z-index: 6; display: inline-flex; align-items: center; gap: 3px; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 999px; padding: 3px 5px; box-shadow: var(--shadow); }
+/* Per-card settings gear (only shown for cards that pass a `settings` slot). */
+.customize-gear { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 0; background: transparent; color: var(--ink-3); cursor: pointer; transition: color 0.12s ease, background 0.12s ease; }
+.customize-gear:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 9%, transparent); }
+/* Card-settings modal contents (e.g. a List/Cards view switch). */
+.card-settings { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 4px; }
+.card-settings-label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 999px; padding: 2px; }
+.seg-btn { font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ink-3); background: transparent; border: 0; border-radius: 999px; padding: 5px 14px; cursor: pointer; transition: color 0.12s ease, background 0.12s ease; }
+.seg-btn.is-active { color: var(--ink); background: color-mix(in srgb, var(--jade) 22%, transparent); }
+.seg-btn:not(.is-active):hover { color: var(--ink-2); }
 /* Empty grids (every card in a row hidden) shouldn't leave a gap. */
 .grid:empty { display: none; margin: 0; }
 /* Dashboard card rows: flex so that when cards are hidden the remaining ones in
@@ -1449,7 +1459,11 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 /* Card grid */
 .txnv2-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 @media (min-width: 520px) { .txnv2-grid { grid-template-columns: repeat(3, 1fr); } }
-.txnv2-card { display: flex; flex-direction: column; justify-content: space-between; gap: 9px; min-height: 74px; min-width: 0; padding: 10px 11px; text-align: left; border-radius: var(--r); border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); cursor: pointer; transition: transform 0.1s ease, border-color 0.12s ease, background 0.12s ease; }
+/* Recent-activity (dashboard) grid: dynamic column count — as many ~190px cards as
+   fit the width (2 on a phone, more on a wide desktop). min(100%,…) guards overflow. */
+.txnv2-grid-auto { grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr)); }
+@media (min-width: 520px) { .txnv2-grid-auto { grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr)); } }
+.txnv2-card { display: flex; flex-direction: column; justify-content: space-between; gap: 9px; min-height: 74px; min-width: 0; padding: 10px 11px; text-align: left; text-decoration: none; border-radius: var(--r); border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); cursor: pointer; transition: transform 0.1s ease, border-color 0.12s ease, background 0.12s ease; }
 .txnv2-card:hover { border-color: var(--ink-3); }
 .txnv2-card:active { transform: scale(0.985); }
 /* Due / upcoming — a pending or future-dated debit that hasn't left the account
@@ -1467,9 +1481,13 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 .txnv2-card.cls-wants .txnv2-acct { background: color-mix(in srgb, var(--c-wants) 9%, var(--surface-2)); }
 .txnv2-card.cls-savings .txnv2-acct { background: color-mix(in srgb, var(--c-savings) 9%, var(--surface-2)); }
 .txnv2-card.is-income .txnv2-acct { background: color-mix(in srgb, var(--jade) 7%, var(--surface-2)); }
-.txnv2-amt { font-size: 15.5px; letter-spacing: -0.02em; white-space: nowrap; }
+.txnv2-amt { font-size: 18px; font-weight: 600; letter-spacing: -0.02em; white-space: nowrap; }
 .txnv2-amt.pos { color: var(--jade); }
 .txnv2-card-bottom { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+/* Variant: name + date on one row (date pinned right), used by Recent activity cards. */
+.txnv2-card-bottom-row { flex-direction: row; align-items: baseline; gap: 8px; }
+.txnv2-card-bottom-row .txnv2-name { flex: 1; min-width: 0; }
+.txnv2-card-bottom-row .txnv2-sub { flex: none; }
 .txnv2-name { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .txnv2-sub { font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 

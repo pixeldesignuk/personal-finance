@@ -1,7 +1,6 @@
 import { db } from "../lib/db.ts";
 import { merchantToken } from "../categorise/helpers.ts";
 import { geminiExtractReceiptImage } from "../categorise/gemini.ts";
-import { rematchOpenOrders } from "../plugins/gmailSync.ts";
 import { createReceiptTransaction } from "../lib/receiptTxn.ts";
 import { storageEnabled, putObject } from "../lib/storage.ts";
 import { getFilePath, downloadFile } from "./api.ts";
@@ -90,22 +89,16 @@ export async function handleReceiptPhoto(fileId: string, fileUniqueId: string): 
     },
   });
 
-  // Link it to an existing bank transaction if one's already there.
-  await rematchOpenOrders().catch(() => undefined);
-  const saved = await db.emailOrder.findUnique({ where: { messageId }, select: { id: true, matched: true } });
+  const saved = await db.emailOrder.findUnique({ where: { messageId }, select: { id: true } });
 
-  // No bank charge yet → record the spend now as a provisional cash transaction
-  // (it moves to the bank charge later if one syncs — see reconcileReceiptProvisionals).
-  let createdTxn = false;
-  if (saved && !saved.matched) {
+  // Telegram receipts are CASH — always record a standalone cash transaction now.
+  // They are never reconciled onto a card/bank charge (see reconcileReceiptProvisionals).
+  if (saved) {
     await createReceiptTransaction({ id: saved.id, merchantName: merchant, total: o.total, currency: o.currency ?? "GBP", emailDate, items, summary, categoryKey: aiCategory });
-    createdTxn = true;
   }
 
   const head = `🧾 ${merchantLabel} — ${sym(o.currency ?? "GBP")}${Number(o.total).toFixed(2)}${items.length ? ` · ${items.length} item${items.length === 1 ? "" : "s"}` : ""}`;
-  const status = createdTxn
-    ? "\n💸 added as a cash transaction (moves to your bank charge if one lands)"
-    : "\n✓ matched to a transaction";
+  const status = "\n💸 added as a cash transaction";
   const lines = items.length ? `\n${items.slice(0, 6).map((i) => `• ${i.name}`).join("\n")}${items.length > 6 ? `\n…+${items.length - 6} more` : ""}` : "";
   return `${head}${status}${lines}`;
 }

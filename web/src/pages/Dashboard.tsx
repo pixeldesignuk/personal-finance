@@ -110,6 +110,8 @@ export default function Dashboard({ minimal = false, editing: editingProp, onEdi
     onSettled: () => { qc.invalidateQueries({ queryKey: ["settings"] }); },
   });
   const setCard = (key: string, value: boolean) => settingsMut.mutate({ [key]: value });
+  // Recent-activity view style (per-card setting). Defaults to the list rows.
+  const recentCards = settings?.values["dashboard.recentActivity.cards"] === true;
 
   // Section order (drag-to-reorder in Customize mode), persisted as dashboard.order.
   const order = settings?.order ?? DEFAULT_ORDER;
@@ -404,8 +406,22 @@ export default function Dashboard({ minimal = false, editing: editingProp, onEdi
       </Customizable>
     ),
     recentActivity: (
-      <Customizable label="Recent activity" editing={editing} on={show("dashboard.show.recentActivity")} onToggle={(v) => setCard("dashboard.show.recentActivity", v)}>
-        <RecentActivity accountId={accountId} />
+      <Customizable
+        label="Recent activity"
+        editing={editing}
+        on={show("dashboard.show.recentActivity")}
+        onToggle={(v) => setCard("dashboard.show.recentActivity", v)}
+        settings={
+          <div className="card-settings">
+            <span className="card-settings-label">View</span>
+            <div className="seg">
+              <button type="button" className={`seg-btn${!recentCards ? " is-active" : ""}`} onClick={() => setCard("dashboard.recentActivity.cards", false)}>List</button>
+              <button type="button" className={`seg-btn${recentCards ? " is-active" : ""}`} onClick={() => setCard("dashboard.recentActivity.cards", true)}>Cards</button>
+            </div>
+          </div>
+        }
+      >
+        <RecentActivity accountId={accountId} cards={recentCards} />
       </Customizable>
     ),
     cashflow: dashQuery.data && dashQuery.data.monthly.length > 1 && (
