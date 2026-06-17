@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../api.ts";
 import { BrandLogo } from "./BrandLogo.tsx";
-import { formatMoney, formatGBP } from "../format.ts";
+import { formatGBP } from "../format.ts";
 import { categoryClass } from "../categoryMeta.ts";
 
 const shortDate = (iso: string | null) =>
@@ -59,21 +59,27 @@ export function RecentActivity({ accountId, cards }: { accountId?: string; cards
     );
   }
 
+  // Banking-app transaction list — matches the Transactions page list view.
   return (
     <div className="card">
       {head}
-      {rows.map((t) => {
-        const amt = Number(t.amount);
-        return (
-          <Link key={t.id} to={`/transactions?search=${encodeURIComponent(t.name ?? "")}`} className="lrow lrow-link">
-            <span className="lrow-acct">
-              <BrandLogo name={t.name ?? t.accountName} size={30} />
-              <span>{t.name ?? "—"} <span className="muted">— {shortDate(t.bookingDate)}</span></span>
-            </span>
-            <span className={`num ${amt < 0 ? "neg" : "pos"}`}>{amt < 0 ? "−" : "+"}{formatMoney(Math.abs(amt))}</span>
-          </Link>
-        );
-      })}
+      <div className="txnv2-list">
+        {rows.map((t) => {
+          const amt = Number(t.amount);
+          const income = amt > 0;
+          const name = t.name?.trim() || "—";
+          return (
+            <Link key={t.id} to={`/transactions?search=${encodeURIComponent(t.name ?? "")}`} className="txnv2-lrow">
+              <span className="txnv2-lrow-av"><BrandLogo name={name} src={t.logoUrl} size={44} /></span>
+              <span className="txnv2-lrow-main">
+                <span className="txnv2-lrow-name">{name}</span>
+                <span className="txnv2-lrow-sub muted">{shortDate(t.bookingDate)}</span>
+              </span>
+              <span className={`num txnv2-lrow-amt ${income ? "pos" : "neg"}`}>{income ? "+" : "−"}{formatGBP(Math.abs(amt))}</span>
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }

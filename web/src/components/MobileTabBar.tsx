@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, ArrowLeftRight, PieChart, Landmark, Menu } from "lucide-react";
+import { LayoutDashboard, ArrowLeftRight, PieChart, PiggyBank, Menu } from "lucide-react";
 import { SettingsDrawer } from "./SettingsDrawer.tsx";
 
 // Main destinations pinned to the floating bar; everything else lives in "More".
@@ -9,7 +9,7 @@ const TABS = [
   { to: "/", label: "Home", icon: LayoutDashboard, end: true },
   { to: "/transactions", label: "Activity", icon: ArrowLeftRight },
   { to: "/budgets", label: "Budget", icon: PieChart },
-  { to: "/accounts", label: "Accounts", icon: Landmark },
+  { to: "/savings", label: "Savings", icon: PiggyBank },
 ];
 
 // The full menu, surfaced from the "More" tab.

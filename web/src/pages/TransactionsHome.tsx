@@ -12,7 +12,7 @@ import { BrandLogo } from "../components/BrandLogo.tsx";
 import { AddTransaction } from "../components/AddTransaction.tsx";
 import { TxnDrawer } from "../components/TxnDrawer.tsx";
 import { useTxnEditing } from "../hooks/useTxnEditing.ts";
-import { Plus, SlidersHorizontal, Clock, LayoutGrid, Rows3, Send, Flag } from "lucide-react";
+import { Plus, SlidersHorizontal, Clock, Send, Flag } from "lucide-react";
 
 type Sort = "newest" | "oldest" | "largest" | "smallest";
 const CLASS_PILLS: { key: SpendClass; label: string }[] = [
@@ -43,7 +43,9 @@ export default function TransactionsHome() {
   const [merchant, setMerchant] = useQueryState("merchant", { defaultValue: "", history: "replace" });
   const [klass, setKlass] = useQueryState("class", { defaultValue: "", history: "replace" });
   const [sort, setSort] = useQueryState("sort", { defaultValue: "newest", history: "replace" });
-  const [view, setView] = useQueryState("view", { defaultValue: "cards", history: "replace" });
+  // List is the default; the grid variation is still reachable via ?view=cards
+  // (the in-page toggle is hidden for now).
+  const [view] = useQueryState("view", { defaultValue: "list", history: "replace" });
   const [filtersOpen, setFiltersOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -173,14 +175,6 @@ export default function TransactionsHome() {
             <span className="txnv2-dot" /> {p.label}
           </button>
         ))}
-        <div className="txnv2-view" role="group" aria-label="View">
-          <button type="button" className={`txnv2-view-btn${!listView ? " is-active" : ""}`} aria-pressed={!listView} title="Card view" onClick={() => setView("cards")}>
-            <LayoutGrid size={15} strokeWidth={2.2} />
-          </button>
-          <button type="button" className={`txnv2-view-btn${listView ? " is-active" : ""}`} aria-pressed={listView} title="List view" onClick={() => setView("list")}>
-            <Rows3 size={15} strokeWidth={2.2} />
-          </button>
-        </div>
       </div>
 
       {filtersOpen && (

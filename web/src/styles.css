@@ -285,7 +285,8 @@ nav:not(.mobile-tabbar) a.active:not(.nav-cta)::after { bottom: -19px; border-ra
   display: none;
   position: fixed; z-index: 60;
   top: auto; /* cancel the base nav's top:0 so only `bottom` positions the bar */
-  left: 50%; transform: translateX(-50%);
+  /* Centre with auto margins (immune to scrollbar/transform skewing left:50%). */
+  left: 0; right: 0; margin-inline: auto;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 26px);
   width: min(440px, calc(100vw - 24px));
   padding: 6px;
@@ -1568,7 +1569,7 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 .txnv2-lrow {
   display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 13px;
   width: 100%; text-align: left; padding: 11px 4px; border: none; border-bottom: 1px solid var(--line);
-  background: transparent; color: var(--ink); cursor: pointer; border-radius: 0;
+  background: transparent; color: var(--ink); cursor: pointer; border-radius: 0; text-decoration: none;
   transition: background 0.12s ease;
 }
 .txnv2-lrow:last-child { border-bottom: none; }
@@ -1767,10 +1768,10 @@ button.bv2-row { width: 100%; font: inherit; text-align: left; border: 0; backgr
 .rev-done .btn-primary { margin-top: 16px; }
 
 /* ── Surplus nudge ────────────────────────────────────────────────────────── */
-.surplus-nudge { display: flex; align-items: center; gap: 14px; text-decoration: none; color: var(--ink); border: 1px solid color-mix(in srgb, var(--jade) 40%, var(--line)); background: color-mix(in srgb, var(--jade) 7%, var(--surface-2)); }
-.surplus-nudge:hover { border-color: var(--jade); }
-.surplus-ico { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; flex: none; color: var(--jade); background: color-mix(in srgb, var(--jade) 14%, transparent); }
+.surplus-nudge { display: flex; align-items: center; gap: 14px; text-decoration: none; color: var(--ink); border: 1px solid color-mix(in srgb, var(--amber) 45%, var(--line)); background: color-mix(in srgb, var(--amber) 8%, var(--surface-2)); }
+.surplus-nudge:hover { border-color: var(--amber); }
+.surplus-ico { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; flex: none; color: var(--amber); background: color-mix(in srgb, var(--amber) 15%, transparent); }
 .surplus-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .surplus-amt { font-size: 16px; font-weight: 660; }
 .surplus-hint { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.surplus-go { flex: none; font-size: 13px; font-weight: 600; color: var(--jade); }
+.surplus-go { flex: none; font-size: 13px; font-weight: 600; color: var(--amber); }

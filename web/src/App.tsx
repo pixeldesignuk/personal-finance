@@ -36,10 +36,10 @@ export default function App() {
             { to: "/recurring", label: "Bills" },
             { to: "/reports", label: "Reports" },
           ]} />
-          <NavMenu label="Accounts" items={[
+          <NavMenu label="Savings" to="/savings" items={[
+            { to: "/savings", label: "Savings" },
             { to: "/accounts", label: "Accounts" },
             { to: "/investments", label: "Investments" },
-            { to: "/savings", label: "Savings" },
             { to: "/assets", label: "Assets" },
             { to: "/debts", label: "Debts" },
           ]} />
