@@ -44,11 +44,14 @@ export const SETTING_DEFS: SettingDef[] = [
 
 const DEFAULTS: Record<string, boolean> = Object.fromEntries(SETTING_DEFS.map((d) => [d.key, d.default]));
 
-// String-valued settings (the boolean store can't hold these). Each has an allow-list
-// so an unknown value can't be persisted. Currently just the budget hero's lead figure.
-export interface StringSettingDef { key: string; default: string; allowed: string[] }
+// String-valued settings (the boolean store can't hold these). Each has either an
+// allow-list or a validate predicate to prevent unknown values from persisting.
+export interface StringSettingDef { key: string; default: string; allowed?: string[]; validate?: (v: string) => boolean }
 export const STRING_SETTING_DEFS: StringSettingDef[] = [
   { key: "dashboard.hero.figure", default: "left", allowed: ["left", "spent", "networth", "net"] },
+  { key: "savings.emergencyAccountId", default: "", validate: (v) => v === "" || v.length <= 64 },
+  { key: "savings.efMonthsFull", default: "3", validate: (v) => { const n = Number(v); return Number.isFinite(n) && n >= 1 && n <= 12; } },
+  { key: "savings.cushion", default: "100", validate: (v) => { const n = Number(v); return Number.isFinite(n) && n >= 0 && n <= 100000; } },
 ];
 const STRING_DEFAULTS: Record<string, string> = Object.fromEntries(STRING_SETTING_DEFS.map((d) => [d.key, d.default]));
 
@@ -63,7 +66,9 @@ export async function getStringSettings(): Promise<Record<string, string>> {
 // Returns true if the key/value was a known, valid string setting (and was stored).
 export async function setStringSetting(key: string, value: string): Promise<boolean> {
   const def = STRING_SETTING_DEFS.find((d) => d.key === key);
-  if (!def || !def.allowed.includes(value)) return false;
+  if (!def) return false;
+  if (def.allowed && !def.allowed.includes(value)) return false;
+  if (def.validate && !def.validate(value)) return false;
   await db.setting.upsert({ where: { key }, create: { key, value }, update: { value } });
   return true;
 }
