@@ -5,3 +5,7 @@ web/dist/
 .DS_Store
 
 /generated/prisma
+
+# Playwright MCP scratch output
+.playwright-mcp/
+/txn-list.png
