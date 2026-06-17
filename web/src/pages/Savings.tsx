@@ -86,13 +86,13 @@ export default function Savings() {
         actions={<button className="btn-primary" onClick={openNew}>New pot</button>}
       />
 
-      <PlanFlowchart efAccountPicker={efPicker} />
-
       <div className="grid">
         <Stat label="Liquid cash" value={formatGBP(data.liquid)} delta={`${formatGBP(data.budgeted)} budgeted · ${formatGBP(data.allocated)} in pots`} />
         <Stat label="In pots" value={formatGBP(data.allocated)} delta={`${data.pots.length} pot${data.pots.length === 1 ? "" : "s"}`} />
         <Stat label="Available to assign" value={formatGBP(data.available)} valueTone={over ? "neg" : "pos"} delta={over ? "over-allocated" : "after budgets & pots"} />
       </div>
+
+      <PlanFlowchart efAccountPicker={efPicker} />
 
       {data.pots.length === 0 && <EmptyState>No pots yet. Create one to set money aside toward a goal.</EmptyState>}
 

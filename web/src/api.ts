@@ -5,7 +5,7 @@ import type {
   SummaryDTO, ManualAccountInput, ManualTxnInput,
   CategoryDTO, BudgetResponseDTO, CategoryInfoDTO, CategoryHistoryDTO, ReportDTO,
   PersonDTO, RuleDTO, CategoryNameDTO, ReconcileResult, AuditEvent, InvestmentsDTO, SettingsDTO, DebtsDTO, MerchantsDTO, AccountRecurringDTO, AccountHealthDTO, PotsDTO, PluginsDTO, EmailOrderDTO,
-  RecurringScheduleDTO, UpcomingDTO, PlanDTO,
+  RecurringScheduleDTO, UpcomingDTO, PlanDTO, PlanOverride,
 } from "../../shared/types.ts";
 
 async function get<T>(url: string): Promise<T> {
@@ -123,6 +123,7 @@ export const api = {
   patchSettings: (patch: Record<string, boolean | string>) => send<{ values: Record<string, boolean>; strings: Record<string, string> }>("PATCH", "/api/settings", patch),
   setDashboardOrder: (order: string[]) => send<{ order: string[] }>("PUT", "/api/settings/dashboard-order", { order }),
   plan: () => get<PlanDTO>("/api/plan"),
+  setPlanOverride: (step: string, value: PlanOverride | null) => send<{ overrides: Record<string, PlanOverride> }>("PATCH", "/api/plan/override", { step, value }),
   pots: () => get<PotsDTO>("/api/pots"),
   createPot: (input: { name: string; target?: number | null; emoji?: string | null; balance?: number }) => send<{ id: number }>("POST", "/api/pots", input),
   patchPot: (id: number, patch: { name?: string; target?: number | null; balance?: number; emoji?: string | null; note?: string | null; archived?: boolean }) => send<{ id: number }>("PATCH", `/api/pots/${id}`, patch),
