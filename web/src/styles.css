@@ -1759,4 +1759,6 @@ button.bv2-row { width: 100%; font: inherit; text-align: left; border: 0; backgr
 .plan-hint { font-weight: 600; }
 .plan-tag { font-size: 11px; font-weight: 640; }
 .plan-picker { margin-top: 10px; }
+.plan-ef-picker { display: flex; flex-direction: column; gap: 6px; }
+.plan-ef-picker select { width: 100%; }
 .rev-done .btn-primary { margin-top: 16px; }

@@ -5,6 +5,7 @@ import type { PotDTO } from "../../../shared/types.ts";
 import { formatGBP } from "../format.ts";
 import { IconPicker, PotIcon } from "../components/IconPicker.tsx";
 import { PageHeader, Stat, EmptyState, Modal, Field, FieldRow, useConfirm } from "../components/ui";
+import { PlanFlowchart } from "../components/PlanFlowchart.tsx";
 
 const num = (s: string) => { const n = Number(s.replace(/[, £]/g, "")); return Number.isFinite(n) ? n : NaN; };
 
@@ -58,6 +59,22 @@ export default function Savings() {
     }
   };
 
+  const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: () => api.accounts(), staleTime: 5 * 60_000 });
+  const savingsAccounts = (accountsQ.data ?? []).flatMap((b) => b.accounts).filter((a) => a.source === "BANK" || a.source === "MANUAL");
+  const tagEf = useMutation({
+    mutationFn: (id: string) => api.patchSettings({ "savings.emergencyAccountId": id }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["plan"] }),
+  });
+  const efPicker = (
+    <label className="plan-ef-picker">
+      <span className="eyebrow">Which account is your emergency fund?</span>
+      <select defaultValue="" onChange={(e) => e.target.value && tagEf.mutate(e.target.value)}>
+        <option value="" disabled>Choose an account…</option>
+        {savingsAccounts.map((a) => <option key={a.id} value={a.id}>{a.displayName}</option>)}
+      </select>
+    </label>
+  );
+
   if (!data) return <p className="muted">Loading…</p>;
   const over = data.available < 0;
 
@@ -65,9 +82,11 @@ export default function Savings() {
     <div>
       <PageHeader
         title="Savings"
-        subtitle="Pots earmark cash you already hold — they don't change your net worth."
+        subtitle="Your saving plan, then the pots you're filling toward it."
         actions={<button className="btn-primary" onClick={openNew}>New pot</button>}
       />
+
+      <PlanFlowchart efAccountPicker={efPicker} />
 
       <div className="grid">
         <Stat label="Liquid cash" value={formatGBP(data.liquid)} delta={`${formatGBP(data.budgeted)} budgeted · ${formatGBP(data.allocated)} in pots`} />
