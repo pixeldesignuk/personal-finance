@@ -52,6 +52,8 @@ export const STRING_SETTING_DEFS: StringSettingDef[] = [
   { key: "savings.emergencyAccountId", default: "", validate: (v) => v === "" || v.length <= 64 },
   { key: "savings.efMonthsFull", default: "3", validate: (v) => { const n = Number(v); return Number.isFinite(n) && n >= 1 && n <= 12; } },
   { key: "savings.cushion", default: "100", validate: (v) => { const n = Number(v); return Number.isFinite(n) && n >= 0 && n <= 100000; } },
+  // Per-step plan escape hatches: a JSON object { [stepKey]: "handled" | "na" }.
+  { key: "plan.overrides", default: "{}", validate: (v) => { try { const o = JSON.parse(v); return o != null && typeof o === "object" && !Array.isArray(v); } catch { return false; } } },
 ];
 const STRING_DEFAULTS: Record<string, string> = Object.fromEntries(STRING_SETTING_DEFS.map((d) => [d.key, d.default]));
 

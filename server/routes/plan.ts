@@ -1,5 +1,6 @@
 // server/routes/plan.ts
 import { Router } from "express";
+import { z } from "zod";
 import { db } from "../lib/db.ts";
 import { currentMonth, personalSpendByCategory, type BudgetTx } from "../lib/budget.ts";
 import { NEEDS_KEYS } from "../../shared/categoryClass.ts";
@@ -8,9 +9,9 @@ import { manualTxnSums } from "../lib/manualBalance.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
 import { displayName } from "../../shared/displayName.ts";
 import { computeFunding, tallyIncomeByAccount, type FundingSchedule } from "../lib/funding.ts";
-import { getStringSettings } from "../lib/settings.ts";
+import { getStringSettings, setStringSetting } from "../lib/settings.ts";
 import { averageMonthly, computeSurplus, computePlanSteps } from "../lib/plan.ts";
-import type { PlanDTO } from "../../shared/types.ts";
+import type { PlanDTO, PlanOverride } from "../../shared/types.ts";
 
 export const planRouter = Router();
 
@@ -19,12 +20,24 @@ function prevMonth(m: string): string {
   return mo === 1 ? `${y - 1}-12` : `${y}-${String(mo - 1).padStart(2, "0")}`;
 }
 
+// Parse the plan.overrides JSON setting into a { stepKey: "handled"|"na" } map.
+function parseOverrides(raw: string | undefined): Record<string, PlanOverride> {
+  try {
+    const o = JSON.parse(raw || "{}");
+    if (!o || typeof o !== "object") return {};
+    const out: Record<string, PlanOverride> = {};
+    for (const [k, v] of Object.entries(o)) if (v === "handled" || v === "na") out[k] = v;
+    return out;
+  } catch { return {}; }
+}
+
 planRouter.get("/plan", async (_req, res, next) => {
   try {
     const settings = await getStringSettings();
     const efMonthsFull = Math.max(1, Math.min(12, Number(settings["savings.efMonthsFull"]) || 3));
     const cushion = Math.max(0, Number(settings["savings.cushion"]) || 0);
     const efAccountId = settings["savings.emergencyAccountId"] || "";
+    const overrides = parseOverrides(settings["plan.overrides"]);
 
     // ── budget set? ─────────────────────────────────────────────────────────
     const cats = await db.category.findMany({ where: { archived: false } });
@@ -60,18 +73,6 @@ planRouter.get("/plan", async (_req, res, next) => {
           efAcct.balances.map((b) => ({ type: b.type, amount: Number(b.amount.toString()) })), efAcct.balanceType, sums.get(efAcct.id) ?? 0)
       : 0;
 
-    // ── expensive / unrated debt (non-mortgage) ─────────────────────────────
-    const debts = await db.account.findMany({ where: { source: "LIABILITY", debtExcluded: false } });
-    const expensiveDebt: { name: string; apr: number }[] = [];
-    let unratedDebt = false;
-    for (const d of debts) {
-      const owed = Number(d.manualBalance?.toString() ?? "0");
-      if (owed <= 0) continue;
-      const apr = d.interestRate != null ? Number(d.interestRate.toString()) : null;
-      if (apr == null) { unratedDebt = true; continue; }
-      if (apr > 10) expensiveDebt.push({ name: displayName(d), apr: Math.round(apr * 10) / 10 });
-    }
-
     // ── surplus (safe-to-payday − cushion); EF account excluded from spendable ──
     const spendRows = await db.account.findMany({
       where: { source: { in: ["BANK", "MANUAL"] }, informational: false },
@@ -106,7 +107,7 @@ planRouter.get("/plan", async (_req, res, next) => {
     const efName = efAcct ? displayName(efAcct) : null;
     const { steps, current } = computePlanSteps({
       hasBudget, essentialMonthly, efTagged: !!efAcct, efBalance, efAccountName: efName,
-      efMonthsFull, expensiveDebt, unratedDebt, surplus,
+      efMonthsFull, surplus, overrides,
     });
 
     const dto: PlanDTO = {
@@ -114,5 +115,21 @@ planRouter.get("/plan", async (_req, res, next) => {
       efAccount: efAcct ? { id: efAcct.id, name: efName!, balance: Math.round(efBalance * 100) / 100 } : null,
     };
     res.json(dto);
+  } catch (e) { next(e); }
+});
+
+// Toggle a per-step escape hatch. value null clears the override (un-marks the step).
+planRouter.patch("/plan/override", async (req, res, next) => {
+  try {
+    const body = z.object({
+      step: z.enum(["budget", "ef_small", "pension", "ef_full", "invest"]),
+      value: z.enum(["handled", "na"]).nullable(),
+    }).parse(req.body);
+    const settings = await getStringSettings();
+    const overrides = parseOverrides(settings["plan.overrides"]);
+    if (body.value === null) delete overrides[body.step];
+    else overrides[body.step] = body.value;
+    await setStringSetting("plan.overrides", JSON.stringify(overrides));
+    res.json({ overrides });
   } catch (e) { next(e); }
 });

@@ -1,4 +1,4 @@
-import type { PlanStepDTO, PlanStepKey } from "../../shared/types.ts";
+import type { PlanStepDTO, PlanStepKey, PlanStepState, PlanOverride } from "../../shared/types.ts";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const gbp = (n: number) => `£${(Math.round(n * 100) / 100).toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -20,28 +20,31 @@ export interface PlanInputs {
   efBalance: number;
   efAccountName: string | null;
   efMonthsFull: number;
-  expensiveDebt: { name: string; apr: number }[];
-  unratedDebt: boolean;
   surplus: number;
+  overrides: Record<string, PlanOverride>; // user escape hatches: step marked handled / N/A
 }
+
+type StepBase = Omit<PlanStepDTO, "overridden">;
 
 export function computePlanSteps(i: PlanInputs): { steps: PlanStepDTO[]; current: PlanStepKey | null } {
   const canSizeEf = i.essentialMonthly > 0;
   const efDest = i.efTagged && i.efAccountName ? i.efAccountName : "your emergency fund";
   const efHint = (toGo: number) => `Move ${gbp(Math.min(i.surplus, toGo) || i.surplus)} to ${efDest}`;
+  const ovDetail = (ov: PlanOverride) => (ov === "na" ? "Marked not applicable" : "Marked as handled");
 
-  // Measured steps in UKPF order (pension omitted from measurement — see below).
+  // Measured steps in UKPF order, focused on saving (debt management is out of
+  // scope by design). Pension/invest are non-blocking teasers below.
   const smallTarget = i.essentialMonthly;        // 1× essentials
   const fullTarget = i.essentialMonthly * i.efMonthsFull;
 
-  const measured: { key: PlanStepKey; done: boolean; build: (state: PlanStepDTO["state"]) => PlanStepDTO }[] = [
+  const measured: { key: PlanStepKey; naturalDone: boolean; build: (state: PlanStepState) => StepBase }[] = [
     {
-      key: "budget", done: i.hasBudget,
+      key: "budget", naturalDone: i.hasBudget,
       build: (state) => ({ key: "budget", state, title: "Budgeting", detail: i.hasBudget ? "Budgets set" : "Set your category budgets",
         progress: null, toGo: null, actionHint: state === "current" ? "Set a monthly amount on your categories" : null }),
     },
     {
-      key: "ef_small", done: canSizeEf && i.efBalance >= smallTarget - 0.005,
+      key: "ef_small", naturalDone: canSizeEf && i.efBalance >= smallTarget - 0.005,
       build: (state) => {
         const toGo = Math.max(0, round2(smallTarget - i.efBalance));
         return {
@@ -54,16 +57,7 @@ export function computePlanSteps(i: PlanInputs): { steps: PlanStepDTO[]; current
       },
     },
     {
-      key: "debt", done: i.expensiveDebt.length === 0 && !i.unratedDebt,
-      build: (state) => ({
-        key: "debt", state, title: "Clear expensive debt",
-        detail: i.unratedDebt ? "Set the APR on your debts to check" : i.expensiveDebt.length ? i.expensiveDebt.map((d) => `${d.name} ${d.apr}% APR`).join(", ") : "No debt over 10% APR",
-        progress: null, toGo: null,
-        actionHint: state === "current" ? (i.unratedDebt ? "Add the interest rate to your debts" : i.expensiveDebt.length ? `Overpay ${i.expensiveDebt[0].name} (${i.expensiveDebt[0].apr}% APR)` : null) : null,
-      }),
-    },
-    {
-      key: "ef_full", done: canSizeEf && i.efBalance >= fullTarget - 0.005,
+      key: "ef_full", naturalDone: canSizeEf && i.efBalance >= fullTarget - 0.005,
       build: (state) => {
         const toGo = Math.max(0, round2(fullTarget - i.efBalance));
         return {
@@ -77,19 +71,32 @@ export function computePlanSteps(i: PlanInputs): { steps: PlanStepDTO[]; current
     },
   ];
 
-  const firstIncomplete = measured.findIndex((m) => !m.done);
-  const current: PlanStepKey | null = firstIncomplete === -1 ? null : measured[firstIncomplete].key;
+  // A step is complete when naturally met OR the user marked it handled / N/A.
+  const resolved = measured.map((m) => {
+    const ov = i.overrides[m.key] ?? null;
+    return { ...m, ov, done: m.naturalDone || ov != null };
+  });
+  const firstIncomplete = resolved.findIndex((m) => !m.done);
+  const current: PlanStepKey | null = firstIncomplete === -1 ? null : resolved[firstIncomplete].key;
 
-  const measuredSteps = measured.map((m, idx) => {
-    const state: PlanStepDTO["state"] = m.done ? "done" : idx === firstIncomplete ? "current" : "locked";
-    return m.build(state);
+  const measuredSteps: PlanStepDTO[] = resolved.map((m, idx) => {
+    const state: PlanStepState = m.done ? "done" : idx === firstIncomplete ? "current" : "locked";
+    const base = m.build(state);
+    // An override that stands in for a not-yet-met step gets the override label.
+    const detail = m.ov && !m.naturalDone ? ovDetail(m.ov) : base.detail;
+    return { ...base, detail, overridden: m.ov };
   });
 
-  // pension sits between ef_small and debt; invest after ef_full. Both are non-blocking "coming" teasers in v1.
-  const pension: PlanStepDTO = { key: "pension", state: "coming", title: "Get your pension match", detail: "Free money from your employer — coming soon", progress: null, toGo: null, actionHint: null };
-  const invest: PlanStepDTO = { key: "invest", state: "coming", title: "Invest for the long term", detail: "LISA / S&S ISA — coming soon", progress: null, toGo: null, actionHint: null };
+  // pension (UKPF Step 3) sits after the initial EF; invest after the full EF.
+  // Both are non-blocking "coming" teasers, but can be dismissed via an override.
+  const teaser = (key: PlanStepKey, title: string, detail: string): PlanStepDTO => {
+    const ov = i.overrides[key] ?? null;
+    return { key, state: ov ? "done" : "coming", title, detail: ov ? ovDetail(ov) : detail, progress: null, toGo: null, actionHint: null, overridden: ov };
+  };
+  const pension = teaser("pension", "Get your pension match", "Free money from your employer — coming soon");
+  const invest = teaser("invest", "Invest for the long term", "LISA / S&S ISA — coming soon");
 
-  const order: PlanStepKey[] = ["budget", "ef_small", "pension", "debt", "ef_full", "invest"];
+  const order: PlanStepKey[] = ["budget", "ef_small", "pension", "ef_full", "invest"];
   const byKey = new Map<PlanStepKey, PlanStepDTO>([...measuredSteps, pension, invest].map((s) => [s.key, s]));
   const steps = order.map((k) => byKey.get(k)!);
   return { steps, current };

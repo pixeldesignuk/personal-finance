@@ -204,8 +204,9 @@ export interface PotsDTO {
 }
 
 // Plan DTOs for the savings goal coach
-export type PlanStepKey = "budget" | "ef_small" | "pension" | "debt" | "ef_full" | "invest";
+export type PlanStepKey = "budget" | "ef_small" | "pension" | "ef_full" | "invest";
 export type PlanStepState = "done" | "current" | "locked" | "coming";
+export type PlanOverride = "handled" | "na"; // user marked a step resolved / not applicable
 export interface PlanStepDTO {
   key: PlanStepKey;
   state: PlanStepState;
@@ -214,6 +215,7 @@ export interface PlanStepDTO {
   progress: { have: number; target: number; pct: number } | null;
   toGo: number | null;
   actionHint: string | null;        // where surplus should go on the current step
+  overridden: PlanOverride | null;  // non-null when the user has marked it handled / N/A
 }
 export interface PlanDTO {
   essentialMonthly: number;
