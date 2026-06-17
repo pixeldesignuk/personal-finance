@@ -203,6 +203,26 @@ export interface PotsDTO {
   unallocated: number;  // liquid − allocated (negative = over-allocated)
 }
 
+// Plan DTOs for the savings goal coach
+export type PlanStepKey = "budget" | "ef_small" | "pension" | "debt" | "ef_full" | "invest";
+export type PlanStepState = "done" | "current" | "locked" | "coming";
+export interface PlanStepDTO {
+  key: PlanStepKey;
+  state: PlanStepState;
+  title: string;
+  detail: string | null;            // "1 month", "Barclaycard 24.9% APR", setup hints
+  progress: { have: number; target: number; pct: number } | null;
+  toGo: number | null;
+  actionHint: string | null;        // where surplus should go on the current step
+}
+export interface PlanDTO {
+  essentialMonthly: number;
+  efAccount: { id: string; name: string; balance: number } | null;
+  surplus: number;
+  current: PlanStepKey | null;
+  steps: PlanStepDTO[];
+}
+
 // Per-account recurring outgoings → the balance to keep in that account monthly.
 export interface AccountRecurringDTO {
   accountId: string;
