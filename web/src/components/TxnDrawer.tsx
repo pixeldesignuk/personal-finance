@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { Paperclip } from "lucide-react";
-import type { TransactionDTO, CategoryNameDTO, PersonDTO } from "../../../shared/types.ts";
-import { formatMoney } from "../format.ts";
+import type { TransactionDTO, CategoryNameDTO, PersonDTO, BudgetRowDTO } from "../../../shared/types.ts";
+import { formatMoney, formatGBP } from "../format.ts";
 import { Combobox, type ComboOption } from "./Combobox.tsx";
 
 const FLAGS: { key: string | null; label: string }[] = [
@@ -16,10 +16,13 @@ const FLAGS: { key: string | null; label: string }[] = [
 // the list row hides — line items, the receipt image, the raw statement line,
 // origin/status — and lets you edit the name, category, person, note and flag.
 export function TxnDrawer({
-  txn, onClose, catNames, people, liabilities, debtName, nameOptions,
+  txn, budget, onClose, catNames, people, liabilities, debtName, nameOptions,
   onRename, onCategory, onPerson, onNote, onFlag, onDelete, onLinkDebt, onUnlinkDebt,
 }: {
   txn: TransactionDTO;
+  // Authoritative budget standing for this txn's category this month (from
+  // /api/budget). Used to show where the envelope sits + this purchase's share.
+  budget?: BudgetRowDTO | null;
   onClose: () => void;
   catNames: CategoryNameDTO[];
   people: PersonDTO[];
@@ -48,6 +51,23 @@ export function TxnDrawer({
   const originLabel = { bank: "Bank sync", telegram: "Telegram", receipt: "Telegram receipt", manual: "Manual" }[txn.origin];
   const commitNote = () => { const v = note.trim(); if ((v || null) !== (txn.note ?? null)) onNote(v || null); };
 
+  // Budget standing for this txn's category this month, plus this purchase's
+  // share of the envelope. Figures are authoritative (from /api/budget).
+  const catName = catNames.find((c) => c.key === txn.category)?.name ?? txn.category;
+  const amtAbs = Math.abs(Number(txn.amount));
+  const bi = budget && budget.budgeted > 0 ? (() => {
+    const cap = budget.budgeted;
+    const spent = budget.spent;
+    const left = budget.left;
+    const spentW = Math.max(0, Math.min(100, (spent / cap) * 100));
+    // This purchase's slice, sitting at the leading edge of the spent bar.
+    const thisW = Math.max(0, Math.min(spentW, (amtAbs / cap) * 100));
+    const beforeW = spentW - thisW;
+    const tone = left < 0 ? "over" : budget.percent >= 85 ? "warn" : "ok";
+    const share = Math.round((amtAbs / cap) * 100);
+    return { cap, spent, left, beforeW, thisW, tone, share };
+  })() : null;
+
   return createPortal(
     <div className="drawer-backdrop" onClick={onClose}>
       <aside className="drawer txn-drawer" onClick={(e) => e.stopPropagation()}>
@@ -60,6 +80,26 @@ export function TxnDrawer({
             <span className={`num ${neg ? "neg" : "pos"}`}>{txn.currency} {formatMoney(txn.amount)}</span>
             <span className="muted txnd-sub">{date} · {txn.accountName}{originLabel ? ` · ${originLabel}` : ""}</span>
           </div>
+
+          {bi && (
+            <div className={`drawer-section txnd-budget is-${bi.tone}`}>
+              <div className="txnd-budget-head">
+                <span className="eyebrow">Budget impact · {catName}</span>
+                <span className="num txnd-budget-status">
+                  {bi.left < 0
+                    ? <>{formatGBP(-bi.left)} <span className="muted">over</span></>
+                    : <>{formatGBP(bi.left)} <span className="muted">left</span></>}
+                </span>
+              </div>
+              <div className="progress stack txnd-budget-bar">
+                <i className={bi.tone} style={{ width: `${bi.beforeW}%` }} />
+                <i className="up-shade" style={{ width: `${bi.thisW}%`, "--shade": bi.tone === "over" ? "var(--coral)" : "var(--ink)" } as CSSProperties} title="This purchase" />
+              </div>
+              <p className="txnd-budget-sub muted">
+                Spent {formatGBP(bi.spent)} of the {formatGBP(bi.cap)} {catName} budget · this purchase {formatGBP(amtAbs)} ({bi.share}%)
+              </p>
+            </div>
+          )}
 
           <div className="drawer-section">
             <div className="eyebrow">Merchant</div>

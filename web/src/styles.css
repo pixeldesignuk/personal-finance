@@ -143,35 +143,15 @@ nav a {
 }
 nav a:hover { color: var(--ink); }
 nav a.active { color: var(--ink); }
-/* Active link: a thin neon border sitting ON the nav (just under the label) — no
-   pill/fill. ::after is the bright line; ::before is a soft glow that emanates
-   UP from the border and undulates like a sine wave. */
+/* Active link: a clean jade underline (no glow). */
 nav a.active:not(.nav-cta)::after {
   content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 2px;
   border-radius: 2px;
   background: var(--jade);
-  box-shadow: 0 0 5px var(--jade), 0 0 12px color-mix(in srgb, var(--jade) 70%, transparent);
 }
-nav a.active:not(.nav-cta)::before {
-  content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 30px;
-  pointer-events: none;
-  /* Hill-shaped glow: brightest at the bottom-centre, tapering up and out to the
-     sides so it reads as a focused mound rising from the middle of the border. */
-  background: radial-gradient(52% 140% at 50% 100%,
-    color-mix(in srgb, var(--jade) 72%, transparent) 0%,
-    color-mix(in srgb, var(--jade) 22%, transparent) 42%,
-    transparent 70%);
-  filter: blur(5px);
-  transform-origin: bottom center;
-  animation: navGlowWave 2.4s ease-in-out infinite;
-}
-@keyframes navGlowWave {
-  0%, 100% { transform: scaleY(0.88); opacity: 0.62; }
-  50%      { transform: scaleY(1.18); opacity: 1; }
-}
-@media (prefers-reduced-motion: reduce) {
-  nav a.active:not(.nav-cta)::before { animation: none; opacity: 0.85; }
-}
+/* Desktop nav: pin the underline to the BOTTOM of the floating panel (the link
+   sits ~20px above the panel's bottom edge). */
+nav:not(.mobile-tabbar) a.active:not(.nav-cta)::after { bottom: -19px; border-radius: 2px 2px 0 0; }
 
 /* settings cog + dropdown */
 .cog { position: relative; display: flex; align-items: center; }
@@ -247,6 +227,17 @@ nav a.active:not(.nav-cta)::before {
 .txnd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .txnd-field { display: flex; flex-direction: column; gap: 5px; }
 .txnd-field .eyebrow { margin: 0; }
+/* Budget impact block — this purchase against its category envelope */
+.txnd-budget { padding: 12px 13px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface-2); }
+.txnd-budget.is-over { border-color: color-mix(in srgb, var(--coral) 45%, var(--line)); background: color-mix(in srgb, var(--coral) 7%, var(--surface-2)); }
+.txnd-budget.is-warn { border-color: color-mix(in srgb, var(--amber) 40%, var(--line)); }
+.txnd-budget-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.txnd-budget-head .eyebrow { margin: 0; }
+.txnd-budget-status { font-size: 15px; font-weight: 660; letter-spacing: -0.02em; }
+.txnd-budget.is-over .txnd-budget-status { color: var(--coral); }
+.txnd-budget-status .muted { font-weight: 500; font-size: 12px; }
+.txnd-budget-bar { margin-top: 9px; }
+.txnd-budget-sub { margin: 8px 0 0; font-size: 11.5px; line-height: 1.45; }
 .txn-drawer select { border: 1px solid var(--line-strong); border-radius: var(--r-sm); padding: 8px 30px 8px 10px; background-color: var(--surface-2); color: var(--ink); width: 100%; }
 .txn-drawer .combo-trigger { border: 1px solid var(--line-strong); padding: 8px 28px 8px 10px; }
 .txnd-flags { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -611,6 +602,7 @@ select:focus { outline: none; box-shadow: none; border-color: transparent; backg
 .acct-chip-name {
   font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: var(--ink-3);
   max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-top: -4px; /* tighten the gap between the amount and the name */
 }
 .acct-chip.active .acct-chip-ico { border-color: var(--jade); box-shadow: 0 0 0 1px var(--jade), 0 0 18px -6px var(--jade); }
 .acct-chip.active .acct-chip-name { color: var(--ink); }
@@ -1331,6 +1323,11 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 .seg-btn { font: inherit; font-size: 12.5px; font-weight: 600; color: var(--ink-3); background: transparent; border: 0; border-radius: 999px; padding: 5px 14px; cursor: pointer; transition: color 0.12s ease, background 0.12s ease; }
 .seg-btn.is-active { color: var(--ink); background: color-mix(in srgb, var(--jade) 22%, transparent); }
 .seg-btn:not(.is-active):hover { color: var(--ink-2); }
+/* Multi-row card-settings (a select + toggles), e.g. the budget hero's config. */
+.card-settings-list { display: flex; flex-direction: column; margin-top: 2px; }
+.card-settings-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 9px 0; }
+.card-settings-row + .card-settings-row { border-top: 1px solid var(--line); }
+.card-settings-row > span { font-size: 13px; font-weight: 600; color: var(--ink-2); }
 /* Empty grids (every card in a row hidden) shouldn't leave a gap. */
 .grid:empty { display: none; margin: 0; }
 /* Dashboard card rows: flex so that when cards are hidden the remaining ones in
@@ -1409,8 +1406,7 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 .bv2-row { display: flex; align-items: center; gap: 14px; padding: 12px 8px; margin: 0 -8px; border-radius: 12px; text-decoration: none; color: inherit; transition: background 0.12s ease; }
 .bv2-row:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
 .bv2-badge { flex: none; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; }
-/* Overspent category: red-ringed badge + bold red "over" amount (Snoop-style). */
-.bv2-row.is-over .bv2-badge { box-shadow: 0 0 0 2px var(--coral); }
+/* Overspent category: bold red "over" amount + red name (Snoop-style). */
 .bv2-row.is-over .bv2-row-name { color: var(--coral); }
 .bv2-over { color: var(--coral); font-weight: 700; }
 /* Top-of-page overspend alert (YNAB-style "N over budget"). The wrap holds the red
@@ -1496,8 +1492,12 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 /* Day group */
 .txnv2-day { margin-bottom: 18px; }
 .txnv2-day-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 2px 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.02em; color: var(--ink-3); }
-.txnv2-day-head .num { font-size: 12.5px; color: var(--ink-2); }
-.txnv2-day-head .num.pos { color: var(--jade); }
+.txnv2-day-sums { display: inline-flex; align-items: center; gap: 12px; }
+.txnv2-day-sum { display: inline-flex; align-items: center; gap: 3px; }
+.txnv2-day-sum svg { flex: none; }
+.txnv2-day-sum.is-out { color: var(--coral); }
+.txnv2-day-sum.is-in { color: var(--jade); }
+.txnv2-day-head .num { font-size: 12.5px; font-weight: 640; color: inherit; }
 
 /* Card grid */
 .txnv2-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
@@ -1541,6 +1541,9 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 .txnv2-card.cls-savings { background: color-mix(in srgb, var(--c-savings) 9%, var(--surface-2)); }
 .txnv2-card.cls-savings .txnv2-amt { color: var(--c-savings); }
 .txnv2-card.is-income { background: color-mix(in srgb, var(--jade) 7%, var(--surface-2)); }
+/* Dashboard Recent activity cards: drop the green income/savings background tints. */
+.txnv2-grid-auto .txnv2-card.is-income,
+.txnv2-grid-auto .txnv2-card.cls-savings { background: var(--surface-2); }
 /* Reduction flags get a left accent bar */
 .txnv2-card.flag-red { box-shadow: inset 3px 0 0 var(--coral); }
 .txnv2-card.flag-orange { box-shadow: inset 3px 0 0 #ff9f43; }
@@ -1552,6 +1555,57 @@ input.readonly:focus { border-color: var(--line-strong); box-shadow: none; }
 .txnv2-new-icon { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--ink) 8%, transparent); }
 .txnv2-new-label { font-size: 13px; font-weight: 600; }
 .txnv2-empty { grid-column: 1 / -1; text-align: center; padding: 28px 0; }
+
+/* ── Cards/List view toggle ──────────────────────────────────────────────── */
+.txnv2-view { display: inline-flex; margin-left: auto; padding: 2px; gap: 2px; border-radius: 99px; border: 1px solid var(--line-strong); background: var(--surface-2); }
+.txnv2-view-btn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 26px; border: none; border-radius: 99px; background: transparent; color: var(--ink-3); cursor: pointer; transition: background 0.12s ease, color 0.12s ease; }
+.txnv2-view-btn:hover { color: var(--ink); }
+.txnv2-view-btn.is-active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); }
+
+/* ── List view — banking-app rows ────────────────────────────────────────── */
+/* Large merchant avatar with the source account/bank logo badged on its corner. */
+.txnv2-list { display: flex; flex-direction: column; }
+.txnv2-lrow {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 13px;
+  width: 100%; text-align: left; padding: 11px 4px; border: none; border-bottom: 1px solid var(--line);
+  background: transparent; color: var(--ink); cursor: pointer; border-radius: 0;
+  transition: background 0.12s ease;
+}
+.txnv2-lrow:last-child { border-bottom: none; }
+.txnv2-lrow:hover { background: var(--surface-2); }
+.txnv2-lrow:active { background: var(--surface-3, var(--surface-2)); }
+.txnv2-lrow.is-due { opacity: 0.72; }
+.txnv2-lrow.is-due:hover { opacity: 1; }
+.txnv2-lrow.flag-red { box-shadow: inset 3px 0 0 var(--coral); }
+.txnv2-lrow.flag-orange { box-shadow: inset 3px 0 0 #ff9f43; }
+.txnv2-lrow.flag-yellow { box-shadow: inset 3px 0 0 var(--amber); }
+
+.txnv2-lrow-av { position: relative; width: 44px; height: 44px; flex: none; line-height: 0; }
+.txnv2-lrow-av > .brand-logo { border-color: var(--line); }
+.txnv2-lrow-badge { position: absolute; right: -3px; bottom: -3px; line-height: 0; border-radius: 50%; box-shadow: 0 0 0 2px var(--bg); }
+.txnv2-lrow-badge .brand-logo { border-color: var(--line); }
+.txnv2-lrow-badge .tg-avatar { width: 20px; height: 20px; box-shadow: none; }
+
+.txnv2-lrow-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.txnv2-lrow-name { font-size: 14.5px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.txnv2-lrow-sub { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.txnv2-lrow-sub svg { flex: none; }
+.txnv2-lrow-amt { font-size: 15.5px; font-weight: 640; letter-spacing: -0.02em; white-space: nowrap; }
+.txnv2-lrow-amt.pos { color: var(--jade); }
+
+/* Quiet budget flags — an amber dot as a category nears its cap (no text), and a
+   single red flag WITH the over amount on the newest purchase of an over category.
+   A blown category thus shows one summary, not a wall of red. */
+.txnv2-flag { display: inline-flex; align-items: center; gap: 3px; flex: none; margin-left: 6px; line-height: 0; }
+.txnv2-flag svg { flex: none; }
+.txnv2-flag.is-near { color: var(--amber); }
+.txnv2-flag.is-over { color: var(--coral); }
+.txnv2-flag.has-text { margin-left: 7px; padding: 1px 7px 1px 6px; border-radius: 99px; line-height: 1.4; background: color-mix(in srgb, var(--coral) 14%, transparent); }
+.txnv2-flag-text { font-size: 11px; font-weight: 640; letter-spacing: -0.01em; }
+
+.txnv2-lrow-new { color: var(--ink-2); }
+.txnv2-lrow-new:hover { color: var(--ink); }
+.txnv2-new-icon-row { width: 44px; height: 44px; border: 1px dashed var(--line-strong); background: transparent; }
 
 /* ── Budget detail bottom sheet ───────────────────────────────────────────── */
 .bsheet-backdrop { z-index: 70; animation: bsheet-fade 0.25s ease; }

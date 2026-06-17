@@ -540,5 +540,6 @@ export interface SettingDef {
 export interface SettingsDTO {
   defs: SettingDef[];
   values: Record<string, boolean>;
+  strings: Record<string, string>; // string-valued settings (e.g. dashboard.hero.figure)
   order: string[]; // dashboard section order (keys of DASHBOARD_BLOCKS)
 }

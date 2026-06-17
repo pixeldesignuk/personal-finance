@@ -35,9 +35,38 @@ export const SETTING_DEFS: SettingDef[] = [
   { key: "dashboard.recentActivity.cards", label: "Recent activity · card view", group: "Dashboard", type: "boolean", default: false, hidden: true },
   { key: "dashboard.show.cashflow", label: "Spending", group: "Dashboard", type: "boolean", default: true, hidden: true },
   { key: "dashboard.show.balances", label: "Balances by account", group: "Dashboard", type: "boolean", default: true, hidden: true },
+  // Budget hero card — configurable parts (toggled via the card's gear in Customize mode).
+  { key: "dashboard.hero.showTitle", label: "Budget · title", group: "Dashboard", type: "boolean", default: true, hidden: true },
+  { key: "dashboard.hero.showBar", label: "Budget · progress bar", group: "Dashboard", type: "boolean", default: true, hidden: true },
+  { key: "dashboard.hero.showBreakdown", label: "Budget · breakdown line", group: "Dashboard", type: "boolean", default: true, hidden: true },
+  { key: "dashboard.hero.showBills", label: "Budget · upcoming bills", group: "Dashboard", type: "boolean", default: true, hidden: true },
 ];
 
 const DEFAULTS: Record<string, boolean> = Object.fromEntries(SETTING_DEFS.map((d) => [d.key, d.default]));
+
+// String-valued settings (the boolean store can't hold these). Each has an allow-list
+// so an unknown value can't be persisted. Currently just the budget hero's lead figure.
+export interface StringSettingDef { key: string; default: string; allowed: string[] }
+export const STRING_SETTING_DEFS: StringSettingDef[] = [
+  { key: "dashboard.hero.figure", default: "left", allowed: ["left", "spent", "networth", "net"] },
+];
+const STRING_DEFAULTS: Record<string, string> = Object.fromEntries(STRING_SETTING_DEFS.map((d) => [d.key, d.default]));
+
+export async function getStringSettings(): Promise<Record<string, string>> {
+  const keys = new Set(STRING_SETTING_DEFS.map((d) => d.key));
+  const rows = await db.setting.findMany();
+  const stored: Record<string, string> = {};
+  for (const r of rows) if (keys.has(r.key)) stored[r.key] = r.value;
+  return { ...STRING_DEFAULTS, ...stored };
+}
+
+// Returns true if the key/value was a known, valid string setting (and was stored).
+export async function setStringSetting(key: string, value: string): Promise<boolean> {
+  const def = STRING_SETTING_DEFS.find((d) => d.key === key);
+  if (!def || !def.allowed.includes(value)) return false;
+  await db.setting.upsert({ where: { key }, create: { key, value }, update: { value } });
+  return true;
+}
 
 // Current values merged over defaults.
 export async function getSettings(): Promise<Record<string, boolean>> {

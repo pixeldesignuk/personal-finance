@@ -120,7 +120,7 @@ export const api = {
   patchMerchant: (token: string, patch: { name?: string | null; domain?: string | null; recurring?: "auto" | "fixed" | "variable" | "ignore"; categoryKey?: string | null; personKey?: string | null; priority?: number }) =>
     send<{ ok: boolean }>("PATCH", `/api/merchants/${encodeURIComponent(token)}`, patch),
   settings: () => get<SettingsDTO>("/api/settings"),
-  patchSettings: (patch: Record<string, boolean>) => send<Record<string, boolean>>("PATCH", "/api/settings", patch),
+  patchSettings: (patch: Record<string, boolean | string>) => send<{ values: Record<string, boolean>; strings: Record<string, string> }>("PATCH", "/api/settings", patch),
   setDashboardOrder: (order: string[]) => send<{ order: string[] }>("PUT", "/api/settings/dashboard-order", { order }),
   pots: () => get<PotsDTO>("/api/pots"),
   createPot: (input: { name: string; target?: number | null; emoji?: string | null; balance?: number }) => send<{ id: number }>("POST", "/api/pots", input),

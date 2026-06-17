@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useQueryState } from "nuqs";
 import { api } from "../api.ts";
-import type { TransactionDTO } from "../../../shared/types.ts";
+import type { TransactionDTO, BudgetRowDTO } from "../../../shared/types.ts";
 import { formatGBP, relativeDate } from "../format.ts";
 import { categoryClass, type SpendClass } from "../categoryMeta.ts";
 import { isRefundNote } from "../../../shared/refund.ts";
@@ -12,7 +12,7 @@ import { BrandLogo } from "../components/BrandLogo.tsx";
 import { AddTransaction } from "../components/AddTransaction.tsx";
 import { TxnDrawer } from "../components/TxnDrawer.tsx";
 import { useTxnEditing } from "../hooks/useTxnEditing.ts";
-import { Plus, SlidersHorizontal, Clock } from "lucide-react";
+import { Plus, SlidersHorizontal, Clock, LayoutGrid, Rows3, Send, Flag } from "lucide-react";
 
 type Sort = "newest" | "oldest" | "largest" | "smallest";
 const CLASS_PILLS: { key: SpendClass; label: string }[] = [
@@ -43,11 +43,13 @@ export default function TransactionsHome() {
   const [merchant, setMerchant] = useQueryState("merchant", { defaultValue: "", history: "replace" });
   const [klass, setKlass] = useQueryState("class", { defaultValue: "", history: "replace" });
   const [sort, setSort] = useQueryState("sort", { defaultValue: "newest", history: "replace" });
+  const [view, setView] = useQueryState("view", { defaultValue: "cards", history: "replace" });
   const [filtersOpen, setFiltersOpen] = useState(false);
   const navigate = useNavigate();
 
   const edit = useTxnEditing();
-  const { catNames, people, liabilities, debtName, nameOptions, invalidateTxns } = edit;
+  const { catNames, people, liabilities, debtName, nameOptions, bankByAccount, invalidateTxns } = edit;
+  const listView = view === "list";
 
   const txnQuery = useQuery({
     queryKey: ["transactions", debouncedQ, accountId, personFilter, month, merchant] as const,
@@ -57,6 +59,54 @@ export default function TransactionsHome() {
   const rows = useMemo(() => txnQuery.data ?? [], [txnQuery.data]);
 
   const unreconciledCount = useMemo(() => rows.filter((r) => r.category === "uncategorised" && !isRefundNote(r.note)).length, [rows]);
+
+  // Current-month budget envelopes, keyed by category, so a row can flag its
+  // impact on that category's budget. Only the live month is meaningful for
+  // envelope budgeting — past months are historical, not actionable.
+  const currentMonth = todayISO().slice(0, 7);
+  const budgetQuery = useQuery({ queryKey: ["budget", "current"], queryFn: () => api.budget(), staleTime: 60_000 });
+  const budgetByCat = useMemo(() => {
+    const m = new Map<string, BudgetRowDTO>();
+    for (const row of budgetQuery.data?.rows ?? []) m.set(row.key, row);
+    return m;
+  }, [budgetQuery.data]);
+
+  // The newest current-month transaction of each budgeted category — the single
+  // row that carries that category's budget flag. (We can't reliably reconstruct
+  // a per-transaction running total client-side: the budget engine excludes
+  // transfers/refunds/debt repayments that a naive per-row sum would wrongly
+  // count — so we anchor to the authoritative /api/budget figures instead.)
+  const newestByCat = useMemo(() => {
+    const best = new Map<string, { id: string; date: string; idx: number }>();
+    rows.forEach((r, idx) => {
+      if (Number(r.amount) >= 0) return; // income/refund
+      if ((r.bookingDate ?? "").slice(0, 7) !== currentMonth) return; // live month only
+      const b = budgetByCat.get(r.category);
+      if (!b || b.budgeted <= 0) return;
+      const date = r.bookingDate ?? "";
+      const cur = best.get(r.category);
+      // Newest = latest date; on a date tie, the topmost row (newest-first list →
+      // smallest idx) wins.
+      if (!cur || date > cur.date || (date === cur.date && idx < cur.idx)) {
+        best.set(r.category, { id: r.id, date, idx });
+      }
+    });
+    const m = new Map<string, string>();
+    for (const [cat, v] of best) m.set(cat, v.id);
+    return m;
+  }, [rows, budgetByCat, currentMonth]);
+
+  // One quiet flag per category, on its newest purchase: amber (no text) as it
+  // approaches the cap, or red WITH the over amount once it's blown. Authoritative
+  // figures, so a 39%-spent category never falsely flags.
+  const budgetFlag = (r: TransactionDTO): { tone: "near" | "over"; text?: string } | null => {
+    if (newestByCat.get(r.category) !== r.id) return null;
+    const b = budgetByCat.get(r.category);
+    if (!b) return null;
+    if (b.left < 0) return { tone: "over", text: `${formatGBP(-b.left)} over` };
+    if (b.percent >= 85) return { tone: "near" };
+    return null;
+  };
 
   // Client-side filter (class pills, category) + sort.
   const visible = useMemo(() => {
@@ -78,14 +128,17 @@ export default function TransactionsHome() {
   }, [rows, catFilter, klass, sort]);
 
   // Group consecutive (already-sorted) rows by day, preserving sort order.
+  // Track income and outgoing separately — a single net figure (in − out) is
+  // counterintuitive at a glance, so the day header shows both sides.
   const groups = useMemo(() => {
-    const out: { key: string; label: string; total: number; rows: TransactionDTO[] }[] = [];
+    const out: { key: string; label: string; inSum: number; outSum: number; rows: TransactionDTO[] }[] = [];
     for (const r of visible) {
       const k = dayKey(r.bookingDate);
       let g = out[out.length - 1];
-      if (!g || g.key !== k) { g = { key: k, label: r.bookingDate ? relativeDate(r.bookingDate) : "No date", total: 0, rows: [] }; out.push(g); }
+      if (!g || g.key !== k) { g = { key: k, label: r.bookingDate ? relativeDate(r.bookingDate) : "No date", inSum: 0, outSum: 0, rows: [] }; out.push(g); }
       g.rows.push(r);
-      g.total += Number(r.amount);
+      const amt = Number(r.amount);
+      if (amt >= 0) g.inSum += amt; else g.outSum += amt;
     }
     return out;
   }, [visible]);
@@ -120,6 +173,14 @@ export default function TransactionsHome() {
             <span className="txnv2-dot" /> {p.label}
           </button>
         ))}
+        <div className="txnv2-view" role="group" aria-label="View">
+          <button type="button" className={`txnv2-view-btn${!listView ? " is-active" : ""}`} aria-pressed={!listView} title="Card view" onClick={() => setView("cards")}>
+            <LayoutGrid size={15} strokeWidth={2.2} />
+          </button>
+          <button type="button" className={`txnv2-view-btn${listView ? " is-active" : ""}`} aria-pressed={listView} title="List view" onClick={() => setView("list")}>
+            <Rows3 size={15} strokeWidth={2.2} />
+          </button>
+        </div>
       </div>
 
       {filtersOpen && (
@@ -156,39 +217,93 @@ export default function TransactionsHome() {
           <section key={g.key} className="txnv2-day">
             <div className="txnv2-day-head">
               <span>{g.label}</span>
-              <span className={`num ${g.total >= 0 ? "pos" : ""}`}>{g.total >= 0 ? "+" : ""}{formatGBP(g.total)}</span>
+              {/* Daily In/Out totals hidden for now — re-enable when wanted.
+              <span className="txnv2-day-sums">
+                {g.outSum < 0 && <span className="txnv2-day-sum is-out"><ArrowUp size={12} strokeWidth={2.8} /><span className="num">{formatGBP(Math.abs(g.outSum))}</span></span>}
+                {g.inSum > 0 && <span className="txnv2-day-sum is-in"><ArrowDown size={12} strokeWidth={2.8} /><span className="num">{formatGBP(g.inSum)}</span></span>}
+              </span> */}
             </div>
-            <div className="txnv2-grid">
-              {gi === 0 && <NewTxnTile onAdded={invalidateTxns} />}
-              {g.rows.map((r) => {
-                const amt = Number(r.amount);
-                const income = amt > 0;
-                const cls = income ? null : categoryClass(r.category);
-                const name = txnName(r);
-                const catName = catNames.find((c) => c.key === r.category)?.name ?? "";
-                const due = isDue(r, today);
-                return (
-                  <button
-                    key={r.id}
-                    type="button"
-                    className={`txnv2-card${income ? " is-income" : cls ? ` cls-${cls}` : ""}${r.flag ? ` flag-${r.flag}` : ""}${due ? " is-due" : ""}`}
-                    onClick={() => setDrawerId(r.id)}
-                  >
-                    <div className="txnv2-card-top">
-                      <span className="txnv2-avatar">
-                        <BrandLogo name={name} src={r.logoUrl} size={34} />
-                        {due && <span className="txnv2-due-badge" title="Not yet settled"><Clock size={11} strokeWidth={2.6} /></span>}
+            {listView ? (
+              <div className="txnv2-list">
+                {gi === 0 && <NewTxnRow onAdded={invalidateTxns} />}
+                {g.rows.map((r) => {
+                  const amt = Number(r.amount);
+                  const income = amt > 0;
+                  const name = txnName(r);
+                  const catName = catNames.find((c) => c.key === r.category)?.name ?? "";
+                  const due = isDue(r, today);
+                  const tg = r.origin === "telegram" || r.origin === "receipt";
+                  const bank = bankByAccount[r.accountId];
+                  const sub = [due ? "Pending" : "", catName].filter(Boolean).join(" · ");
+                  const flag = budgetFlag(r);
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      className={`txnv2-lrow${r.flag ? ` flag-${r.flag}` : ""}${due ? " is-due" : ""}`}
+                      onClick={() => setDrawerId(r.id)}
+                    >
+                      <span className="txnv2-lrow-av">
+                        <BrandLogo name={name} src={r.logoUrl} size={44} />
+                        <span className="txnv2-lrow-badge">
+                          {tg
+                            ? <span className="tg-avatar" title="Added via Telegram"><Send size={11} strokeWidth={2.4} /></span>
+                            : <BrandLogo name={bank?.name ?? r.accountName} src={bank?.logo} size={20} />}
+                        </span>
                       </span>
-                      <span className={`num txnv2-amt${income ? " pos" : ""}`}>{income ? "+" : ""}{formatGBP(amt)}</span>
-                    </div>
-                    <div className="txnv2-card-bottom">
-                      <span className="txnv2-name">{name}</span>
-                      <span className="txnv2-sub muted">{catName}</span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                      <span className="txnv2-lrow-main">
+                        <span className="txnv2-lrow-name">{name}</span>
+                        <span className="txnv2-lrow-sub muted">
+                          {due && <Clock size={11} strokeWidth={2.6} />}{sub}
+                          {flag && (
+                            <span
+                              className={`txnv2-flag is-${flag.tone}${flag.text ? " has-text" : ""}`}
+                              title={flag.text ? `${catName} ${flag.text} budget` : `Approaching ${catName} budget`}
+                            >
+                              <Flag size={11} strokeWidth={0} fill="currentColor" />
+                              {flag.text && <span className="txnv2-flag-text">{flag.text}</span>}
+                            </span>
+                          )}
+                        </span>
+                      </span>
+                      <span className={`num txnv2-lrow-amt ${income ? "pos" : "neg"}`}>{income ? "+" : "−"}{formatGBP(Math.abs(amt))}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="txnv2-grid">
+                {gi === 0 && <NewTxnTile onAdded={invalidateTxns} />}
+                {g.rows.map((r) => {
+                  const amt = Number(r.amount);
+                  const income = amt > 0;
+                  const cls = income ? null : categoryClass(r.category);
+                  const name = txnName(r);
+                  const catName = catNames.find((c) => c.key === r.category)?.name ?? "";
+                  const due = isDue(r, today);
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      className={`txnv2-card${income ? " is-income" : cls ? ` cls-${cls}` : ""}${r.flag ? ` flag-${r.flag}` : ""}${due ? " is-due" : ""}`}
+                      onClick={() => setDrawerId(r.id)}
+                    >
+                      <div className="txnv2-card-top">
+                        <span className="txnv2-avatar">
+                          <BrandLogo name={name} src={r.logoUrl} size={34} />
+                          {due && <span className="txnv2-due-badge" title="Not yet settled"><Clock size={11} strokeWidth={2.6} /></span>}
+                        </span>
+                        <span className={`num txnv2-amt${income ? " pos" : ""}`}>{income ? "+" : ""}{formatGBP(amt)}</span>
+                      </div>
+                      <div className="txnv2-card-bottom">
+                        <span className="txnv2-name">{name}</span>
+                        <span className="txnv2-sub muted">{catName}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </section>
         ))
       )}
@@ -196,6 +311,7 @@ export default function TransactionsHome() {
       {drawerTxn && (
         <TxnDrawer
           txn={drawerTxn}
+          budget={Number(drawerTxn.amount) < 0 ? (budgetByCat.get(drawerTxn.category) ?? null) : null}
           onClose={() => setDrawerId(null)}
           catNames={catNames}
           people={people}
@@ -224,6 +340,22 @@ function NewTxnTile({ onAdded }: { onAdded: () => void }) {
         <button type="button" className="txnv2-card txnv2-new" onClick={open}>
           <span className="txnv2-new-icon"><Plus size={20} strokeWidth={2.4} /></span>
           <span className="txnv2-new-label">New Transaction</span>
+        </button>
+      )}
+    />
+  );
+}
+
+function NewTxnRow({ onAdded }: { onAdded: () => void }) {
+  return (
+    <AddTransaction
+      onAdded={onAdded}
+      renderTrigger={(open) => (
+        <button type="button" className="txnv2-lrow txnv2-lrow-new" onClick={open}>
+          <span className="txnv2-lrow-av">
+            <span className="txnv2-new-icon txnv2-new-icon-row"><Plus size={20} strokeWidth={2.4} /></span>
+          </span>
+          <span className="txnv2-lrow-main"><span className="txnv2-lrow-name">New Transaction</span></span>
         </button>
       )}
     />

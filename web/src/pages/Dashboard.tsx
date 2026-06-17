@@ -99,19 +99,31 @@ export default function Dashboard({ minimal = false, editing: editingProp, onEdi
   const setEditing = (v: boolean) => (onEditingChange ?? setEditingInternal)(v);
   const show = (key: string) => settings?.values[key] ?? true; // default on while loading
   const settingsMut = useMutation({
-    mutationFn: (patch: Record<string, boolean>) => api.patchSettings(patch),
+    mutationFn: (patch: Record<string, boolean | string>) => api.patchSettings(patch),
     onMutate: async (patch) => {
       await qc.cancelQueries({ queryKey: ["settings"] });
       const prev = qc.getQueryData<SettingsDTO>(["settings"]);
-      if (prev) qc.setQueryData<SettingsDTO>(["settings"], { ...prev, values: { ...prev.values, ...patch } });
+      if (prev) {
+        // Route boolean keys to `values`, string keys to `strings` (optimistic).
+        const values = { ...prev.values }, strings = { ...prev.strings };
+        for (const [k, v] of Object.entries(patch)) { if (typeof v === "boolean") values[k] = v; else strings[k] = v; }
+        qc.setQueryData<SettingsDTO>(["settings"], { ...prev, values, strings });
+      }
       return { prev };
     },
     onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(["settings"], ctx.prev); },
     onSettled: () => { qc.invalidateQueries({ queryKey: ["settings"] }); },
   });
   const setCard = (key: string, value: boolean) => settingsMut.mutate({ [key]: value });
+  const setOpt = (key: string, value: string) => settingsMut.mutate({ [key]: value });
   // Recent-activity view style (per-card setting). Defaults to the list rows.
   const recentCards = settings?.values["dashboard.recentActivity.cards"] === true;
+  // Budget hero card config (toggled in Customize mode). Defaults on; figure = "left".
+  const heroFigure = settings?.strings?.["dashboard.hero.figure"] ?? "left";
+  const heroShowTitle = settings?.values["dashboard.hero.showTitle"] !== false;
+  const heroShowBar = settings?.values["dashboard.hero.showBar"] !== false;
+  const heroShowBreakdown = settings?.values["dashboard.hero.showBreakdown"] !== false;
+  const heroShowBills = settings?.values["dashboard.hero.showBills"] !== false;
 
   // Section order (drag-to-reorder in Customize mode), persisted as dashboard.order.
   const order = settings?.order ?? DEFAULT_ORDER;
@@ -177,6 +189,16 @@ export default function Dashboard({ minimal = false, editing: editingProp, onEdi
   const spentW = budgeted > 0 ? Math.min(100, (spent / budgeted) * 100) : (spent > 0 ? 100 : 0);
   const billsW = budgeted > 0 ? Math.min(100 - spentW, (billsDue / budgeted) * 100) : 0;
   const elapsed = monthElapsedPct();
+  // Configurable lead figure for the budget hero card: eyebrow label, amount, the
+  // small unit suffix, and whether it reads as negative (red).
+  const heroFig = (() => {
+    switch (heroFigure) {
+      case "spent": return { chip: "Budget", label: "Spent this month", amount: spent, unit: "spent", neg: false };
+      case "networth": return { chip: "Net worth", label: "Everything you're worth", amount: netWorth, unit: "", neg: false };
+      case "net": return { chip: "Net", label: "Net this month", amount: Math.abs(net), unit: net < 0 ? "down" : "saved", neg: net < 0 };
+      default: return { chip: "Budget", label: overBudget ? "Over budget this month" : "Left to spend this month", amount: Math.abs(budgetLeft), unit: overBudget ? "over" : "left", neg: overBudget };
+    }
+  })();
 
   // Month-over-month reference for the stat cards.
   const prevSpent = budgetPrev?.summary.spent ?? 0;
@@ -216,12 +238,12 @@ export default function Dashboard({ minimal = false, editing: editingProp, onEdi
       <i style={{ width: `${Math.max(0, Math.min(100, pct))}%`, background: TONE[tone] ?? TONE.ok }} />
     </div>
   );
-  // Upcoming tile: spent-so-far (coral) + bills still due (amber); the shaded
-  // remainder (tinted jade) is the budget still uncommitted.
+  // Upcoming tile: spent-so-far (solid) + bills still due (the hatched "upcoming"
+  // shade, consistent with the budget cards); the rest is a plain remainder track.
   const upcomingBar = budgeted > 0 ? (
-    <div className="progress stack hatched stat-bar" style={{ "--bar": "var(--jade)" } as CSSProperties}>
+    <div className="progress stack stat-bar">
       <i className={barClass(budgetPct)} style={{ width: `${spentW}%` }} />
-      {billsW > 0 && <i className="upcoming" style={{ width: `${billsW}%` }} />}
+      {billsW > 0 && <i className="up-shade" style={{ width: `${billsW}%` }} title="Upcoming bills" />}
     </div>
   ) : undefined;
 
@@ -252,8 +274,30 @@ export default function Dashboard({ minimal = false, editing: editingProp, onEdi
   // per-card <Customizable> toggles.
   const blocks: Record<string, ReactNode> = {
     hero: summary && (
-      <Customizable label={minimal ? "Budget" : "Net worth & budget"} editing={editing} on={show("dashboard.show.hero")} onToggle={(v) => setCard("dashboard.show.hero", v)}>
-        <div className={`card hero${minimal ? " hero-budget" : ""}${minimal && overBudget ? " hero-over" : ""}`}>
+      <Customizable
+        label={minimal ? "Budget" : "Net worth & budget"}
+        editing={editing}
+        on={show("dashboard.show.hero")}
+        onToggle={(v) => setCard("dashboard.show.hero", v)}
+        settings={minimal ? (
+          <div className="card-settings-list">
+            <label className="card-settings-row">
+              <span>Lead figure</span>
+              <select className="bv2-sort" value={heroFigure} onChange={(e) => setOpt("dashboard.hero.figure", e.target.value)}>
+                <option value="left">Left to spend</option>
+                <option value="spent">Spent this month</option>
+                <option value="networth">Net worth</option>
+                <option value="net">Net this month</option>
+              </select>
+            </label>
+            <label className="card-settings-row"><span>Title</span><Toggle checked={heroShowTitle} onChange={(v) => setCard("dashboard.hero.showTitle", v)} /></label>
+            <label className="card-settings-row"><span>Progress bar</span><Toggle checked={heroShowBar} onChange={(v) => setCard("dashboard.hero.showBar", v)} /></label>
+            <label className="card-settings-row"><span>Breakdown line</span><Toggle checked={heroShowBreakdown} onChange={(v) => setCard("dashboard.hero.showBreakdown", v)} /></label>
+            <label className="card-settings-row"><span>Upcoming bills</span><Toggle checked={heroShowBills} onChange={(v) => setCard("dashboard.hero.showBills", v)} /></label>
+          </div>
+        ) : undefined}
+      >
+        <div className={`card hero${minimal ? " hero-budget" : ""}${minimal && heroFig.neg ? " hero-over" : ""}`}>
           {/* In the home view the net-worth column is dropped (net worth lives in
               the account strip up top) and the budget becomes the focused figure. */}
           {!minimal && (
@@ -269,21 +313,22 @@ export default function Dashboard({ minimal = false, editing: editingProp, onEdi
             </div>
           )}
           <div className={minimal ? "hero-main" : "hero-side"}>
-            {minimal && (
-              <span className="hero-eyebrow">
-                <span className={`hero-chip ${overBudget ? "over" : "ok"}`}><Wallet size={13} strokeWidth={2.2} />Budget</span>
-                {overBudget ? "Over budget this month" : "Left to spend this month"}
+            {minimal && heroShowTitle && (
+              <span className="hero-eyebrow">{monthLabel.split(" ")[0]}&rsquo;s budget</span>
+            )}
+            <span className={`hero-figure num ${heroFig.neg ? "neg" : ""}`}>{gbp0(heroFig.amount)}{heroFig.unit && <span className="hero-figure-unit">{heroFig.unit}</span>}</span>
+            {heroShowBar && (
+              <div className="progress stack">
+                <i className={barClass(budgetPct)} style={{ width: `${spentW}%` }} />
+                {heroShowBills && billsW > 0 && <i className="up-shade" style={{ width: `${billsW}%` }} title="Upcoming bills" />}
+              </div>
+            )}
+            {heroShowBreakdown && (
+              <span className="hero-pace">
+                {budgeted > 0 ? `${gbp0(spent)} of ${gbp0(budgeted)} · ${budgetPct}% used · ${elapsed}% of month` : "No budget set yet"}
+                {heroShowBills && billsDue > 0 && <> · <span className="upcoming-dot" />{gbp0(billsDue)} bills due</>}
               </span>
             )}
-            <span className={`hero-figure num ${overBudget ? "neg" : ""}`}>{gbp0(Math.abs(budgetLeft))}<span className="hero-figure-unit">{overBudget ? "over" : "left"}</span></span>
-            <div className="progress stack">
-              <i className={barClass(budgetPct)} style={{ width: `${spentW}%` }} />
-              {billsW > 0 && <i className="upcoming" style={{ width: `${billsW}%` }} title="Upcoming bills" />}
-            </div>
-            <span className="hero-pace">
-              {budgeted > 0 ? `${gbp0(spent)} of ${gbp0(budgeted)} · ${budgetPct}% used · ${elapsed}% of month` : "No budget set yet"}
-              {billsDue > 0 && <> · <span className="upcoming-dot" />{gbp0(billsDue)} bills due</>}
-            </span>
           </div>
         </div>
       </Customizable>

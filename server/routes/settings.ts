@@ -1,14 +1,14 @@
 import { Router } from "express";
 import { z } from "zod";
-import { SETTING_DEFS, getSettings, setSetting, getDashboardOrder, setDashboardOrder } from "../lib/settings.ts";
+import { SETTING_DEFS, getSettings, setSetting, getStringSettings, setStringSetting, getDashboardOrder, setDashboardOrder } from "../lib/settings.ts";
 import type { SettingsDTO } from "../../shared/types.ts";
 
 export const settingsRouter = Router();
 
 settingsRouter.get("/settings", async (_req, res, next) => {
   try {
-    const [values, order] = await Promise.all([getSettings(), getDashboardOrder()]);
-    const dto: SettingsDTO = { defs: SETTING_DEFS, values, order };
+    const [values, strings, order] = await Promise.all([getSettings(), getStringSettings(), getDashboardOrder()]);
+    const dto: SettingsDTO = { defs: SETTING_DEFS, values, strings, order };
     res.json(dto);
   } catch (err) { next(err); }
 });
@@ -22,14 +22,16 @@ settingsRouter.put("/settings/dashboard-order", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// Partial update: { "<key>": boolean, ... } — only known keys are accepted.
+// Partial update: { "<key>": boolean | string, ... } — only known keys accepted.
+// Boolean keys route to the boolean store; string keys to the validated string store.
 settingsRouter.patch("/settings", async (req, res, next) => {
   try {
-    const body = z.record(z.string(), z.boolean()).parse(req.body);
+    const body = z.record(z.string(), z.union([z.boolean(), z.string()])).parse(req.body);
     const known = new Set(SETTING_DEFS.map((d) => d.key));
     for (const [key, value] of Object.entries(body)) {
-      if (known.has(key)) await setSetting(key, value);
+      if (typeof value === "boolean") { if (known.has(key)) await setSetting(key, value); }
+      else await setStringSetting(key, value);
     }
-    res.json(await getSettings());
+    res.json({ values: await getSettings(), strings: await getStringSettings() });
   } catch (err) { next(err); }
 });
