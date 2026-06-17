@@ -25,6 +25,7 @@ import { potsRouter } from "./routes/pots.ts";
 import { pluginsRouter } from "./routes/plugins.ts";
 import { recurringRouter } from "./routes/recurring.ts";
 import { logoRouter } from "./routes/logo.ts";
+import { planRouter } from "./routes/plan.ts";
 import { startSyncScheduler } from "./lib/scheduler.ts";
 
 const app = express();
@@ -52,6 +53,7 @@ app.use("/api", potsRouter);
 app.use("/api", pluginsRouter);
 app.use("/api", recurringRouter);
 app.use("/api", logoRouter);
+app.use("/api", planRouter);
 
 // Serve built frontend in production.
 const __dirname = dirname(fileURLToPath(import.meta.url));
