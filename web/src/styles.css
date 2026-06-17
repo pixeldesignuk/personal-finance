@@ -1762,3 +1762,12 @@ button.bv2-row { width: 100%; font: inherit; text-align: left; border: 0; backgr
 .plan-ef-picker { display: flex; flex-direction: column; gap: 6px; }
 .plan-ef-picker select { width: 100%; }
 .rev-done .btn-primary { margin-top: 16px; }
+
+/* ── Surplus nudge ────────────────────────────────────────────────────────── */
+.surplus-nudge { display: flex; align-items: center; gap: 14px; text-decoration: none; color: var(--ink); border: 1px solid color-mix(in srgb, var(--jade) 40%, var(--line)); background: color-mix(in srgb, var(--jade) 7%, var(--surface-2)); }
+.surplus-nudge:hover { border-color: var(--jade); }
+.surplus-ico { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; flex: none; color: var(--jade); background: color-mix(in srgb, var(--jade) 14%, transparent); }
+.surplus-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.surplus-amt { font-size: 16px; font-weight: 660; }
+.surplus-hint { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.surplus-go { flex: none; font-size: 13px; font-weight: 600; color: var(--jade); }

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Dashboard from "./Dashboard.tsx";
 import { AccountsStrip } from "../components/AccountsStrip.tsx";
+import { SurplusNudge } from "../components/SurplusNudge.tsx";
 
 // The primary dashboard: the dashboard body with a swipeable account strip pinned
 // to the top (net worth + per-account balances). The Customize toggle is hoisted
@@ -11,6 +12,7 @@ export default function DashboardHome() {
   return (
     <div className="dash-home">
       <AccountsStrip editing={editing} onToggleEditing={() => setEditing((e) => !e)} />
+      <SurplusNudge />
       <Dashboard minimal editing={editing} onEditingChange={setEditing} />
     </div>
   );
