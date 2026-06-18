@@ -1781,8 +1781,9 @@ button.bv2-row { width: 100%; font: inherit; text-align: left; border: 0; backgr
 
 /* ── Command center: notifications (no title; dismissible cards) ──── */
 .needs-you { margin-bottom: 16px; }
-.needs-list { display: flex; flex-direction: column; gap: 8px; }
-.needs-row { display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 12px; background: var(--surface-2); border-radius: 12px; }
+.needs-carousel { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.needs-carousel::-webkit-scrollbar { display: none; }
+.needs-row { flex: 0 0 100%; box-sizing: border-box; scroll-snap-align: start; display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 12px; background: var(--surface-2); border-radius: 12px; }
 .needs-row.sev-warn { background: color-mix(in srgb, var(--coral) 9%, var(--surface-2)); }
 .needs-row.sev-opportunity { background: color-mix(in srgb, var(--jade) 8%, var(--surface-2)); }
 .needs-ico { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink-2); }
@@ -1801,9 +1802,10 @@ button.bv2-row { width: 100%; font: inherit; text-align: left; border: 0; backgr
 .needs-dismiss { flex: none; width: 24px; height: 24px; padding: 0; border: none; background: transparent; color: var(--ink-3); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; line-height: 0; cursor: pointer; opacity: 0.55; transition: opacity 0.12s ease, background 0.12s ease; }
 .needs-dismiss:hover { opacity: 1; background: color-mix(in srgb, var(--ink) 7%, transparent); }
 .needs-dismiss svg { display: block; }
-/* Subtle expander with a count */
-.needs-expand { align-self: flex-start; margin-top: 8px; padding: 2px 2px; border: none; background: transparent; color: var(--ink-3); font-size: 12.5px; font-weight: 600; cursor: pointer; }
-.needs-expand:hover { color: var(--ink); }
+/* Carousel position indicator */
+.needs-cdots { display: flex; justify-content: center; gap: 6px; margin-top: 9px; }
+.needs-cdot { width: 6px; height: 6px; border-radius: 50%; background: var(--line-strong); transition: width 0.18s ease, background 0.18s ease; }
+.needs-cdot.is-active { width: 16px; border-radius: 99px; background: var(--ink-3); }
 
 /* ── Command center: plan progress card ───────────────────────────── */
 .planprog-card { display: flex; flex-direction: column; gap: 9px; text-decoration: none; color: var(--ink); }

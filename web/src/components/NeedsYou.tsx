@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type UIEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { AlertTriangle, Tag, Repeat, PiggyBank, Sparkles, X } from "lucide-react";
@@ -19,7 +19,7 @@ const ICON: Record<InsightKind, typeof Tag> = {
 export function NeedsYou() {
   const qc = useQueryClient();
   const { data } = useQuery({ queryKey: ["insights"], queryFn: () => api.insights() });
-  const [expanded, setExpanded] = useState(false);
+  const [active, setActive] = useState(0);
 
   const dismiss = useMutation({
     mutationFn: (id: string) => api.patchInsight(id, "dismiss"),
@@ -39,13 +39,18 @@ export function NeedsYou() {
 
   if (!data || data.length === 0) return null;
 
-  const shown = expanded ? data : data.slice(0, 1);
-  const hidden = data.length - shown.length;
+  // Swipe through notifications one at a time; the dots indicate position.
+  const onScroll = (e: UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const i = Math.round(el.scrollLeft / el.clientWidth);
+    setActive((prev) => (prev === i ? prev : i));
+  };
+  const activeIdx = Math.min(active, data.length - 1);
 
   return (
     <div className="needs-you">
-      <div className="needs-list">
-        {shown.map((it) => {
+      <div className="needs-carousel" onScroll={onScroll}>
+        {data.map((it) => {
           const Icon = ICON[it.kind];
           return (
             <div key={it.id} className={`needs-row sev-${it.severity}`}>
@@ -62,10 +67,10 @@ export function NeedsYou() {
           );
         })}
       </div>
-      {(hidden > 0 || expanded) && (
-        <button type="button" className="needs-expand" onClick={() => setExpanded((v) => !v)}>
-          {expanded ? "Show less" : `${hidden} more notification${hidden === 1 ? "" : "s"}`}
-        </button>
+      {data.length > 1 && (
+        <div className="needs-cdots" aria-hidden>
+          {data.map((it, i) => <span key={it.id} className={`needs-cdot${i === activeIdx ? " is-active" : ""}`} />)}
+        </div>
       )}
     </div>
   );
