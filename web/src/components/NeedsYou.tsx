@@ -26,6 +26,8 @@ export function NeedsYou() {
   const qc = useQueryClient();
   const { data } = useQuery({ queryKey: ["insights"], queryFn: () => api.insights() });
   const [menuId, setMenuId] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const CAP = 4; // keep the inbox compact; items are already priority-sorted
 
   const act = useMutation({
     mutationFn: ({ id, action, until }: { id: string; action: InsightAction; until?: string }) =>
@@ -53,11 +55,14 @@ export function NeedsYou() {
     );
   }
 
+  const shown = expanded ? data : data.slice(0, CAP);
+  const hidden = data.length - shown.length;
+
   return (
     <div className="flat-list needs-you">
       <div className="flat-head"><div className="flat-head-titles"><h3>Needs you</h3></div></div>
       <div className="needs-list">
-        {data.map((it) => {
+        {shown.map((it) => {
           const Icon = ICON[it.kind];
           return (
             <div key={it.id} className={`needs-row sev-${it.severity}`}>
@@ -90,6 +95,11 @@ export function NeedsYou() {
           );
         })}
       </div>
+      {(hidden > 0 || expanded) && (
+        <button type="button" className="needs-more" onClick={() => setExpanded((v) => !v)}>
+          {expanded ? "Show less" : `Show ${hidden} more`}
+        </button>
+      )}
     </div>
   );
 }

@@ -1786,9 +1786,11 @@ button.bv2-row { width: 100%; font: inherit; text-align: left; border: 0; backgr
 .needs-list { display: flex; flex-direction: column; }
 .needs-row { position: relative; display: flex; align-items: stretch; border-bottom: 1px solid var(--line); }
 .needs-row:last-child { border-bottom: none; }
-.needs-row-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 11px 4px; text-decoration: none; color: var(--ink); border-radius: 8px; transition: background 0.12s ease; }
+.needs-row-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 11px; padding: 9px 4px; text-decoration: none; color: var(--ink); border-radius: 8px; transition: background 0.12s ease; }
 .needs-row-main:hover { background: var(--surface-2); }
-.needs-ico { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: var(--surface-2); color: var(--ink-2); }
+.needs-ico { flex: none; display: grid; place-items: center; width: 31px; height: 31px; border-radius: 9px; background: var(--surface-2); color: var(--ink-2); }
+.needs-more { width: 100%; margin-top: 4px; padding: 8px; border: none; background: transparent; color: var(--ink-3); font-size: 12.5px; font-weight: 600; cursor: pointer; border-radius: 8px; }
+.needs-more:hover { background: var(--surface-2); color: var(--ink); }
 .needs-row.sev-warn .needs-ico { background: color-mix(in srgb, var(--coral) 18%, var(--bg)); color: var(--coral); }
 .needs-row.sev-opportunity .needs-ico { background: color-mix(in srgb, var(--jade) 18%, var(--bg)); color: var(--jade); }
 .needs-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
@@ -1806,11 +1808,9 @@ button.bv2-row { width: 100%; font: inherit; text-align: left; border: 0; backgr
 .planprog-card { display: flex; flex-direction: column; gap: 9px; text-decoration: none; color: var(--ink); }
 .planprog-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .planprog-title { font-size: 15px; font-weight: 640; letter-spacing: -0.01em; }
-.planprog-pct { font-size: 15px; font-weight: 680; color: var(--jade); }
+.planprog-stepno { flex: none; font-size: 12.5px; font-weight: 600; }
 .planprog-sub { font-size: 12.5px; }
-.planprog-steps { display: flex; align-items: center; gap: 6px; }
-.planprog-step { flex: 1; height: 5px; border-radius: 99px; background: var(--line-strong); }
-.planprog-step.is-done { background: var(--jade); }
-.planprog-step.is-current { background: color-mix(in srgb, var(--jade) 60%, var(--bg)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--jade) 30%, transparent); }
+.planprog-bar { height: 8px; border-radius: 99px; background: var(--line-strong); overflow: hidden; }
+.planprog-bar > i { display: block; height: 100%; border-radius: 99px; background: var(--jade); transition: width 0.3s ease; }
 .planprog-card-empty { flex-direction: row; align-items: center; justify-content: space-between; }
 .planprog-card-empty .planprog-go { color: var(--jade); font-weight: 640; font-size: 14px; }

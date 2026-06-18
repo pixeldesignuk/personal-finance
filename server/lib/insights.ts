@@ -40,18 +40,30 @@ const shallowEqual = (a: Record<string, unknown>, b: Record<string, unknown>) =>
 };
 
 // Per-kind reconcile. `unresolved` holds rows with resolvedAt IS NULL (open OR
-// dismissed-not-yet-resolved). At most one per kind (singleton).
+// dismissed-not-yet-resolved). Normally ≤1 per kind (singleton), but a race
+// (a dashboard load reconciling while a sync reconciles) can leave duplicates —
+// so we always collapse to one and resolve the rest (self-healing).
 export function reconcileInsights(conditions: InsightConditions, unresolved: UnresolvedInsight[]): ReconcileAction[] {
   const actions: ReconcileAction[] = [];
   for (const kind of KIND_ORDER) {
     const cond = conditions[kind] as Record<string, unknown> | null;
-    const existing = unresolved.find((r) => r.kind === kind) ?? null;
-    if (cond) {
-      if (!existing) actions.push({ type: "create", kind, payload: cond });
-      else if (existing.dismissedAt) { /* sticky dismissal — leave it */ }
-      else if (!shallowEqual(existing.payload, cond)) actions.push({ type: "refresh", id: existing.id, payload: cond });
-    } else if (existing) {
-      actions.push({ type: "resolve", id: existing.id });
+    const rows = unresolved.filter((r) => r.kind === kind);
+    if (!cond) {
+      // Condition no longer true → resolve EVERY row of this kind (incl. dups).
+      for (const r of rows) actions.push({ type: "resolve", id: r.id });
+      continue;
+    }
+    const dismissed = rows.find((r) => r.dismissedAt);
+    if (dismissed) {
+      // Sticky dismissal — keep the dismissed row, resolve any other duplicates.
+      for (const r of rows) if (r.id !== dismissed.id) actions.push({ type: "resolve", id: r.id });
+    } else if (rows.length === 0) {
+      actions.push({ type: "create", kind, payload: cond });
+    } else {
+      // Keep the first (rows arrive newest-first), refresh if changed, resolve rest.
+      const [keep, ...extra] = rows;
+      if (!shallowEqual(keep.payload, cond)) actions.push({ type: "refresh", id: keep.id, payload: cond });
+      for (const r of extra) actions.push({ type: "resolve", id: r.id });
     }
   }
   return actions;

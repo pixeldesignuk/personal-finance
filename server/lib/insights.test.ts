@@ -35,6 +35,31 @@ test("dismissed row still resolves when condition goes false (so a future cycle 
   assert.deepEqual(reconcileInsights(EMPTY, open), [{ type: "resolve", id: "a" }]);
 });
 
+test("collapses duplicate open rows of a kind: keeps the first, resolves the rest", () => {
+  const open: UnresolvedInsight[] = [
+    { id: "a", kind: "needs_category", payload: { count: 3 }, dismissedAt: null },
+    { id: "b", kind: "needs_category", payload: { count: 3 }, dismissedAt: null },
+  ];
+  // payload unchanged on the keeper → only the extra is resolved
+  assert.deepEqual(reconcileInsights({ ...EMPTY, needs_category: { count: 3 } }, open), [{ type: "resolve", id: "b" }]);
+});
+
+test("condition false resolves ALL duplicate rows of a kind", () => {
+  const open: UnresolvedInsight[] = [
+    { id: "a", kind: "needs_category", payload: { count: 3 }, dismissedAt: null },
+    { id: "b", kind: "needs_category", payload: { count: 3 }, dismissedAt: null },
+  ];
+  assert.deepEqual(reconcileInsights(EMPTY, open), [{ type: "resolve", id: "a" }, { type: "resolve", id: "b" }]);
+});
+
+test("dismissed row is kept while duplicate open rows of the same kind are resolved", () => {
+  const open: UnresolvedInsight[] = [
+    { id: "a", kind: "needs_category", payload: { count: 3 }, dismissedAt: new Date() },
+    { id: "b", kind: "needs_category", payload: { count: 3 }, dismissedAt: null },
+  ];
+  assert.deepEqual(reconcileInsights({ ...EMPTY, needs_category: { count: 3 } }, open), [{ type: "resolve", id: "b" }]);
+});
+
 test("renderInsight produces the documented text, link and severity per kind", () => {
   assert.deepEqual(renderInsight("needs_category", { count: 3 }), { title: "3 transactions need a category", detail: null, count: 3, link: "/transactions?cat=uncategorised", severity: "review" });
   assert.deepEqual(renderInsight("needs_category", { count: 1 }).title, "1 transaction needs a category");

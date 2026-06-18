@@ -74,9 +74,7 @@ export async function gatherConditions(): Promise<InsightConditions> {
   };
 }
 
-// Reconcile the Insight table against live conditions: create new, refresh
-// counts, auto-resolve closed. Called on every GET /api/insights and post-sync.
-export async function runReconcile(now: Date): Promise<void> {
+async function doReconcile(now: Date): Promise<void> {
   const conditions = await gatherConditions();
   const rows = await db.insight.findMany({ where: { resolvedAt: null }, orderBy: { createdAt: "desc" } });
   const unresolved: UnresolvedInsight[] = rows.map((r) => ({
@@ -88,4 +86,17 @@ export async function runReconcile(now: Date): Promise<void> {
     else if (a.type === "refresh") await db.insight.update({ where: { id: a.id }, data: { payload: a.payload as Prisma.InputJsonValue, updatedAt: now } });
     else await db.insight.update({ where: { id: a.id }, data: { resolvedAt: now } });
   }
+}
+
+// Serialise reconciles within this process so a dashboard load and the post-sync
+// hook can't both read "no existing row" and each create a duplicate. The pure
+// engine self-heals any dups that slip through (e.g. a second process), but the
+// lock avoids creating them in the first place.
+let reconcileChain: Promise<void> = Promise.resolve();
+
+// Reconcile the Insight table against live conditions: create new, refresh
+// counts, auto-resolve closed. Called on every GET /api/insights and post-sync.
+export function runReconcile(now: Date): Promise<void> {
+  reconcileChain = reconcileChain.catch(() => {}).then(() => doReconcile(now));
+  return reconcileChain;
 }

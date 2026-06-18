@@ -21,22 +21,24 @@ export function PlanProgressCard() {
     );
   }
 
+  const stepNo = data.steps.findIndex((s) => s.key === data.current) + 1;
+  const total = data.steps.length;
   const pct = current.progress?.pct ?? 0;
   return (
     <Link to="/savings" className="card planprog-card">
       <div className="planprog-row">
         <span className="planprog-title">{current.title}</span>
-        {current.progress && <span className="planprog-pct num">{pct}%</span>}
+        <span className="planprog-stepno muted">Step {stepNo} of {total}</span>
       </div>
-      <div className="planprog-steps" aria-hidden>
-        {data.steps.map((s) => (
-          <span key={s.key} className={`planprog-step is-${s.key === data.current ? "current" : s.state}`} />
-        ))}
-      </div>
-      {current.progress && (
-        <span className="planprog-sub muted">
-          {formatGBP(current.progress.have)} of {formatGBP(current.progress.target)}
-        </span>
+      {current.progress ? (
+        <>
+          <div className="planprog-bar" aria-hidden><i style={{ width: `${Math.min(100, Math.max(2, pct))}%` }} /></div>
+          <span className="planprog-sub muted">
+            {formatGBP(current.progress.have)} of {formatGBP(current.progress.target)} · {pct}%
+          </span>
+        </>
+      ) : (
+        <span className="planprog-sub muted">In progress</span>
       )}
     </Link>
   );
