@@ -1779,14 +1779,28 @@ button.bv2-row { width: 100%; font: inherit; text-align: left; border: 0; backgr
 .plan-action:hover { text-decoration: underline; }
 .rev-done .btn-primary { margin-top: 16px; }
 
-/* ── Surplus nudge ────────────────────────────────────────────────────────── */
-.surplus-nudge { display: flex; align-items: center; gap: 14px; text-decoration: none; color: var(--ink); border: 1px solid color-mix(in srgb, var(--amber) 45%, var(--line)); background: color-mix(in srgb, var(--amber) 8%, var(--surface-2)); }
-.surplus-nudge:hover { border-color: var(--amber); }
-.surplus-ico { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; flex: none; color: var(--amber); background: color-mix(in srgb, var(--amber) 15%, transparent); }
-.surplus-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.surplus-amt { font-size: 16px; font-weight: 660; }
-.surplus-hint { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.surplus-go { flex: none; font-size: 13px; font-weight: 600; color: var(--amber); }
+/* ── Command center: "Needs you" inbox ────────────────────────────── */
+.needs-you { margin-bottom: 16px; }
+.needs-clear { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; padding: 4px 2px; }
+.needs-clear svg { color: var(--jade); }
+.needs-list { display: flex; flex-direction: column; }
+.needs-row { position: relative; display: flex; align-items: stretch; border-bottom: 1px solid var(--line); }
+.needs-row:last-child { border-bottom: none; }
+.needs-row-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 11px 4px; text-decoration: none; color: var(--ink); border-radius: 8px; transition: background 0.12s ease; }
+.needs-row-main:hover { background: var(--surface-2); }
+.needs-ico { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: var(--surface-2); color: var(--ink-2); }
+.needs-row.sev-warn .needs-ico { background: color-mix(in srgb, var(--coral) 18%, var(--bg)); color: var(--coral); }
+.needs-row.sev-opportunity .needs-ico { background: color-mix(in srgb, var(--jade) 18%, var(--bg)); color: var(--jade); }
+.needs-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.needs-title { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.needs-detail { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.needs-chev { flex: none; color: var(--ink-3); margin-left: auto; }
+.needs-menu-btn { flex: none; width: 36px; border: none; background: transparent; color: var(--ink-3); cursor: pointer; border-radius: 8px; }
+.needs-menu-btn:hover { background: var(--surface-2); color: var(--ink); }
+.needs-menu-scrim { position: fixed; inset: 0; z-index: 40; }
+.needs-menu { position: absolute; right: 4px; top: calc(100% - 6px); z-index: 41; display: flex; flex-direction: column; min-width: 150px; padding: 5px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: 0 18px 40px -16px rgba(0,0,0,0.7); }
+.needs-menu button { text-align: left; padding: 8px 10px; border: none; background: transparent; color: var(--ink); font-size: 13px; border-radius: 7px; cursor: pointer; }
+.needs-menu button:hover { background: var(--surface-2); }
 
 /* ── Command center: plan progress card ───────────────────────────── */
 .planprog-card { display: flex; flex-direction: column; gap: 9px; text-decoration: none; color: var(--ink); }
