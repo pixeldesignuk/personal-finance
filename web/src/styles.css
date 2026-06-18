@@ -1846,15 +1846,17 @@ button.bv2-row { width: 100%; font: inherit; text-align: left; border: 0; backgr
 .planprog-title { font-size: 15px; font-weight: 640; letter-spacing: -0.01em; }
 .planprog-stepno { flex: none; font-size: 12.5px; font-weight: 600; }
 .planprog-sub { font-size: 12.5px; }
-/* Journey roadmap: named steps with status dots + a connector line */
-.planprog-rail { display: flex; list-style: none; margin: 2px 0 1px; padding: 0; }
-.planprog-node { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; }
-.planprog-node:not(:last-child)::after { content: ""; position: absolute; top: 7px; left: 50%; width: 100%; height: 2px; background: var(--line-strong); z-index: 0; }
+/* Journey roadmap: named steps with status dots + a connector line. Capped so
+   it doesn't sprawl across a wide dashboard card. */
+.planprog-rail { display: flex; list-style: none; margin: 4px 0 2px; padding: 0; max-width: 580px; }
+.planprog-node { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
+.planprog-node:not(:last-child)::after { content: ""; position: absolute; top: 8px; left: 50%; right: -50%; height: 2.5px; border-radius: 2px; background: var(--line-strong); }
 .planprog-node.is-done:not(:last-child)::after { background: var(--jade); }
-.planprog-dot { position: relative; z-index: 1; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); border: 2px solid var(--line-strong); color: var(--bg); }
+.planprog-dot { position: relative; z-index: 1; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--surface); border: 2px solid var(--line-strong); color: var(--bg); }
 .planprog-node.is-done .planprog-dot { background: var(--jade); border-color: var(--jade); }
-.planprog-node.is-current .planprog-dot { border-color: var(--jade); box-shadow: 0 0 0 3px color-mix(in srgb, var(--jade) 25%, transparent); }
-.planprog-label { font-size: 10.5px; line-height: 1.1; text-align: center; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.planprog-node.is-current .planprog-dot { border-color: var(--jade); }
+.planprog-node.is-current .planprog-dot::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--jade); }
+.planprog-label { font-size: 11px; line-height: 1.15; text-align: center; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .planprog-node.is-current .planprog-label { color: var(--ink); font-weight: 600; }
 .planprog-card-empty { flex-direction: row; align-items: center; justify-content: space-between; }
 .planprog-card-empty .planprog-go { color: var(--jade); font-weight: 640; font-size: 14px; }

@@ -33,7 +33,6 @@ export function PlanProgressCard() {
 
   const stepNo = data.steps.findIndex((s) => s.key === data.current) + 1;
   const total = data.steps.length;
-  const pct = current.progress?.pct ?? 0;
 
   return (
     <Link to="/savings" className="card planprog-card">
@@ -54,7 +53,7 @@ export function PlanProgressCard() {
       </ol>
       {current.progress ? (
         <span className="planprog-sub muted">
-          {current.title}: {formatGBP(current.progress.have)} of {formatGBP(current.progress.target)} · {pct}%
+          {current.title} · {formatGBP(current.progress.have)} of {formatGBP(current.progress.target)}
         </span>
       ) : (
         <span className="planprog-sub muted">{current.title}</span>
