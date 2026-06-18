@@ -1808,27 +1808,51 @@ button.bv2-row { width: 100%; font: inherit; text-align: left; border: 0; backgr
 .needs-cdot.is-active { width: 16px; border-radius: 99px; background: var(--ink-3); }
 
 /* ── Command center: plan progress card ───────────────────────────── */
-.planprog-card { display: flex; flex-direction: column; gap: 9px; text-decoration: none; color: var(--ink); }
-.planprog-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.planprog-title { font-size: 15px; font-weight: 640; letter-spacing: -0.01em; }
-.planprog-sub { font-size: 12.5px; }
-/* Labeled journey stepper (done = check, current bold in jade, future hollow).
-   Capped so it doesn't sprawl across a wide dashboard card. */
-.planprog-stepper { display: flex; align-items: flex-start; list-style: none; margin: 4px 0 10px; padding: 0; max-width: 520px; }
-.planprog-pstep { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 7px; min-width: 0; }
-.planprog-pstep:not(:last-child)::after { content: ""; position: absolute; top: 9px; left: 50%; right: -50%; height: 2px; transform: translateY(-50%); background: var(--line-strong); }
-.planprog-pstep.is-done:not(:last-child)::after { background: var(--jade); }
-.planprog-pnode { position: relative; z-index: 1; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--surface); border: 2px solid var(--line-strong); color: var(--bg); }
-.planprog-pstep.is-done .planprog-pnode { background: var(--jade); border-color: var(--jade); }
-.planprog-pstep.is-current .planprog-pnode { border-color: var(--jade); }
-.planprog-pstep.is-current .planprog-pnode::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--jade); }
-.planprog-plabel { font-size: 11px; line-height: 1.15; text-align: center; color: var(--ink-3); max-width: 100%; }
-.planprog-pstep.is-current .planprog-plabel { color: var(--jade); font-weight: 700; }
-/* Current step focal progress: bold amount over a thick bar (aligned to stepper width) */
-.planprog-current { display: flex; flex-direction: column; gap: 6px; max-width: 520px; }
-.planprog-camt { font-size: 13px; color: var(--ink-2); }
-.planprog-camt b { color: var(--ink); font-weight: 700; }
-.planprog-bar { height: 8px; border-radius: 99px; background: var(--line-strong); overflow: hidden; }
-.planprog-bar > i { display: block; height: 100%; border-radius: 99px; background: var(--jade); transition: width 0.3s ease; }
-.planprog-card-empty { flex-direction: row; align-items: center; justify-content: space-between; }
-.planprog-card-empty .planprog-go { color: var(--jade); font-weight: 640; font-size: 14px; }
+/* Two columns: left = focal current step (money is the hero), right = a quiet
+   vertical journey rail (demoted context). Namespaced .planprog-* to avoid
+   colliding with PlanFlowchart's .plan-*. */
+.planprog-card { display: grid; grid-template-columns: 1fr auto; gap: 28px; align-items: stretch; }
+
+/* Left — focal action */
+.planprog-main { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.planprog-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.planprog-amount { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.planprog-amount b { font-size: 30px; font-weight: 750; letter-spacing: -0.02em; color: var(--ink); line-height: 1; }
+.planprog-of { font-size: 13.5px; color: var(--ink-3); }
+.planprog-detail { margin: 2px 0 0; font-size: 14px; color: var(--ink-2); max-width: 46ch; }
+.planprog-bar { position: relative; height: 10px; border-radius: 99px; background: var(--line-strong); overflow: hidden; }
+.planprog-bar > i { display: block; height: 100%; border-radius: 99px; background: var(--jade); transition: width 0.35s cubic-bezier(0.2,0.8,0.2,1); }
+.planprog-pct { position: absolute; top: -22px; right: 0; font-size: 12px; font-weight: 650; color: var(--ink-2); }
+.planprog-nudge { margin: 0; font-size: 12.5px; color: var(--jade); font-weight: 560; }
+.planprog-cta { margin-top: auto; align-self: flex-start; display: inline-flex; align-items: center; padding: 8px 16px; border-radius: 99px; background: color-mix(in srgb, var(--jade) 16%, transparent); color: var(--jade); font-size: 13.5px; font-weight: 650; text-decoration: none; transition: background 0.12s ease; }
+.planprog-cta:hover { background: color-mix(in srgb, var(--jade) 26%, transparent); }
+
+/* Right — quiet journey rail */
+.planprog-rail { display: flex; flex-direction: column; gap: 10px; padding-left: 28px; border-left: 1px solid var(--line); min-width: 168px; }
+.planprog-railhead { font-size: 12px; font-weight: 640; letter-spacing: -0.01em; color: var(--ink-3); text-decoration: none; }
+.planprog-railhead:hover { color: var(--ink-2); }
+.planprog-rsteps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.planprog-rstep { position: relative; display: flex; align-items: center; gap: 10px; padding: 4px 0; min-height: 26px; }
+.planprog-rstep:not(:last-child)::before { content: ""; position: absolute; left: 8px; top: 22px; bottom: -4px; width: 2px; background: var(--line-strong); }
+.planprog-rstep.is-done:not(:last-child)::before { background: var(--jade); }
+.planprog-rnode { position: relative; z-index: 1; flex: none; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--surface); border: 2px solid var(--line-strong); color: var(--bg); }
+.planprog-rstep.is-done .planprog-rnode { background: var(--jade); border-color: var(--jade); }
+.planprog-rstep.is-current .planprog-rnode { border-color: var(--jade); }
+.planprog-rstep.is-current .planprog-rnode::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--jade); }
+.planprog-rlabel { font-size: 13px; color: var(--ink-3); white-space: nowrap; }
+.planprog-rstep.is-done .planprog-rlabel { color: var(--ink-2); }
+.planprog-rstep.is-current .planprog-rlabel { color: var(--jade); font-weight: 700; }
+.planprog-rhere { margin-left: 2px; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--jade); background: color-mix(in srgb, var(--jade) 14%, transparent); padding: 1px 6px; border-radius: 99px; }
+
+/* Empty state — compact prompt to set up the plan */
+.planprog-empty { display: flex; flex-direction: row; align-items: center; gap: 12px; text-decoration: none; color: var(--ink); }
+.planprog-empty .planprog-eyebrow { margin-right: auto; }
+.planprog-empty-title { font-size: 15px; font-weight: 640; letter-spacing: -0.01em; }
+.planprog-empty-go { color: var(--jade); font-weight: 640; font-size: 14px; }
+
+/* Narrow: stack the action over the rail */
+@media (max-width: 640px) {
+  .planprog-card { grid-template-columns: 1fr; gap: 18px; }
+  .planprog-amount b { font-size: 26px; }
+  .planprog-rail { padding-left: 0; border-left: none; padding-top: 16px; border-top: 1px solid var(--line); min-width: 0; }
+}
