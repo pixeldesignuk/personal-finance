@@ -1804,11 +1804,6 @@ button.bv2-row { width: 100%; font: inherit; text-align: left; border: 0; backgr
 .needs-menu button { text-align: left; padding: 8px 10px; border: none; background: transparent; color: var(--ink); font-size: 13px; border-radius: 7px; cursor: pointer; }
 .needs-menu button:hover { background: var(--surface-2); }
 
-/* Variant switcher (temporary — for choosing a pattern) */
-.inbox-switch { display: inline-flex; gap: 2px; padding: 2px; background: var(--surface-2); border-radius: 99px; flex: none; }
-.inbox-switch button { border: none; background: transparent; color: var(--ink-3); font-size: 11.5px; font-weight: 600; padding: 4px 10px; border-radius: 99px; cursor: pointer; }
-.inbox-switch button.is-active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,0.3); }
-
 /* Spotlight: the chip strip for the demoted rest */
 .inbox-strip { display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 4px; padding: 9px 6px; border: none; background: transparent; cursor: pointer; border-radius: 8px; transition: background 0.12s ease; }
 .inbox-strip:hover { background: var(--surface-2); }
@@ -1818,45 +1813,18 @@ button.bv2-row { width: 100%; font: inherit; text-align: left; border: 0; backgr
 .inbox-chip b { font-weight: 700; }
 .inbox-strip-more { margin-left: auto; flex: none; font-size: 12.5px; font-weight: 600; color: var(--ink-3); }
 
-/* Carousel: horizontal scroll-snap of compact cards */
-.inbox-carousel { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 2px -2px 0; padding: 2px 2px 4px; scrollbar-width: none; }
-.inbox-carousel::-webkit-scrollbar { display: none; }
-.inbox-card { position: relative; flex: 0 0 78%; max-width: 320px; scroll-snap-align: start; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface-2); }
-.inbox-card-main { display: flex; flex-direction: column; gap: 6px; padding: 13px; text-decoration: none; color: var(--ink); min-height: 116px; }
-.inbox-card .needs-ico { width: 34px; height: 34px; }
-.inbox-card.sev-warn .needs-ico { background: color-mix(in srgb, var(--coral) 18%, var(--bg)); color: var(--coral); }
-.inbox-card.sev-opportunity .needs-ico { background: color-mix(in srgb, var(--jade) 18%, var(--bg)); color: var(--jade); }
-.inbox-card-title { font-size: 14px; font-weight: 640; letter-spacing: -0.01em; }
-.inbox-card-detail { font-size: 12px; }
-.inbox-card-go { margin-top: auto; font-size: 12.5px; font-weight: 600; color: var(--jade); }
-.inbox-card .needs-menu-btn { position: absolute; top: 6px; right: 4px; width: 30px; height: 30px; }
-.inbox-dots { display: flex; justify-content: center; gap: 5px; margin-top: 6px; }
-.inbox-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--line-strong); }
-
-/* Feed: full-screen sheet listing all insights */
-.inbox-sheet-scrim { position: fixed; inset: 0; z-index: 120; background: rgba(0,0,0,0.55); display: flex; align-items: flex-end; justify-content: center; }
-.inbox-sheet { width: 100%; max-width: 520px; max-height: 82vh; overflow-y: auto; background: var(--bg-2, var(--surface)); border-radius: 18px 18px 0 0; padding: 8px 16px 28px; animation: drawer-in 0.2s cubic-bezier(0.2,0.8,0.2,1); }
-.inbox-sheet-head { display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; padding: 10px 0; background: inherit; }
-.inbox-sheet-head h3 { margin: 0; font-size: 16px; }
-.inbox-sheet-head button { border: none; background: var(--surface-2); color: var(--ink-2); width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; }
-
 /* ── Command center: plan progress card ───────────────────────────── */
 .planprog-card { display: flex; flex-direction: column; gap: 9px; text-decoration: none; color: var(--ink); }
-.planprog-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.planprog-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .planprog-title { font-size: 15px; font-weight: 640; letter-spacing: -0.01em; }
-.planprog-stepno { flex: none; font-size: 12.5px; font-weight: 600; }
 .planprog-sub { font-size: 12.5px; }
-/* Journey roadmap: named steps with status dots + a connector line. Capped so
-   it doesn't sprawl across a wide dashboard card. */
-.planprog-rail { display: flex; list-style: none; margin: 4px 0 2px; padding: 0; max-width: 580px; }
-.planprog-node { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
-.planprog-node:not(:last-child)::after { content: ""; position: absolute; top: 8px; left: 50%; right: -50%; height: 2.5px; border-radius: 2px; background: var(--line-strong); }
-.planprog-node.is-done:not(:last-child)::after { background: var(--jade); }
-.planprog-dot { position: relative; z-index: 1; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--surface); border: 2px solid var(--line-strong); color: var(--bg); }
-.planprog-node.is-done .planprog-dot { background: var(--jade); border-color: var(--jade); }
-.planprog-node.is-current .planprog-dot { border-color: var(--jade); }
-.planprog-node.is-current .planprog-dot::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--jade); }
-.planprog-label { font-size: 11px; line-height: 1.15; text-align: center; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.planprog-node.is-current .planprog-label { color: var(--ink); font-weight: 600; }
+/* Compact journey position (unlabeled dots) — the named roadmap lives on /savings */
+.planprog-dots { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.planprog-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line-strong); }
+.planprog-dot.is-done { background: var(--jade); }
+.planprog-dot.is-current { background: var(--jade); box-shadow: 0 0 0 3px color-mix(in srgb, var(--jade) 22%, transparent); }
+/* Focal single progress bar for the current step */
+.planprog-bar { height: 8px; border-radius: 99px; background: var(--line-strong); overflow: hidden; }
+.planprog-bar > i { display: block; height: 100%; border-radius: 99px; background: var(--jade); transition: width 0.3s ease; }
 .planprog-card-empty { flex-direction: row; align-items: center; justify-content: space-between; }
 .planprog-card-empty .planprog-go { color: var(--jade); font-weight: 640; font-size: 14px; }
