@@ -1824,8 +1824,8 @@ button.bv2-row { width: 100%; font: inherit; text-align: left; border: 0; backgr
 .planprog-pstep.is-current .planprog-pnode::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--jade); }
 .planprog-plabel { font-size: 11px; line-height: 1.15; text-align: center; color: var(--ink-3); max-width: 100%; }
 .planprog-pstep.is-current .planprog-plabel { color: var(--jade); font-weight: 700; }
-/* Current step focal progress: bold amount over a thick bar */
-.planprog-current { display: flex; flex-direction: column; gap: 6px; }
+/* Current step focal progress: bold amount over a thick bar (aligned to stepper width) */
+.planprog-current { display: flex; flex-direction: column; gap: 6px; max-width: 520px; }
 .planprog-camt { font-size: 13px; color: var(--ink-2); }
 .planprog-camt b { color: var(--ink); font-weight: 700; }
 .planprog-bar { height: 8px; border-radius: 99px; background: var(--line-strong); overflow: hidden; }
