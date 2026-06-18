@@ -5,6 +5,18 @@ import { formatGBP } from "../../format.ts";
 const monthShort = (ym: string) => new Date(`${ym}-01T00:00:00`).toLocaleDateString("en-GB", { month: "short" });
 const monthLong = (ym: string) => new Date(`${ym}-01T00:00:00`).toLocaleDateString("en-GB", { month: "long" });
 
+// How many month bars fit before labels cram/clip — fewer on narrow viewports.
+function useMonthsToShow(): number {
+  const count = (w: number) => (w >= 900 ? 12 : w >= 640 ? 9 : 6);
+  const [n, setN] = useState(() => count(typeof window === "undefined" ? 1200 : window.innerWidth));
+  useEffect(() => {
+    const onResize = () => setN(count(window.innerWidth));
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return n;
+}
+
 // A clean, minimal monthly-spend bar chart (Wise "Spending" style): rounded
 // pill bars, the selected month emphasised, with average-vs-selected callouts.
 // Selection is LOCAL — clicking a bar just updates the figure below; it does not
@@ -14,7 +26,11 @@ export function SpendBars({ data, activeMonth }: { data: MonthlyTotal[]; activeM
   // Follow the page month if it changes via the month picker.
   useEffect(() => { setSelected(activeMonth); }, [activeMonth]);
 
-  const max = Math.max(1, ...data.map((d) => d.spent));
+  // Average reflects the whole series (stable); only the rendered bars are
+  // trimmed to the most recent months so labels don't crowd on small screens.
+  const monthsToShow = useMonthsToShow();
+  const shown = data.slice(-monthsToShow);
+  const max = Math.max(1, ...shown.map((d) => d.spent));
   const withSpend = data.filter((d) => d.spent > 0).length || 1;
   const avg = data.reduce((s, d) => s + d.spent, 0) / withSpend;
   const sel = data.find((d) => d.month === selected) ?? data[data.length - 1];
@@ -22,7 +38,7 @@ export function SpendBars({ data, activeMonth }: { data: MonthlyTotal[]; activeM
   return (
     <div className="spendbars">
       <div className="spendbars-plot">
-        {data.map((d) => (
+        {shown.map((d) => (
           <button
             key={d.month}
             type="button"

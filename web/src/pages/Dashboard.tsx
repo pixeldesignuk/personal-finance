@@ -33,6 +33,18 @@ function payoffLabel(months: number | null): string {
   d.setMonth(d.getMonth() + months);
   return d.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
 }
+// How many category bars the "Where it went" card shows — fewer on smaller
+// viewports so the card doesn't tower over its neighbours on phones/tablets.
+function useResponsiveBarCount(): number {
+  const count = (w: number) => (w >= 1100 ? 8 : w >= 760 ? 6 : 4);
+  const [n, setN] = useState(() => count(typeof window === "undefined" ? 1200 : window.innerWidth));
+  useEffect(() => {
+    const onResize = () => setN(count(window.innerWidth));
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return n;
+}
 // Fraction of the current month elapsed (for the "spend pace" check).
 function monthElapsedPct(): number {
   const now = new Date();
@@ -97,6 +109,7 @@ export default function Dashboard({ minimal = false, editing: editingProp, onEdi
   const [editingInternal, setEditingInternal] = useState(false);
   const editing = editingProp ?? editingInternal;
   const setEditing = (v: boolean) => (onEditingChange ?? setEditingInternal)(v);
+  const spendBarCount = useResponsiveBarCount();
   const show = (key: string) => settings?.values[key] ?? true; // default on while loading
   const settingsMut = useMutation({
     mutationFn: (patch: Record<string, boolean | string>) => api.patchSettings(patch),
@@ -412,7 +425,7 @@ export default function Dashboard({ minimal = false, editing: editingProp, onEdi
     ) : null,
     upcoming: upcoming && (
       <Customizable label="Upcoming bills & income" editing={editing} on={show("dashboard.show.upcoming")} onToggle={(v) => setCard("dashboard.show.upcoming", v)}>
-        <Upcoming data={upcoming} monthOnly />
+        <Upcoming data={upcoming} monthOnly bare />
       </Customizable>
     ),
     spending: (
@@ -421,7 +434,7 @@ export default function Dashboard({ minimal = false, editing: editingProp, onEdi
           <div className="card">
             <div className="card-head"><h3>Where it went · {isThisMonth ? "this month" : monthLabel}</h3><Link to={`/reports?month=${month}`} className="amount-link">Reports →</Link></div>
             {dashQuery.data && dashQuery.data.byCategory.length > 0
-              ? <BarList items={dashQuery.data.byCategory.slice(0, 8).map((c) => ({ key: c.category, label: catName(c.category), value: c.total }))} />
+              ? <BarList items={dashQuery.data.byCategory.slice(0, spendBarCount).map((c) => ({ key: c.category, label: catName(c.category), value: c.total }))} />
               : <p className="empty">No spending recorded for {monthLabel}.</p>}
           </div>
         </Customizable>
