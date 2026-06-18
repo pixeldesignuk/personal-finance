@@ -219,6 +219,17 @@ export interface PlanStepDTO {
 }
 export type InsightKind = "overspent" | "needs_category" | "new_subscription" | "surplus" | "new_transactions";
 export type InsightSeverity = "warn" | "review" | "opportunity" | "digest";
+export type InsightAction = "dismiss" | "snooze" | "read";
+export interface InsightDTO {
+  id: string;
+  kind: InsightKind;
+  title: string;
+  detail: string | null;
+  count: number | null;
+  link: string;
+  severity: InsightSeverity;
+  createdAt: string; // ISO
+}
 
 export interface PlanDTO {
   essentialMonthly: number;
