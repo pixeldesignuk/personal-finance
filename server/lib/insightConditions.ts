@@ -7,21 +7,28 @@ import { effectiveCategory } from "./effectiveCategory.ts";
 import { isRefundNote } from "../../shared/refund.ts";
 import { getStringSettings } from "./settings.ts";
 
-// Largest budget category over 100% this month, or null. Pure → unit tested.
-// "Worst" = the category with the largest delta (spent − budget) among over-budget categories.
-export function worstOverspend(
+// Overall budget overspend this month: how much total spend exceeds total
+// budget across budgeted categories, plus how many categories are over (and the
+// worst one for context). Null when overall within budget. Pure → unit tested.
+// The aggregate is the honest "am I overspending?" signal — a single worst
+// category in isolation misleads when several are over.
+export function budgetOverspend(
   cats: { key: string; name: string; budget: number }[],
   spent: Record<string, number>,
-): { summary: string; amount: number } | null {
+): { amount: number; count: number; worst: string } | null {
+  let totalBudget = 0, totalSpent = 0, count = 0;
   let worst: { name: string; over: number } | null = null;
   for (const c of cats) {
     if (c.budget <= 0) continue;
-    const over = (spent[c.key] ?? 0) - c.budget;
-    if (over > 0 && (!worst || over > worst.over)) worst = { name: c.name, over };
+    const s = spent[c.key] ?? 0;
+    totalBudget += c.budget;
+    totalSpent += s;
+    const over = s - c.budget;
+    if (over > 0) { count++; if (!worst || over > worst.over) worst = { name: c.name, over }; }
   }
-  if (!worst) return null;
-  const amount = Math.round(worst.over);
-  return { summary: `${worst.name} over by £${amount}`, amount };
+  const amount = Math.round(totalSpent - totalBudget);
+  if (amount <= 0 || !worst) return null; // within budget overall
+  return { amount, count, worst: worst.name };
 }
 
 export async function gatherConditions(): Promise<InsightConditions> {
@@ -41,7 +48,7 @@ export async function gatherConditions(): Promise<InsightConditions> {
   const since = seen ? new Date(seen) : new Date(0);
   const newCount = await db.transaction.count({ where: { status: { not: "pending" }, createdAt: { gt: since } } });
 
-  // overspent — worst budget category over, OR balance can't cover committed bills
+  // overspent — overall over budget (with category count), OR balance can't cover bills
   const ctx = await buildPlanContext();
   const cats = await db.category.findMany({ where: { archived: false } });
   const budgetCats = cats
@@ -55,7 +62,7 @@ export async function gatherConditions(): Promise<InsightConditions> {
   });
   const budgetTxns: BudgetTx[] = txns.map((t) => ({ amount: Number(t.amount.toString()), category: effectiveCategory(t), bookingDate: t.bookingDate }));
   const spent = personalSpendByCategory(budgetTxns, currentMonth());
-  let overspent = worstOverspend(budgetCats, spent);
+  let overspent: InsightConditions["overspent"] = budgetOverspend(budgetCats, spent);
   const shortfall = ctx.billsBeforePayday - ctx.spendableNow - ctx.incomeIncoming;
   if (!overspent && shortfall > 0) {
     overspent = { summary: "Balance won't cover upcoming bills", amount: shortfall };

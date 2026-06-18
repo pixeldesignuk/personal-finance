@@ -2,7 +2,8 @@ import type { InsightKind, InsightSeverity } from "../../shared/types.ts";
 export type { InsightKind, InsightSeverity };
 
 export interface InsightConditions {
-  overspent: { summary: string; amount: number } | null;
+  // budget overspend → {amount, count, worst}; low-balance fallback → {summary, amount}
+  overspent: { amount: number; count: number; worst: string } | { summary: string; amount: number } | null;
   needs_category: { count: number } | null;
   new_subscription: { count: number } | null;
   surplus: { amount: number; hint: string } | null;
@@ -77,8 +78,13 @@ export function renderInsight(kind: InsightKind, payload: Record<string, unknown
       return { title: `${n} ${plural(n, "transaction needs", "transactions need")} a category`, detail: null, count: n, link: "/transactions?cat=uncategorised", cta: "Categorise", severity: "review" };
     case "new_subscription":
       return { title: `${n} ${plural(n, "subscription", "subscriptions")} to confirm`, detail: null, count: n, link: "/recurring", cta: "Confirm", severity: "review" };
-    case "overspent":
-      return { title: String(payload.summary ?? "Over budget"), detail: null, count: null, link: "/budgets", cta: "Review budget", severity: "warn" };
+    case "overspent": {
+      // Low-balance fallback carries a pre-built summary; budget overspend carries amount/count/worst.
+      if (payload.summary) return { title: String(payload.summary), detail: null, count: null, link: "/budgets", cta: "Review budget", severity: "warn" };
+      const cnt = Number(payload.count ?? 0);
+      const detail = cnt > 1 ? `${cnt} categories over budget` : payload.worst ? `${String(payload.worst)} over` : null;
+      return { title: `${gbp(Number(payload.amount ?? 0))} over budget this month`, detail, count: null, link: "/budgets", cta: "Review budget", severity: "warn" };
+    }
     case "surplus":
       return { title: `${gbp(Number(payload.amount ?? 0))} spare`, detail: payload.hint ? String(payload.hint) : null, count: null, link: "/savings", cta: "Move money", severity: "opportunity" };
     case "new_transactions":

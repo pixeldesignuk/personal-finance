@@ -64,7 +64,9 @@ test("renderInsight produces the documented text, link and severity per kind", (
   assert.deepEqual(renderInsight("needs_category", { count: 3 }), { title: "3 transactions need a category", detail: null, count: 3, link: "/transactions?cat=uncategorised", cta: "Categorise", severity: "review" });
   assert.deepEqual(renderInsight("needs_category", { count: 1 }).title, "1 transaction needs a category");
   assert.deepEqual(renderInsight("new_subscription", { count: 2 }), { title: "2 subscriptions to confirm", detail: null, count: 2, link: "/recurring", cta: "Confirm", severity: "review" });
-  assert.deepEqual(renderInsight("overspent", { summary: "Groceries over by £42", amount: 42 }), { title: "Groceries over by £42", detail: null, count: null, link: "/budgets", cta: "Review budget", severity: "warn" });
+  assert.deepEqual(renderInsight("overspent", { amount: 92, count: 2, worst: "Dining out" }), { title: "£92 over budget this month", detail: "2 categories over budget", count: null, link: "/budgets", cta: "Review budget", severity: "warn" });
+  assert.deepEqual(renderInsight("overspent", { amount: 30, count: 1, worst: "Groceries" }).detail, "Groceries over");
+  assert.deepEqual(renderInsight("overspent", { summary: "Balance won't cover upcoming bills", amount: 50 }), { title: "Balance won't cover upcoming bills", detail: null, count: null, link: "/budgets", cta: "Review budget", severity: "warn" });
   assert.deepEqual(renderInsight("surplus", { amount: 210, hint: "Move it to savings" }), { title: "£210 spare", detail: "Move it to savings", count: null, link: "/savings", cta: "Move money", severity: "opportunity" });
   assert.deepEqual(renderInsight("new_transactions", { count: 4 }), { title: "4 new transactions", detail: null, count: 4, link: "/transactions", cta: "Review", severity: "digest" });
 });
