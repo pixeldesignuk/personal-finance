@@ -8,25 +8,20 @@ import { isRefundNote } from "../../shared/refund.ts";
 import { getStringSettings } from "./settings.ts";
 
 // Largest budget category over 100% this month, or null. Pure → unit tested.
-// "Worst" = the category spending the most in absolute terms that is also over budget.
+// "Worst" = the category with the largest delta (spent − budget) among over-budget categories.
 export function worstOverspend(
   cats: { key: string; name: string; budget: number }[],
   spent: Record<string, number>,
 ): { summary: string; amount: number } | null {
-  let worstCat: { key: string; name: string; budget: number } | null = null;
-  let worstSpend = 0;
+  let worst: { name: string; over: number } | null = null;
   for (const c of cats) {
     if (c.budget <= 0) continue;
-    const s = spent[c.key] ?? 0;
-    const over = s - c.budget;
-    if (over > 0 && s > worstSpend) {
-      worstCat = c;
-      worstSpend = s;
-    }
+    const over = (spent[c.key] ?? 0) - c.budget;
+    if (over > 0 && (!worst || over > worst.over)) worst = { name: c.name, over };
   }
-  if (!worstCat) return null;
-  const amount = Math.round(worstSpend - worstCat.budget);
-  return { summary: `${worstCat.name} over by £${amount}`, amount };
+  if (!worst) return null;
+  const amount = Math.round(worst.over);
+  return { summary: `${worst.name} over by £${amount}`, amount };
 }
 
 export async function gatherConditions(): Promise<InsightConditions> {

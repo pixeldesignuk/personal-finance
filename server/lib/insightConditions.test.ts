@@ -12,9 +12,10 @@ test("worstOverspend returns null when nothing is over", () => {
   assert.equal(worstOverspend(cats, { groceries: 350, "dining-out": 90 }), null);
 });
 
-test("worstOverspend picks the largest overspend and rounds the amount", () => {
+test("worstOverspend picks the category most over budget (delta), not the highest spend", () => {
+  // Groceries spent more (442, £42 over) but Dining out is £50 over → Dining out wins.
   const r = worstOverspend(cats, { groceries: 442, "dining-out": 150 });
-  assert.deepEqual(r, { summary: "Groceries over by £42", amount: 42 });
+  assert.deepEqual(r, { summary: "Dining out over by £50", amount: 50 });
 });
 
 test("worstOverspend ignores categories with no budget even if spent", () => {
