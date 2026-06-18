@@ -25,7 +25,8 @@ export interface RenderedInsight {
   title: string;
   detail: string | null;
   count: number | null;
-  link: string;
+  link: string;        // where the CTA / row navigates
+  cta: string;         // standardized action label for this kind
   severity: InsightSeverity;
 }
 
@@ -73,15 +74,15 @@ export function renderInsight(kind: InsightKind, payload: Record<string, unknown
   const n = Number(payload.count ?? 0);
   switch (kind) {
     case "needs_category":
-      return { title: `${n} ${plural(n, "transaction needs", "transactions need")} a category`, detail: null, count: n, link: "/transactions?cat=uncategorised", severity: "review" };
+      return { title: `${n} ${plural(n, "transaction needs", "transactions need")} a category`, detail: null, count: n, link: "/transactions?cat=uncategorised", cta: "Categorise", severity: "review" };
     case "new_subscription":
-      return { title: `${n} ${plural(n, "subscription", "subscriptions")} to confirm`, detail: null, count: n, link: "/recurring", severity: "review" };
+      return { title: `${n} ${plural(n, "subscription", "subscriptions")} to confirm`, detail: null, count: n, link: "/recurring", cta: "Confirm", severity: "review" };
     case "overspent":
-      return { title: String(payload.summary ?? "Over budget"), detail: null, count: null, link: "/budgets", severity: "warn" };
+      return { title: String(payload.summary ?? "Over budget"), detail: null, count: null, link: "/budgets", cta: "Review budget", severity: "warn" };
     case "surplus":
-      return { title: `${gbp(Number(payload.amount ?? 0))} spare`, detail: payload.hint ? String(payload.hint) : null, count: null, link: "/savings", severity: "opportunity" };
+      return { title: `${gbp(Number(payload.amount ?? 0))} spare`, detail: payload.hint ? String(payload.hint) : null, count: null, link: "/savings", cta: "Move money", severity: "opportunity" };
     case "new_transactions":
-      return { title: `${n} new ${plural(n, "transaction", "transactions")}`, detail: null, count: n, link: "/transactions", severity: "digest" };
+      return { title: `${n} new ${plural(n, "transaction", "transactions")}`, detail: null, count: n, link: "/transactions", cta: "Review", severity: "digest" };
   }
 }
 

@@ -61,12 +61,12 @@ test("dismissed row is kept while duplicate open rows of the same kind are resol
 });
 
 test("renderInsight produces the documented text, link and severity per kind", () => {
-  assert.deepEqual(renderInsight("needs_category", { count: 3 }), { title: "3 transactions need a category", detail: null, count: 3, link: "/transactions?cat=uncategorised", severity: "review" });
+  assert.deepEqual(renderInsight("needs_category", { count: 3 }), { title: "3 transactions need a category", detail: null, count: 3, link: "/transactions?cat=uncategorised", cta: "Categorise", severity: "review" });
   assert.deepEqual(renderInsight("needs_category", { count: 1 }).title, "1 transaction needs a category");
-  assert.deepEqual(renderInsight("new_subscription", { count: 2 }), { title: "2 subscriptions to confirm", detail: null, count: 2, link: "/recurring", severity: "review" });
-  assert.deepEqual(renderInsight("overspent", { summary: "Groceries over by £42", amount: 42 }), { title: "Groceries over by £42", detail: null, count: null, link: "/budgets", severity: "warn" });
-  assert.deepEqual(renderInsight("surplus", { amount: 210, hint: "Move it to savings" }), { title: "£210 spare", detail: "Move it to savings", count: null, link: "/savings", severity: "opportunity" });
-  assert.deepEqual(renderInsight("new_transactions", { count: 4 }), { title: "4 new transactions", detail: null, count: 4, link: "/transactions", severity: "digest" });
+  assert.deepEqual(renderInsight("new_subscription", { count: 2 }), { title: "2 subscriptions to confirm", detail: null, count: 2, link: "/recurring", cta: "Confirm", severity: "review" });
+  assert.deepEqual(renderInsight("overspent", { summary: "Groceries over by £42", amount: 42 }), { title: "Groceries over by £42", detail: null, count: null, link: "/budgets", cta: "Review budget", severity: "warn" });
+  assert.deepEqual(renderInsight("surplus", { amount: 210, hint: "Move it to savings" }), { title: "£210 spare", detail: "Move it to savings", count: null, link: "/savings", cta: "Move money", severity: "opportunity" });
+  assert.deepEqual(renderInsight("new_transactions", { count: 4 }), { title: "4 new transactions", detail: null, count: 4, link: "/transactions", cta: "Review", severity: "digest" });
 });
 
 test("sortInsights orders by KIND_ORDER", () => {

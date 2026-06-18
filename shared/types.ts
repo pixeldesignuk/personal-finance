@@ -227,6 +227,7 @@ export interface InsightDTO {
   detail: string | null;
   count: number | null;
   link: string;
+  cta: string;       // standardized action label for this kind
   severity: InsightSeverity;
   createdAt: string; // ISO
 }

@@ -49,13 +49,12 @@ export function NeedsYou() {
           const Icon = ICON[it.kind];
           return (
             <div key={it.id} className={`needs-row sev-${it.severity}`}>
-              <Link to={it.link} className="needs-row-main" onClick={() => read.mutate(it.id)}>
-                <span className="needs-ico"><Icon size={16} strokeWidth={2.1} /></span>
-                <span className="needs-body">
-                  <span className="needs-title">{it.title}</span>
-                  {it.detail && <span className="needs-detail muted">{it.detail}</span>}
-                </span>
-              </Link>
+              <span className="needs-ico"><Icon size={16} strokeWidth={2.1} /></span>
+              <span className="needs-body">
+                <span className="needs-title">{it.title}</span>
+                {it.detail && <span className="needs-detail muted">{it.detail}</span>}
+              </span>
+              <Link to={it.link} className="needs-cta" onClick={() => read.mutate(it.id)}>{it.cta}</Link>
               <button type="button" className="needs-dismiss" aria-label="Dismiss" onClick={() => dismiss.mutate(it.id)}>
                 <X size={15} strokeWidth={2.4} />
               </button>
