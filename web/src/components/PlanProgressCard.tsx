@@ -14,27 +14,27 @@ export function PlanProgressCard() {
   // Nothing set up yet → a slim set-up prompt instead of the stepper.
   if (!current) {
     return (
-      <Link to="/savings" className="card plan-card plan-card-empty">
-        <span className="plan-card-title">Set up your plan</span>
-        <span className="plan-card-go">Start →</span>
+      <Link to="/savings" className="card planprog-card planprog-card-empty">
+        <span className="planprog-title">Set up your plan</span>
+        <span className="planprog-go">Start →</span>
       </Link>
     );
   }
 
   const pct = current.progress?.pct ?? 0;
   return (
-    <Link to="/savings" className="card plan-card">
-      <div className="plan-card-row">
-        <span className="plan-card-title">{current.title}</span>
-        {current.progress && <span className="plan-card-pct num">{pct}%</span>}
+    <Link to="/savings" className="card planprog-card">
+      <div className="planprog-row">
+        <span className="planprog-title">{current.title}</span>
+        {current.progress && <span className="planprog-pct num">{pct}%</span>}
       </div>
-      <div className="plan-steps" aria-hidden>
+      <div className="planprog-steps" aria-hidden>
         {data.steps.map((s) => (
-          <span key={s.key} className={`plan-step is-${s.key === data.current ? "current" : s.state}`} />
+          <span key={s.key} className={`planprog-step is-${s.key === data.current ? "current" : s.state}`} />
         ))}
       </div>
       {current.progress && (
-        <span className="plan-card-sub muted">
+        <span className="planprog-sub muted">
           {formatGBP(current.progress.have)} of {formatGBP(current.progress.target)}
         </span>
       )}
