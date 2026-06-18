@@ -54,6 +54,9 @@ export const STRING_SETTING_DEFS: StringSettingDef[] = [
   { key: "savings.cushion", default: "100", validate: (v) => { const n = Number(v); return Number.isFinite(n) && n >= 0 && n <= 100000; } },
   // Per-step plan escape hatches: a JSON object { [stepKey]: "handled" | "na" }.
   { key: "plan.overrides", default: "{}", validate: (v) => { try { const o = JSON.parse(v); return o != null && typeof o === "object" && !Array.isArray(v); } catch { return false; } } },
+  // ISO timestamp of the last time the user "caught up" on new transactions.
+  // Empty → treated as epoch so the first run reports recent imports.
+  { key: "insights.txnsSeenAt", default: "", validate: (v) => v === "" || !Number.isNaN(Date.parse(v)) },
 ];
 const STRING_DEFAULTS: Record<string, string> = Object.fromEntries(STRING_SETTING_DEFS.map((d) => [d.key, d.default]));
 

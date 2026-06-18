@@ -245,6 +245,23 @@ model Setting {
   value String
 }
 
+// Persistent dashboard "Needs you" inbox. One OPEN row per kind (singleton);
+// the reconcile engine refreshes payload counts and auto-resolves closed ones.
+model Insight {
+  id           String    @id @default(cuid())
+  kind         String    // overspent | needs_category | new_subscription | surplus | new_transactions
+  payload      Json      @default("{}")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now())
+  readAt       DateTime?
+  resolvedAt   DateTime?
+  dismissedAt  DateTime?
+  snoozedUntil DateTime?
+
+  @@index([kind])
+  @@index([resolvedAt, dismissedAt])
+}
+
 // Curated, region-tenanted merchant directory (seeded from the Name Suggestion
 // Index + Wikidata). A matched merchant gets its domain + stored logo from here,
 // so we never guess a domain from a name (which mis-fires on people).
