@@ -1798,8 +1798,8 @@ button.bv2-row { width: 100%; font: inherit; text-align: left; border: 0; backgr
 .needs-row.sev-opportunity .needs-cta:hover { background: color-mix(in srgb, var(--jade) 26%, transparent); }
 .needs-title { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .needs-detail { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.needs-dismiss { flex: none; width: 28px; height: 28px; border: none; background: transparent; color: var(--ink-3); border-radius: 50%; display: grid; place-items: center; cursor: pointer; transition: background 0.12s ease, color 0.12s ease; }
-.needs-dismiss:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); color: var(--ink); }
+.needs-dismiss { flex: none; width: 24px; height: 24px; border: none; background: transparent; color: var(--ink-3); border-radius: 50%; display: grid; place-items: center; cursor: pointer; opacity: 0.55; transition: opacity 0.12s ease, background 0.12s ease; }
+.needs-dismiss:hover { opacity: 1; background: color-mix(in srgb, var(--ink) 7%, transparent); }
 /* Subtle expander with a count */
 .needs-expand { align-self: flex-start; margin-top: 8px; padding: 2px 2px; border: none; background: transparent; color: var(--ink-3); font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .needs-expand:hover { color: var(--ink); }

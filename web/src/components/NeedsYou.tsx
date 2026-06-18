@@ -56,7 +56,7 @@ export function NeedsYou() {
               </span>
               <Link to={it.link} className="needs-cta" onClick={() => read.mutate(it.id)}>{it.cta}</Link>
               <button type="button" className="needs-dismiss" aria-label="Dismiss" onClick={() => dismiss.mutate(it.id)}>
-                <X size={15} strokeWidth={2.4} />
+                <X size={14} strokeWidth={2.2} />
               </button>
             </div>
           );
