@@ -4,10 +4,19 @@ import { Check } from "lucide-react";
 import { api } from "../api.ts";
 import { formatGBP } from "../format.ts";
 
-// "Your plan" anchor — a numbered stepper (done = check, current emphasised,
-// future hollow) for where you are on budget→save→invest, above the current
-// step's focal progress bar + amount. Modelled on Deel/Mercedes steppers +
-// Quicken/Rocket Money goal bars. Full named roadmap lives on /savings.
+// Short rail labels for the budget→save→invest roadmap (the DTO titles are long).
+const SHORT_LABEL: Record<string, string> = {
+  budget: "Budget",
+  ef_small: "Starter fund",
+  pension: "Pension",
+  ef_full: "Full fund",
+  invest: "Invest",
+};
+
+// "Your plan" anchor — a labeled journey stepper (done = green check, current
+// step bold in green, future hollow) above the current step's focal amount +
+// progress bar. Modelled on order-status steppers + Satispay's goal progress.
+// Full named roadmap lives on /savings.
 export function PlanProgressCard() {
   const { data } = useQuery({ queryKey: ["plan"], queryFn: () => api.plan() });
   if (!data) return null;
@@ -23,31 +32,25 @@ export function PlanProgressCard() {
     );
   }
 
-  const currentIdx = data.steps.findIndex((s) => s.key === data.current);
   const pct = current.progress?.pct ?? 0;
 
   return (
     <Link to="/savings" className="card planprog-card">
-      <div className="planprog-row">
-        <span className="planprog-title">Your plan</span>
-        <span className="planprog-stepno muted">Step {currentIdx + 1} of {data.steps.length}</span>
-      </div>
+      <span className="planprog-title">Your plan</span>
       <ol className="planprog-stepper" aria-hidden>
-        {data.steps.map((s, i) => {
+        {data.steps.map((s) => {
           const state = s.key === data.current ? "current" : s.state === "done" ? "done" : "upcoming";
           return (
             <li key={s.key} className={`planprog-pstep is-${state}`}>
-              <span className="planprog-pnode">{state === "done" ? <Check size={12} strokeWidth={3} /> : i + 1}</span>
+              <span className="planprog-pnode">{state === "done" && <Check size={11} strokeWidth={3.2} />}</span>
+              <span className="planprog-plabel">{SHORT_LABEL[s.key] ?? s.title}</span>
             </li>
           );
         })}
       </ol>
       {current.progress ? (
         <div className="planprog-current">
-          <div className="planprog-clabel">
-            <span className="planprog-cname">{current.title}</span>
-            <span className="planprog-camt muted">{formatGBP(current.progress.have)} of {formatGBP(current.progress.target)}</span>
-          </div>
+          <span className="planprog-camt"><b>{formatGBP(current.progress.have)}</b> of {formatGBP(current.progress.target)} · {pct}%</span>
           <div className="planprog-bar"><i style={{ width: `${Math.min(100, Math.max(3, pct))}%` }} /></div>
         </div>
       ) : (

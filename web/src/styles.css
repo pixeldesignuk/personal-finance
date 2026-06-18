@@ -1812,20 +1812,22 @@ button.bv2-row { width: 100%; font: inherit; text-align: left; border: 0; backgr
 .planprog-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .planprog-title { font-size: 15px; font-weight: 640; letter-spacing: -0.01em; }
 .planprog-sub { font-size: 12.5px; }
-/* Numbered journey stepper (done = check, current emphasised, future hollow).
+/* Labeled journey stepper (done = check, current bold in jade, future hollow).
    Capped so it doesn't sprawl across a wide dashboard card. */
-.planprog-stepper { display: flex; align-items: center; list-style: none; margin: 4px 0 8px; padding: 0; max-width: 440px; }
-.planprog-pstep { position: relative; flex: 1; display: flex; justify-content: center; }
-.planprog-pstep:not(:last-child)::after { content: ""; position: absolute; top: 50%; left: 50%; right: -50%; height: 2px; transform: translateY(-50%); background: var(--line-strong); }
+.planprog-stepper { display: flex; align-items: flex-start; list-style: none; margin: 4px 0 10px; padding: 0; max-width: 520px; }
+.planprog-pstep { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 7px; min-width: 0; }
+.planprog-pstep:not(:last-child)::after { content: ""; position: absolute; top: 9px; left: 50%; right: -50%; height: 2px; transform: translateY(-50%); background: var(--line-strong); }
 .planprog-pstep.is-done:not(:last-child)::after { background: var(--jade); }
-.planprog-pnode { position: relative; z-index: 1; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-size: 11px; font-weight: 700; background: var(--surface); border: 2px solid var(--line-strong); color: var(--ink-3); }
-.planprog-pstep.is-done .planprog-pnode { background: var(--jade); border-color: var(--jade); color: var(--bg); }
-.planprog-pstep.is-current .planprog-pnode { border-color: var(--jade); color: var(--ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--jade) 20%, transparent); }
-/* Current step focus: name + amount, then the focal progress bar */
+.planprog-pnode { position: relative; z-index: 1; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--surface); border: 2px solid var(--line-strong); color: var(--bg); }
+.planprog-pstep.is-done .planprog-pnode { background: var(--jade); border-color: var(--jade); }
+.planprog-pstep.is-current .planprog-pnode { border-color: var(--jade); }
+.planprog-pstep.is-current .planprog-pnode::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--jade); }
+.planprog-plabel { font-size: 11px; line-height: 1.15; text-align: center; color: var(--ink-3); max-width: 100%; }
+.planprog-pstep.is-current .planprog-plabel { color: var(--jade); font-weight: 700; }
+/* Current step focal progress: bold amount over a thick bar */
 .planprog-current { display: flex; flex-direction: column; gap: 6px; }
-.planprog-clabel { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.planprog-cname { font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em; }
-.planprog-camt { font-size: 12.5px; flex: none; }
+.planprog-camt { font-size: 13px; color: var(--ink-2); }
+.planprog-camt b { color: var(--ink); font-weight: 700; }
 .planprog-bar { height: 8px; border-radius: 99px; background: var(--line-strong); overflow: hidden; }
 .planprog-bar > i { display: block; height: 100%; border-radius: 99px; background: var(--jade); transition: width 0.3s ease; }
 .planprog-card-empty { flex-direction: row; align-items: center; justify-content: space-between; }
