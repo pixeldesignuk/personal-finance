@@ -17,8 +17,8 @@ import { getStringSettings } from "./settings.ts";
 export function budgetOverspend(
   cats: { key: string; name: string; budget: number }[],
   spent: Record<string, number>,
-): { net: number; count: number; worst: string } | null {
-  let totalBudget = 0, totalSpent = 0, count = 0;
+): { net: number; gross: number; count: number; worst: string } | null {
+  let totalBudget = 0, totalSpent = 0, count = 0, gross = 0;
   let worst: { name: string; over: number } | null = null;
   for (const c of cats) {
     if (c.budget <= 0) continue;
@@ -26,10 +26,13 @@ export function budgetOverspend(
     totalBudget += c.budget;
     totalSpent += s;
     const over = s - c.budget;
-    if (over > 0) { count++; if (!worst || over > worst.over) worst = { name: c.name, over }; }
+    if (over > 0) { count++; gross += over; if (!worst || over > worst.over) worst = { name: c.name, over }; }
   }
   if (count === 0 || !worst) return null; // no category over → nothing to flag
-  return { net: Math.round(totalSpent - totalBudget), count, worst: worst.name };
+  // net = overall position (can be ≤0 when offset); gross = total overspend in
+  // the over-categories (always >0). Renderer shows net when genuinely over
+  // overall, else gross — but always with an amount.
+  return { net: Math.round(totalSpent - totalBudget), gross: Math.round(gross), count, worst: worst.name };
 }
 
 export async function gatherConditions(): Promise<InsightConditions> {

@@ -2,8 +2,8 @@ import type { InsightKind, InsightSeverity } from "../../shared/types.ts";
 export type { InsightKind, InsightSeverity };
 
 export interface InsightConditions {
-  // budget overspend → {net, count, worst}; low-balance fallback → {summary, amount}
-  overspent: { net: number; count: number; worst: string } | { summary: string; amount: number } | null;
+  // budget overspend → {net, gross, count, worst}; low-balance fallback → {summary, amount}
+  overspent: { net: number; gross: number; count: number; worst: string } | { summary: string; amount: number } | null;
   needs_category: { count: number } | null;
   new_subscription: { count: number } | null;
   surplus: { amount: number; hint: string } | null;
@@ -83,13 +83,19 @@ export function renderInsight(kind: InsightKind, payload: Record<string, unknown
       if (payload.summary) return { title: String(payload.summary), detail: null, count: null, link: "/budgets", cta: "Review budget", severity: "warn" };
       const cnt = Number(payload.count ?? 0);
       const net = Number(payload.net ?? 0);
+      const gross = Number(payload.gross ?? 0);
       const worst = payload.worst ? String(payload.worst) : "";
-      // Net over overall → lead with the amount (warn). Otherwise categories are
-      // over but the total nets out → lead with the count (softer review tone).
+      // Always warn, always name an amount. Net over overall → lead with the net
+      // (you're over your total budget). Otherwise the categories are over but
+      // the total nets out → lead with the gross category overspend, noting it.
       if (net > 0) {
         return { title: `${gbp(net)} over budget this month`, detail: cnt > 1 ? `${cnt} categories over budget` : `${worst} over`, count: null, link: "/budgets", cta: "Review budget", severity: "warn" };
       }
-      return { title: cnt > 1 ? `${cnt} categories over budget` : `${worst} over budget`, detail: "Overall still within budget", count: null, link: "/budgets", cta: "Review budget", severity: "review" };
+      return {
+        title: cnt > 1 ? `${gbp(gross)} over across ${cnt} categories` : `${worst} ${gbp(gross)} over budget`,
+        detail: "Still within your total budget",
+        count: null, link: "/budgets", cta: "Review budget", severity: "warn",
+      };
     }
     case "surplus":
       return { title: `${gbp(Number(payload.amount ?? 0))} spare`, detail: payload.hint ? String(payload.hint) : null, count: null, link: "/savings", cta: "Move money", severity: "opportunity" };
