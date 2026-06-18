@@ -217,6 +217,9 @@ export interface PlanStepDTO {
   actionHint: string | null;        // where surplus should go on the current step
   overridden: PlanOverride | null;  // non-null when the user has marked it handled / N/A
 }
+export type InsightKind = "overspent" | "needs_category" | "new_subscription" | "surplus" | "new_transactions";
+export type InsightSeverity = "warn" | "review" | "opportunity" | "digest";
+
 export interface PlanDTO {
   essentialMonthly: number;
   efAccount: { id: string; name: string; balance: number } | null;
