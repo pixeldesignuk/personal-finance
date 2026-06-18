@@ -1787,3 +1787,16 @@ button.bv2-row { width: 100%; font: inherit; text-align: left; border: 0; backgr
 .surplus-amt { font-size: 16px; font-weight: 660; }
 .surplus-hint { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .surplus-go { flex: none; font-size: 13px; font-weight: 600; color: var(--amber); }
+
+/* ── Command center: plan progress card ───────────────────────────── */
+.plan-card { display: flex; flex-direction: column; gap: 9px; text-decoration: none; color: var(--ink); }
+.plan-card-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.plan-card-title { font-size: 15px; font-weight: 640; letter-spacing: -0.01em; }
+.plan-card-pct { font-size: 15px; font-weight: 680; color: var(--jade); }
+.plan-card-sub { font-size: 12.5px; }
+.plan-steps { display: flex; align-items: center; gap: 6px; }
+.plan-step { flex: 1; height: 5px; border-radius: 99px; background: var(--line-strong); }
+.plan-step.is-done { background: var(--jade); }
+.plan-step.is-current { background: color-mix(in srgb, var(--jade) 60%, var(--bg)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--jade) 30%, transparent); }
+.plan-card-empty { flex-direction: row; align-items: center; justify-content: space-between; }
+.plan-card-empty .plan-card-go { color: var(--jade); font-weight: 640; font-size: 14px; }
