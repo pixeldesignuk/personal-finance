@@ -10,6 +10,7 @@ import { syncGmail, rematchOpenOrders, reconcileReceiptProvisionals, ensureGmail
 import { ensureReceiptTransactions } from "../lib/receiptTxn.ts";
 import { recordSyncRun } from "../lib/syncRun.ts";
 import { detectSchedules } from "../lib/scheduleDetect.ts";
+import { runReconcile } from "../lib/insightConditions.ts";
 import { autoNameMerchants } from "../lib/merchantNaming.ts";
 import { autoMerchantDomains } from "../lib/merchantDomains.ts";
 import { currentBalance, type BalanceLike } from "../lib/balance.ts";
@@ -286,6 +287,8 @@ export async function runFullSync(stream: AuditFn = () => {}, source = "all"): P
     // Refresh recurring schedules from the latest spend patterns.
     try { const { detected } = await detectSchedules(); audit({ kind: "log", text: `${detected} recurring schedule${detected === 1 ? "" : "s"} detected`, tone: "dim" }); }
     catch (err) { audit({ kind: "log", text: `schedules: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
+    try { await runReconcile(new Date()); }
+    catch (err) { audit({ kind: "log", text: `insights: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
     // Re-arm the realtime Gmail watch before it lapses (~7-day lifetime).
     try { const w = await ensureGmailWatch(); if (w.armed) audit({ kind: "log", text: "Gmail watch renewed.", tone: "dim" }); }
     catch (err) { audit({ kind: "log", text: `gmail watch: ${err instanceof Error ? err.message : err}`, tone: "red" }); }
