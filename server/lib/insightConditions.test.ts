@@ -8,19 +8,19 @@ const cats = [
   { key: "transport", name: "Transport", budget: 0 }, // no budget → ignored
 ];
 
-test("budgetOverspend null when overall within budget (under-spend offsets)", () => {
-  // 350 + 90 = 440 spent vs 500 budget → within budget overall
+test("budgetOverspend null when no category is over", () => {
+  // 350 + 90, both under their budgets → nothing to flag
   assert.equal(budgetOverspend(cats, { groceries: 350, "dining-out": 90 }), null);
 });
 
-test("budgetOverspend reports overall over + count of categories over + worst", () => {
-  // 442 (+42) + 150 (+50) = 592 vs 500 → £92 over, 2 categories over, worst = Dining out
-  assert.deepEqual(budgetOverspend(cats, { groceries: 442, "dining-out": 150 }), { amount: 92, count: 2, worst: "Dining out" });
+test("budgetOverspend: net over budget → positive net, count + worst", () => {
+  // 442 (+42) + 150 (+50) = 592 vs 500 → net +92, 2 categories over, worst = Dining out
+  assert.deepEqual(budgetOverspend(cats, { groceries: 442, "dining-out": 150 }), { net: 92, count: 2, worst: "Dining out" });
 });
 
-test("budgetOverspend nets under-spend into the total and counts only over categories", () => {
-  // 450 (+50 over) + 80 (−20 under) = 530 vs 500 → £30 over overall, 1 category over
-  assert.deepEqual(budgetOverspend(cats, { groceries: 450, "dining-out": 80 }), { amount: 30, count: 1, worst: "Groceries" });
+test("budgetOverspend: a category over but total nets out → still fires, negative net", () => {
+  // 410 (+10 over) + 20 (under) = 430 vs 500 → net -70, but 1 category IS over
+  assert.deepEqual(budgetOverspend(cats, { groceries: 410, "dining-out": 20 }), { net: -70, count: 1, worst: "Groceries" });
 });
 
 test("budgetOverspend ignores categories with no budget even if spent", () => {

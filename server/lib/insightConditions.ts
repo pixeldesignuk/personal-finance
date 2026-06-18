@@ -7,15 +7,17 @@ import { effectiveCategory } from "./effectiveCategory.ts";
 import { isRefundNote } from "../../shared/refund.ts";
 import { getStringSettings } from "./settings.ts";
 
-// Overall budget overspend this month: how much total spend exceeds total
-// budget across budgeted categories, plus how many categories are over (and the
-// worst one for context). Null when overall within budget. Pure → unit tested.
-// The aggregate is the honest "am I overspending?" signal — a single worst
-// category in isolation misleads when several are over.
+// Budget overspend this month. Fires whenever ANY budgeted category is over
+// (envelope discipline), reporting how many are over, the worst one, and the
+// NET position (total spend − total budget; can be ≤0 when under-spent
+// categories offset the overspends). The renderer leads with the net amount
+// when you're genuinely over overall, otherwise with the category count — so a
+// single worst category never misleads, and the signal doesn't vanish just
+// because the total nets out. Null only when nothing is over. Pure → unit tested.
 export function budgetOverspend(
   cats: { key: string; name: string; budget: number }[],
   spent: Record<string, number>,
-): { amount: number; count: number; worst: string } | null {
+): { net: number; count: number; worst: string } | null {
   let totalBudget = 0, totalSpent = 0, count = 0;
   let worst: { name: string; over: number } | null = null;
   for (const c of cats) {
@@ -26,9 +28,8 @@ export function budgetOverspend(
     const over = s - c.budget;
     if (over > 0) { count++; if (!worst || over > worst.over) worst = { name: c.name, over }; }
   }
-  const amount = Math.round(totalSpent - totalBudget);
-  if (amount <= 0 || !worst) return null; // within budget overall
-  return { amount, count, worst: worst.name };
+  if (count === 0 || !worst) return null; // no category over → nothing to flag
+  return { net: Math.round(totalSpent - totalBudget), count, worst: worst.name };
 }
 
 export async function gatherConditions(): Promise<InsightConditions> {
