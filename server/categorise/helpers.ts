@@ -43,6 +43,18 @@ export function mapPicks(picks: Pick[], validKeys: Set<string>): Map<string, str
   return m;
 }
 
+// Choose a receipt's category. The AI suggestion is made with the full receipt
+// context (merchant *and* the line items), so it outranks the blunt merchant-name
+// rules — a Tesco fuel receipt must not be filed as groceries just because a
+// "tesco → groceries" rule exists. The rule category is only a fallback for when
+// the AI is unsure (null), and "uncategorised" when neither has an opinion.
+export function chooseReceiptCategory(
+  aiCategory: string | null | undefined,
+  ruleCategory: string | null | undefined,
+): string {
+  return aiCategory || ruleCategory || "uncategorised";
+}
+
 // Derive a stable merchant token to use as the matchText of a learned rule,
 // from a clean name field (merchantName/creditorName). Lowercases, drops
 // punctuation and pure-number tokens (store/branch numbers), keeps up to the
