@@ -28,6 +28,7 @@ type AccountWithBalances = {
   balanceType: string | null;
   cashAccountType: string | null;
   creditCard: boolean | null;
+  provider: string | null;
   balances: { type: string; amount: { toString(): string }; currency: string }[];
 };
 
@@ -52,6 +53,7 @@ function toAccountDTO(a: AccountWithBalances, txnSum = 0): AccountDTO {
     excludedBalance: a.excludedBalance != null ? Number(a.excludedBalance.toString()) : null,
     informational: a.informational,
     isCreditCard: isCreditCard({ creditCard: a.creditCard, cashAccountType: a.cashAccountType }),
+    provider: a.provider ?? null,
     balances: a.balances.map((b) => ({ type: b.type, amount: b.amount.toString(), currency: b.currency })),
   };
 }

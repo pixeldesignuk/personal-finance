@@ -373,6 +373,7 @@ export interface AccountDTO {
   informational: boolean;         // tracked & visible, but excluded from all totals
   balanceType: string | null;
   isCreditCard: boolean;
+  provider: string | null;        // investment provider key, e.g. "trading212" | "bitget"
   balances: AccountBalanceDTO[];
 }
 
