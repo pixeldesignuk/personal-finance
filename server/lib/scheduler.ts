@@ -1,5 +1,6 @@
 import { env } from "../env.ts";
 import { runFullSync } from "../routes/sync.ts";
+import { isWithinActiveHours, SYNC_TIMEZONE } from "./activeHours.ts";
 
 // In-process background sync. The app is a single always-on service, so a timer
 // here is simpler than an external cron and keeps everything (DB, env, Gmail
@@ -14,8 +15,20 @@ export function startSyncScheduler(): void {
     console.log("[scheduler] disabled (SYNC_INTERVAL_MINUTES=0)");
     return;
   }
-  console.log(`[scheduler] background full sync every ${minutes} min`);
+  // Daytime-only window (Europe/London) so we don't sync overnight — eases
+  // GoCardless rate limits and avoids needless 3am churn. Defaults 7am–11pm.
+  const startHour = Number(env.SYNC_ACTIVE_START_HOUR);
+  const endHour = Number(env.SYNC_ACTIVE_END_HOUR);
+  const gated = Number.isFinite(startHour) && Number.isFinite(endHour) && !(startHour === 0 && endHour === 24);
+  console.log(
+    `[scheduler] background full sync every ${minutes} min` +
+      (gated ? `, active ${startHour}:00–${endHour}:00 ${SYNC_TIMEZONE}` : ", 24h"),
+  );
   const tick = async () => {
+    if (gated && !isWithinActiveHours(new Date(), startHour, endHour)) {
+      console.log(`[scheduler] outside active hours (${startHour}:00–${endHour}:00 ${SYNC_TIMEZONE}) — skipping tick`);
+      return;
+    }
     if (running) { console.log("[scheduler] previous run still in progress — skipping tick"); return; }
     running = true;
     const t0 = Date.now();

@@ -21,6 +21,10 @@ const schema = z.object({
   // Background full-sync cadence (minutes). 0 disables the in-process scheduler.
   // Also what keeps the Gmail push watch renewed (it lapses after ~7 days).
   SYNC_INTERVAL_MINUTES: z.string().default("60"),
+  // Daily active window for the background sync (hours, Europe/London). Ticks
+  // outside [start, end) are skipped so it doesn't sync overnight. Default 7am–11pm.
+  SYNC_ACTIVE_START_HOUR: z.string().default("7"),
+  SYNC_ACTIVE_END_HOUR: z.string().default("23"),
   TRADING_212_KEY_ID: z.string().optional(),
   TRADING_212_SECRET: z.string().optional(),
   TRADING212_BASE_URL: z.string().optional(),
