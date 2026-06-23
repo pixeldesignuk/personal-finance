@@ -13,8 +13,15 @@ async function call<T>(method: string, body: unknown): Promise<T> {
 
 type SendResult = { ok: boolean; result?: { message_id: number } };
 
-export function sendMessage(chatId: number, text: string, replyMarkup?: unknown): Promise<SendResult> {
-  return call<SendResult>("sendMessage", { chat_id: chatId, text, reply_markup: replyMarkup });
+// replyToMessageId threads the reply under that message (e.g. the user's receipt
+// photo) so the result reads as attached to it. allow_sending_without_reply keeps
+// the send working if the original message was since deleted.
+export function sendMessage(chatId: number, text: string, replyMarkup?: unknown, replyToMessageId?: number): Promise<SendResult> {
+  return call<SendResult>("sendMessage", {
+    chat_id: chatId, text, reply_markup: replyMarkup,
+    reply_to_message_id: replyToMessageId,
+    allow_sending_without_reply: replyToMessageId != null ? true : undefined,
+  });
 }
 
 export function editMessageText(chatId: number, messageId: number, text: string, replyMarkup?: unknown) {

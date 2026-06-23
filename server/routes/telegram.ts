@@ -111,12 +111,13 @@ telegramRouter.post("/telegram/webhook", async (req, res) => {
         if (readingId) await deleteMessage(chatId, readingId).catch(() => undefined);
         const ok = result.startsWith("🧾");
         if (userMsgId) await setMessageReaction(chatId, userMsgId, ok ? "🎉" : "🤔").catch(() => undefined);
-        await sendMessage(chatId, result);
+        // Reply onto the user's photo so the receipt info reads as its caption.
+        await sendMessage(chatId, result, undefined, userMsgId);
       } catch (err) {
         console.error("telegram receipt error", err);
         if (readingId) await deleteMessage(chatId, readingId).catch(() => undefined);
         if (userMsgId) await setMessageReaction(chatId, userMsgId, "🤔").catch(() => undefined);
-        await sendMessage(chatId, "Couldn't read that receipt — try a clearer, well-lit photo.");
+        await sendMessage(chatId, "Couldn't read that receipt — try a clearer, well-lit photo.", undefined, userMsgId);
       }
       return;
     }
