@@ -1880,3 +1880,19 @@ button.bv2-row { width: 100%; font: inherit; text-align: left; border: 0; backgr
 .inv-h-val { font-size: 13.5px; font-weight: 640; }
 .inv-h-pnl { font-size: 11.5px; }
 .inv-panel-link { display: inline-flex; margin-top: 16px; }
+
+/* ── Add-account modal (chooser + investment provider/credential forms) ─── */
+.addacct-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 6px; }
+.addacct-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px; border: 1px solid var(--line-strong); border-radius: var(--r-sm); background: var(--surface-2); color: var(--ink); cursor: pointer; text-align: left; transition: border-color 0.14s ease, transform 0.14s ease; }
+.addacct-tile:hover { border-color: color-mix(in srgb, var(--jade) 45%, var(--line-strong)); transform: translateY(-1px); }
+.addacct-ico { display: inline-flex; color: var(--jade); margin-bottom: 4px; }
+.addacct-tname { font-size: 14px; font-weight: 650; letter-spacing: -0.01em; }
+.addacct-tsub { font-size: 11.5px; color: var(--ink-3); }
+.addacct-providers { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
+.addacct-provider { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: var(--r-sm); background: var(--surface-2); color: var(--ink); cursor: pointer; transition: border-color 0.14s ease; }
+.addacct-provider:hover { border-color: color-mix(in srgb, var(--jade) 45%, var(--line-strong)); }
+.addacct-pname { font-size: 14px; font-weight: 600; flex: 1; text-align: left; }
+.addacct-pkind { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 7px; border-radius: 99px; }
+.addacct-pkind.kind-crypto { color: var(--gold); background: color-mix(in srgb, var(--gold) 16%, transparent); }
+.addacct-pkind.kind-stocks { color: var(--jade); background: color-mix(in srgb, var(--jade) 16%, transparent); }
+.inv-panel-actions { display: flex; gap: 8px; margin-top: 16px; }

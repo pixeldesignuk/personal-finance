@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Wallet } from "lucide-react";
 import { api } from "../api.ts";
 import type { BankDTO, AccountDTO, AccountRecurringDTO } from "../../../shared/types.ts";
 import { formatMoney } from "../format.ts";
+import { providerMeta, providerLogoCandidates, KIND_LABEL } from "../../../shared/investmentMeta.ts";
 import { BrandLogo } from "../components/BrandLogo.tsx";
 import { CardMenu } from "../components/CardMenu.tsx";
+import { AddAccountModal } from "../components/AddAccountModal.tsx";
 import { PageHeader, EmptyState, Modal, Field, Toggle, useConfirm } from "../components/ui";
 
 const numOk = (s: string) => /^-?\d+(\.\d+)?$/.test(s.trim());
@@ -14,7 +15,6 @@ export default function Accounts() {
   const [banks, setBanks] = useState<BankDTO[]>([]);
   const [recurring, setRecurring] = useState<Record<string, AccountRecurringDTO>>({});
   const [msg, setMsg] = useState<string | null>(null);
-  const navigate = useNavigate();
   const confirm = useConfirm();
 
   const load = () => api.accounts().then(setBanks).catch((e) => setMsg(e.message));
@@ -24,15 +24,13 @@ export default function Accounts() {
   }, []);
   const wrap = async (fn: () => Promise<unknown>) => { try { await fn(); await load(); } catch (e) { setMsg((e as Error).message); } };
 
-  // Add-cash dialog.
+  // Unified add-account modal (bank / cash / investment).
   const [addOpen, setAddOpen] = useState(false);
-  const [addForm, setAddForm] = useState<{ name: string; type: "PERSONAL" | "BUSINESS"; value: string }>({ name: "", type: "PERSONAL", value: "0" });
-  const openAdd = () => { setAddForm({ name: "", type: "PERSONAL", value: "0" }); setAddOpen(true); };
-  const submitAdd = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!addForm.name.trim()) { setMsg("Enter a name"); return; }
-    const value = numOk(addForm.value) ? addForm.value.trim() : "0";
-    wrap(async () => { await api.createManualAccount({ name: addForm.name.trim(), type: addForm.type, source: "MANUAL", manualBalance: value }); setAddOpen(false); });
+
+  // Investment account actions.
+  const syncInvestment = (a: AccountDTO) => wrap(() => api.syncInvestmentAccount(a.id));
+  const disconnectInvestment = async (a: AccountDTO) => {
+    if (await confirm({ title: `Disconnect ${a.displayName}?`, body: "Removes the investment account and its holdings. Your API keys are deleted.", confirmLabel: "Disconnect", danger: true })) wrap(() => api.deleteManualAccount(a.id));
   };
 
   // Rename dialog.
@@ -87,9 +85,9 @@ export default function Accounts() {
     if (await confirm({ title: `Remove ${bank.institutionName}?`, body: "Deletes its stored transactions & balances.", confirmLabel: "Remove bank", danger: true })) wrap(() => api.removeBank(bank.requisitionId));
   };
 
-  // Banks + cash only — investments, assets and debts have their own spaces.
+  // Banks + cash + investments — assets and debts keep their own spaces.
   const cards = useMemo(
-    () => banks.filter((b) => !["INVESTMENT", "ASSET", "LIABILITY"].includes(b.status)).flatMap((bank) => bank.accounts.map((a) => ({ bank, a }))),
+    () => banks.filter((b) => !["ASSET", "LIABILITY"].includes(b.status)).flatMap((bank) => bank.accounts.map((a) => ({ bank, a }))),
     [banks],
   );
 
@@ -97,11 +95,8 @@ export default function Accounts() {
     <div>
       <PageHeader
         title="Accounts"
-        subtitle="Your bank & cash accounts. Investments, assets and debts live under Wealth."
-        actions={<>
-          <button onClick={openAdd}>Add cash</button>
-          <button className="btn-primary" onClick={() => navigate("/connect")}>Add bank</button>
-        </>}
+        subtitle="Your bank, cash & investment accounts. Assets and debts live under Wealth."
+        actions={<button className="btn-primary" onClick={() => setAddOpen(true)}>Add account</button>}
       />
       {msg && <p className="muted">{msg}</p>}
 
@@ -109,14 +104,19 @@ export default function Accounts() {
       <div className="grid acct-cards">
         {cards.map(({ bank, a }) => {
           const isCash = a.source === "MANUAL";
+          const isInvestment = a.source === "INVESTMENT";
+          const meta = isInvestment ? providerMeta(a.provider) : null;
+          const instLabel = isInvestment ? (meta ? KIND_LABEL[meta.kind] : "Investment") : isCash ? "Cash" : bank.institutionName;
           return (
             <div className="card acct-card" key={a.id}>
               <div className="acct-card-meta">
                 <span className="acct-inst-wrap">
-                  {isCash
+                  {isInvestment
+                    ? <BrandLogo name={meta?.label ?? a.displayName} src={meta ? providerLogoCandidates(meta.domain) : null} size={22} />
+                    : isCash
                     ? <span className="acct-cash-ico"><Wallet size={13} strokeWidth={2} /></span>
                     : <BrandLogo name={bank.institutionName} src={bank.institutionLogo} size={22} />}
-                  <span className="acct-inst">{isCash ? "Cash" : bank.institutionName}</span>
+                  <span className="acct-inst">{instLabel}</span>
                   {a.type === "BUSINESS" && <span className="acct-biz">Business</span>}
                   {a.informational && <span className="acct-biz" title="In net worth, but excluded from income, spending & budgeting">Not budgeted</span>}
                 </span>
@@ -124,6 +124,8 @@ export default function Accounts() {
                   <button type="button" onClick={() => openRename(a)}>Rename</button>
                   {(a.source === "BANK" || isCash) && <button type="button" onClick={() => openSettings(a)}>Settings…</button>}
                   {a.source === "BANK" && <button type="button" title="Re-approve at your bank and pull more transaction history" onClick={() => openReconnect(bank.institutionId, bank.institutionName)}>Reconnect</button>}
+                  {isInvestment && <button type="button" onClick={() => syncInvestment(a)}>Sync now</button>}
+                  {isInvestment && <button type="button" className="danger" onClick={() => disconnectInvestment(a)}>Disconnect</button>}
                   {isCash && <button type="button" className="danger" onClick={() => deleteCash(a)}>Delete</button>}
                   {a.source === "BANK" && <button type="button" className="danger" onClick={() => removeBank(bank)}>Remove bank</button>}
                 </CardMenu>
@@ -159,19 +161,7 @@ export default function Accounts() {
         })}
       </div>
 
-      <Modal open={addOpen} onClose={() => setAddOpen(false)}>
-        <form className="modal-body" onSubmit={submitAdd}>
-          <h3>Add cash account</h3>
-          <Field label="Name"><input value={addForm.name} onChange={(e) => setAddForm({ ...addForm, name: e.target.value })} autoFocus placeholder="e.g. Wallet, Savings jar" /></Field>
-          <Field label="Current balance (£)"><input inputMode="decimal" value={addForm.value} onChange={(e) => setAddForm({ ...addForm, value: e.target.value })} /></Field>
-          <Field label="Type">
-            <select value={addForm.type} onChange={(e) => setAddForm({ ...addForm, type: e.target.value as "PERSONAL" | "BUSINESS" })}>
-              <option value="PERSONAL">Personal</option><option value="BUSINESS">Business</option>
-            </select>
-          </Field>
-          <div className="modal-actions"><button type="button" onClick={() => setAddOpen(false)}>Cancel</button><button className="btn-primary" type="submit">Add</button></div>
-        </form>
-      </Modal>
+      <AddAccountModal open={addOpen} onClose={() => setAddOpen(false)} onAdded={load} />
 
       <Modal open={edit != null} onClose={() => setEdit(null)} size="sm">
         {edit && (

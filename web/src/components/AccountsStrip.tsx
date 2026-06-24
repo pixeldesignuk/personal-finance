@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bitcoin, CandlestickChart, CreditCard, LayoutGrid, Plus, TrendingUp, Wallet } from "lucide-react";
 import { api } from "../api.ts";
 import { formatCcy, formatGBP } from "../format.ts";
@@ -9,6 +9,7 @@ import { BrandLogo } from "./BrandLogo.tsx";
 import { HealthRing } from "./HealthRing.tsx";
 import { AccountHealthPanel } from "./AccountHealthPanel.tsx";
 import { InvestmentHoldingsPanel } from "./InvestmentHoldingsPanel.tsx";
+import { AddAccountModal } from "./AddAccountModal.tsx";
 
 // A horizontal, swipeable strip of account "chips" pinned to the top of the v2
 // dashboard — net worth as the lead chip, then one chip per bank/cash account,
@@ -30,6 +31,13 @@ export function AccountsStrip({ editing, onToggleEditing }: { editing?: boolean;
   );
   const [openId, setOpenId] = useState<string | null>(null);
   const [invId, setInvId] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const qc = useQueryClient();
+  const refreshAfterAdd = () => {
+    qc.invalidateQueries({ queryKey: ["accounts"] });
+    qc.invalidateQueries({ queryKey: ["summary"] });
+    qc.invalidateQueries({ queryKey: ["investments"] });
+  };
 
   // Investments are direct-integration (Trading 212 / Bitget), not bank-synced,
   // but they're real money and belong on the strip; assets/debts keep their own
@@ -115,11 +123,12 @@ export function AccountsStrip({ editing, onToggleEditing }: { editing?: boolean;
         );
       })}
 
-      <Link to="/connect" className="acct-chip add" role="listitem">
+      <button type="button" className="acct-chip add" role="listitem" onClick={() => setAddOpen(true)}>
         <span className="acct-chip-ico add"><Plus size={20} strokeWidth={2.4} /></span>
         <span className="acct-chip-name">Add account</span>
-      </Link>
+      </button>
       </div>
+      <AddAccountModal open={addOpen} onClose={() => setAddOpen(false)} onAdded={refreshAfterAdd} />
       {invId && <InvestmentHoldingsPanel accountId={invId} onClose={() => setInvId(null)} />}
       {openId && healthByAcct.get(openId) && (() => {
         const found = accounts.find(({ a }) => a.id === openId);

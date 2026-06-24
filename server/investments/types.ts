@@ -22,9 +22,12 @@ export interface InvestmentSnapshot {
   holdings: NormalizedHolding[];
 }
 
+// Credentials for a provider, as entered in the add-account form / stored in
+// Account.providerConfig (or resolved from legacy env). Shape is per-provider.
+export type ProviderCreds = Record<string, string>;
+
 export interface InvestmentProvider {
   key: string;         // "trading212"
   name: string;        // "Trading 212"
-  configured(): boolean;
-  fetchSnapshot(): Promise<InvestmentSnapshot>;
+  fetchSnapshot(creds: ProviderCreds): Promise<InvestmentSnapshot>;
 }

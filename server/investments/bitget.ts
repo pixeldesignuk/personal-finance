@@ -1,11 +1,11 @@
 import crypto from "node:crypto";
-import { env } from "../env.ts";
-import type { InvestmentProvider, InvestmentSnapshot, NormalizedHolding } from "./types.ts";
+import type { InvestmentProvider, InvestmentSnapshot, NormalizedHolding, ProviderCreds } from "./types.ts";
 
 // Bitget v2 (crypto). Signed requests: ACCESS-SIGN = base64(HMAC-SHA256(secret,
 // timestamp + METHOD + requestPath + (?query) + body)). Coin balances are valued
 // via public tickers (→ USDT) and converted to GBP, so they slot into net worth
-// the same way as Trading 212 equities.
+// the same way as Trading 212 equities. Credentials are passed in (from
+// Account.providerConfig or legacy env), not read from env here.
 const BASE = "https://api.bitget.com";
 const STABLE = new Set(["USDT", "USDC", "USD", "DAI", "TUSD", "FDUSD"]);
 
@@ -14,19 +14,19 @@ const num = (v: unknown): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
-function sign(ts: string, method: string, path: string, body = ""): string {
+function sign(secret: string, ts: string, method: string, path: string, body = ""): string {
   const prehash = ts + method.toUpperCase() + path + body;
-  return crypto.createHmac("sha256", env.BITGET_API_SECRET ?? "").update(prehash).digest("base64");
+  return crypto.createHmac("sha256", secret).update(prehash).digest("base64");
 }
 
-async function signedGet<T>(path: string): Promise<T> {
+async function signedGet<T>(creds: ProviderCreds, path: string): Promise<T> {
   const ts = Date.now().toString();
   const res = await fetch(BASE + path, {
     headers: {
-      "ACCESS-KEY": env.BITGET_API_KEY ?? "",
-      "ACCESS-SIGN": sign(ts, "GET", path),
+      "ACCESS-KEY": creds.apiKey ?? "",
+      "ACCESS-SIGN": sign(creds.apiSecret ?? "", ts, "GET", path),
       "ACCESS-TIMESTAMP": ts,
-      "ACCESS-PASSPHRASE": env.BITGET_PASSPHRASE ?? "",
+      "ACCESS-PASSPHRASE": creds.passphrase ?? "",
       "Content-Type": "application/json",
       locale: "en-US",
     },
@@ -36,9 +36,9 @@ async function signedGet<T>(path: string): Promise<T> {
   return json.data as T;
 }
 
-// USD≈USDT → GBP. Overridable via env; otherwise a free FX lookup, with a fallback.
-async function usdToGbp(): Promise<number> {
-  if (env.BITGET_USD_GBP) return num(env.BITGET_USD_GBP) || 0.79;
+// USD≈USDT → GBP. Overridable via creds; otherwise a free FX lookup, with a fallback.
+async function usdToGbp(creds: ProviderCreds): Promise<number> {
+  if (creds.usdGbp) return num(creds.usdGbp) || 0.79;
   try {
     const r = await fetch("https://api.frankfurter.app/latest?from=USD&to=GBP");
     const j = (await r.json()) as { rates?: { GBP?: number } };
@@ -51,15 +51,14 @@ async function usdToGbp(): Promise<number> {
 export const bitget: InvestmentProvider = {
   key: "bitget",
   name: "Bitget",
-  configured: () => Boolean(env.BITGET_API_KEY && env.BITGET_API_SECRET && env.BITGET_PASSPHRASE),
 
-  async fetchSnapshot(): Promise<InvestmentSnapshot> {
-    const assets = await signedGet<{ coin: string; available: string; frozen: string; locked: string }[]>("/api/v2/spot/account/assets");
+  async fetchSnapshot(creds: ProviderCreds): Promise<InvestmentSnapshot> {
+    const assets = await signedGet<{ coin: string; available: string; frozen: string; locked: string }[]>(creds, "/api/v2/spot/account/assets");
     const tickersRes = await fetch(`${BASE}/api/v2/spot/market/tickers`);
     const tickersJson = (await tickersRes.json()) as { data?: { symbol: string; lastPr: string }[] };
     const priceUsdt = new Map<string, number>();
     for (const t of tickersJson.data ?? []) priceUsdt.set(t.symbol, num(t.lastPr));
-    const rate = await usdToGbp();
+    const rate = await usdToGbp(creds);
 
     let totalUsd = 0;
     let cashUsd = 0;

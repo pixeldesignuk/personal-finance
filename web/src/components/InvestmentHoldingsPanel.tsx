@@ -1,18 +1,21 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api.ts";
 import { formatGBP } from "../format.ts";
 import { providerMeta, KIND_LABEL } from "../../../shared/investmentMeta.ts";
+import { useConfirm } from "./ui";
 
 const fmtQty = (q: number) => (Number.isInteger(q) ? String(q) : q.toFixed(q < 1 ? 6 : 4).replace(/0+$/, "").replace(/\.$/, ""));
 
 // A drawer (portalled to document.body, per the transformed-ancestor overlay
-// gotcha) showing one investment account's holdings + P/L. Tapped from an
-// investment chip in the accounts strip; investments have no health verdict, so
-// this stands in for the bank/cash health panel.
+// gotcha) showing one investment account's holdings + P/L, with sync/disconnect.
+// Tapped from an investment chip in the accounts strip; investments have no health
+// verdict, so this stands in for the bank/cash health panel.
 export function InvestmentHoldingsPanel({ accountId, onClose }: { accountId: string; onClose: () => void }) {
+  const qc = useQueryClient();
+  const confirm = useConfirm();
+  const [busy, setBusy] = useState<null | "sync" | "disconnect">(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", onKey);
@@ -22,6 +25,21 @@ export function InvestmentHoldingsPanel({ accountId, onClose }: { accountId: str
   const { data, isLoading } = useQuery({ queryKey: ["investments"], queryFn: () => api.investments() });
   const acct = data?.accounts.find((a) => a.id === accountId);
   const meta = providerMeta(acct?.provider);
+
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ["investments"] });
+    qc.invalidateQueries({ queryKey: ["accounts"] });
+    qc.invalidateQueries({ queryKey: ["summary"] });
+  };
+  const syncNow = async () => {
+    setBusy("sync");
+    try { await api.syncInvestmentAccount(accountId); refresh(); } finally { setBusy(null); }
+  };
+  const disconnect = async () => {
+    if (!await confirm({ title: `Disconnect ${acct?.name ?? "this account"}?`, body: "Removes the investment account and its holdings. Your API keys are deleted.", confirmLabel: "Disconnect", danger: true })) return;
+    setBusy("disconnect");
+    try { await api.deleteManualAccount(accountId); refresh(); onClose(); } finally { setBusy(null); }
+  };
 
   return createPortal(
     <div className="drawer-backdrop" onClick={onClose}>
@@ -61,7 +79,10 @@ export function InvestmentHoldingsPanel({ accountId, onClose }: { accountId: str
                 {acct.holdings.length === 0 && <li className="empty">No holdings.</li>}
               </ul>
 
-              <Link className="btn-sm inv-panel-link" to="/investments" onClick={onClose}>View all investments →</Link>
+              <div className="inv-panel-actions">
+                <button type="button" className="btn-sm" disabled={busy != null} onClick={syncNow}>{busy === "sync" ? "Syncing…" : "Sync now"}</button>
+                <button type="button" className="btn-sm danger" disabled={busy != null} onClick={disconnect}>{busy === "disconnect" ? "Disconnecting…" : "Disconnect"}</button>
+              </div>
             </>
           )}
         </div>

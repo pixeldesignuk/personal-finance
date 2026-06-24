@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "../lib/db.ts";
-import { PROVIDERS, getProvider } from "../investments/index.ts";
-import { syncProvider, syncAllInvestments } from "../investments/sync.ts";
+import { refreshInvestmentAccount, syncAllInvestments } from "../investments/sync.ts";
+import { INVESTMENT_PROVIDER_FORMS } from "../../shared/investmentMeta.ts";
 import type { InvestmentsDTO, InvestmentAccountDTO } from "../../shared/types.ts";
 
 export const investmentsRouter = Router();
@@ -34,8 +34,9 @@ async function toDTO(): Promise<InvestmentAccountDTO[]> {
 investmentsRouter.get("/investments", async (_req, res, next) => {
   try {
     const accounts = await toDTO();
+    const connected = new Set(accounts.map((a) => a.provider));
     const dto: InvestmentsDTO = {
-      providers: PROVIDERS.map((p) => ({ key: p.key, name: p.name, configured: p.configured() })),
+      providers: INVESTMENT_PROVIDER_FORMS.map((p) => ({ key: p.key, name: p.label, configured: connected.has(p.key) })),
       accounts,
       total: accounts.reduce((s, a) => s + a.total, 0),
     };
@@ -43,19 +44,21 @@ investmentsRouter.get("/investments", async (_req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// Sync every configured provider.
+// Sync every investment account (creds from each account's stored config / env).
 investmentsRouter.post("/investments/sync", async (_req, res, next) => {
   try {
     res.json({ results: await syncAllInvestments() });
   } catch (err) { next(err); }
 });
 
-// Pull the latest snapshot from one provider into its INVESTMENT account + holdings.
-investmentsRouter.post("/investments/:provider/sync", async (req, res, next) => {
+// Re-sync one investment account by id (multiple accounts can share a provider).
+investmentsRouter.post("/investments/account/:id/sync", async (req, res, next) => {
   try {
-    const provider = getProvider(req.params.provider);
-    if (!provider) { res.status(404).json({ error: "Unknown provider" }); return; }
-    if (!provider.configured()) { res.status(400).json({ error: `${provider.name} not configured — set its API key.` }); return; }
-    res.json(await syncProvider(provider));
+    const account = await db.account.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, source: true, provider: true, providerConfig: true, manualBalance: true },
+    });
+    if (!account || account.source !== "INVESTMENT") { res.status(404).json({ error: "Investment account not found" }); return; }
+    res.json(await refreshInvestmentAccount(account));
   } catch (err) { next(err); }
 });

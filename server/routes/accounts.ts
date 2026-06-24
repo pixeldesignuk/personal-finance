@@ -10,6 +10,9 @@ import { manualTxnSums, accountTxnSum } from "../lib/manualBalance.ts";
 import { effectiveCategory } from "../lib/effectiveCategory.ts";
 import { merchantToken } from "../categorise/helpers.ts";
 import { monthOf } from "../lib/budget.ts";
+import { getProvider } from "../investments/index.ts";
+import { validateCreds } from "../investments/creds.ts";
+import { createInvestmentAccount } from "../investments/sync.ts";
 import { classifyMerchant, coefficientOfVariation, median, type RecurType } from "../lib/merchants.ts";
 import { rawMerchantName } from "../../shared/merchantName.ts";
 import type { AccountDTO, BankDTO, AccountRecurringDTO, AccountHealthDTO } from "../../shared/types.ts";
@@ -279,6 +282,31 @@ accountsRouter.post("/accounts/manual", async (req, res, next) => {
   }
 });
 
+// Connect a direct-integration investment provider (Trading 212, Bitget) as an
+// account: validate the API keys by pulling a live snapshot first, and only
+// persist (account + plaintext creds + holdings) if that succeeds. One account
+// per provider (id inv-<provider>); re-submitting re-keys it.
+accountsRouter.post("/accounts/investment", async (req, res, next) => {
+  try {
+    const body = z.object({ provider: z.string(), config: z.record(z.string(), z.unknown()).default({}), name: z.string().max(60).optional() }).parse(req.body);
+    const driver = getProvider(body.provider);
+    if (!driver) { res.status(404).json({ error: "Unknown provider" }); return; }
+    const v = validateCreds(body.provider, body.config);
+    if (!v.ok) { res.status(400).json({ error: v.error }); return; }
+    let snap;
+    try {
+      snap = await driver.fetchSnapshot(v.creds);
+    } catch (err) {
+      res.status(400).json({ error: `Couldn't connect to ${driver.name}: ${err instanceof Error ? err.message.slice(0, 200) : String(err)}` });
+      return;
+    }
+    const id = await createInvestmentAccount(body.provider, v.creds, snap, body.name);
+    res.json({ id, total: snap.totalValue, holdings: snap.holdings.length });
+  } catch (err) {
+    next(err);
+  }
+});
+
 accountsRouter.patch("/accounts/:id", async (req, res, next) => {
   try {
     const body = z
@@ -344,7 +372,7 @@ accountsRouter.delete("/accounts/:id", async (req, res, next) => {
       res.status(404).json({ error: "Account not found" });
       return;
     }
-    if (!["MANUAL", "ASSET", "LIABILITY"].includes(account.source)) {
+    if (!["MANUAL", "ASSET", "LIABILITY", "INVESTMENT"].includes(account.source)) {
       res.status(400).json({ error: "Use DELETE /api/banks/:requisitionId for bank accounts" });
       return;
     }

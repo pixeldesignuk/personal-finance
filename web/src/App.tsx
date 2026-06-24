@@ -1,4 +1,4 @@
-import { Link, NavLink, Route, Routes } from "react-router-dom";
+import { Link, NavLink, Navigate, Route, Routes } from "react-router-dom";
 import Connect from "./pages/Connect.tsx";
 import Callback from "./pages/Callback.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
@@ -10,7 +10,6 @@ import Accounts from "./pages/Accounts.tsx";
 import Budgets from "./pages/Budgets.tsx";
 import BudgetsHome from "./pages/BudgetsHome.tsx";
 import Reports from "./pages/Reports.tsx";
-import Investments from "./pages/Investments.tsx";
 import Debts from "./pages/Debts.tsx";
 import Savings from "./pages/Savings.tsx";
 import Assets from "./pages/Assets.tsx";
@@ -39,7 +38,6 @@ export default function App() {
           <NavMenu label="Savings" to="/savings" items={[
             { to: "/savings", label: "Savings" },
             { to: "/accounts", label: "Accounts" },
-            { to: "/investments", label: "Investments" },
             { to: "/assets", label: "Assets" },
             { to: "/debts", label: "Debts" },
           ]} />
@@ -57,7 +55,7 @@ export default function App() {
           <Route path="/budgets" element={<BudgetsHome />} />
           <Route path="/budgets/v1" element={<Budgets />} />
           <Route path="/reports" element={<Reports />} />
-          <Route path="/investments" element={<Investments />} />
+          <Route path="/investments" element={<Navigate to="/accounts" replace />} />
           <Route path="/debts" element={<Debts />} />
           <Route path="/savings" element={<Savings />} />
           <Route path="/assets" element={<Assets />} />

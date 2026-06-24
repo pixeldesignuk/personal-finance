@@ -137,6 +137,7 @@ model Account {
   targetPayment Decimal?       // planned next payment toward a debt (may be partial)
   debtExcluded  Boolean  @default(false) // hide from the Debt screen focus (e.g. long-term mortgage)
   provider      String?        // investment provider key, e.g. "trading212", "bitget"
+  providerConfig Json?         // plaintext provider credentials (server-only, never sent to the client)
   createdAt     DateTime       @default(now())
   balances      Balance[]
   transactions  Transaction[]

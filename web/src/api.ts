@@ -147,7 +147,9 @@ export const api = {
   disconnectGmail: () => send<{ ok: boolean }>("POST", "/api/plugins/gmail/disconnect"),
   registerTelegram: () => send<{ ok: boolean; url: string; description: string | null }>("POST", "/api/plugins/telegram/register"),
   investments: () => get<InvestmentsDTO>("/api/investments"),
-  syncInvestment: (provider: string) => send<{ provider: string; total: number; holdings: number }>("POST", `/api/investments/${provider}/sync`),
+  connectInvestment: (provider: string, config: Record<string, string>, name?: string) =>
+    send<{ id: string; total: number; holdings: number }>("POST", "/api/accounts/investment", { provider, config, ...(name ? { name } : {}) }),
+  syncInvestmentAccount: (id: string) => send<{ provider: string; total: number; holdings: number }>("POST", `/api/investments/account/${id}/sync`),
   syncInvestments: () => send<{ results: { provider: string; total: number; holdings: number }[] }>("POST", "/api/investments/sync"),
   dashboard: (accountId?: string, month?: string) => {
     const parts = [acctQuery(accountId), month ? `month=${month}` : ""].filter(Boolean);
